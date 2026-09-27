@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+data/*
+!data/personal-vendors.example.json
+*.plugin
+*.zip

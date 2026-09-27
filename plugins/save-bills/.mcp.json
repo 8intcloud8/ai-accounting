@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "save-bills": {
+      "command": "/bin/sh",
+      "args": [
+        "mcp-server/launch.sh",
+        "--stdio"
+      ],
+      "cwd": "."
+    }
+  }
+}

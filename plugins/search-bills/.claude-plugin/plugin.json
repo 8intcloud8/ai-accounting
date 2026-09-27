@@ -1,0 +1,5 @@
+{
+  "name": "search-bills",
+  "version": "0.6.0",
+  "description": "Find Gmail bills, invoices, and receipts and show an interactive checklist. Saving is provided by the separate save-bills plugin."
+}

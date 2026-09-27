@@ -1,0 +1,33 @@
+{
+  "name": "save-bills-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone MCP server that saves Gmail MCP bill attachments locally",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "esbuild main.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/server.mjs --banner:js='import{createRequire as __cr}from\"module\";const require=__cr(import.meta.url);'",
+    "serve": "tsx main.ts",
+    "serve:stdio": "tsx main.ts --stdio",
+    "test": "node --import tsx --test lib/*.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "puppeteer": "^25.9.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.0",
+    "@types/node": "22.10.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "license": "MIT"
+}

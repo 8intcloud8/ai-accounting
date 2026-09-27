@@ -1,0 +1,23 @@
+{
+  "name": "save-bills",
+  "version": "1.0.0",
+  "description": "Save Gmail MCP bill attachments directly to disk without relaying PDF bytes through the model.",
+  "author": {
+    "name": "Save Bills contributors"
+  },
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Save Bills",
+    "shortDescription": "Stream Gmail bills directly to disk",
+    "longDescription": "Saves selected Gmail attachments through temporary MCP file links, converts inline receipts to PDF, and writes a manifest without passing PDF bytes through model context.",
+    "developerName": "Save Bills contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Save the selected Gmail bills to my Bills folder."
+    ]
+  }
+}

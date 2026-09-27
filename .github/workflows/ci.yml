@@ -1,0 +1,27 @@
+name: Validate plugins
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  node-plugins:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        plugin: [search-bills, save-bills]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: plugins/${{ matrix.plugin }}/mcp-server
+    env:
+      PUPPETEER_SKIP_DOWNLOAD: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: plugins/${{ matrix.plugin }}/mcp-server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test --if-present
+      - run: npm run build

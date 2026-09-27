@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+*.pdf
+manifest.csv
+Bills/
+data/
+*token*.json
+*token*.txt
+*.zip
+*.plugin

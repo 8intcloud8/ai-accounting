@@ -1,0 +1,43 @@
+{
+  "name": "bill-search-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local MCP bill checklist using host-supplied Gmail metadata",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build:ui": "cross-env INPUT=mcp-app.html vite build",
+    "build": "npm run build:ui && npm run build:server",
+    "serve": "tsx main.ts",
+    "serve:stdio": "tsx main.ts --stdio",
+    "dev": "cross-env NODE_ENV=development concurrently \"vite build --watch\" \"tsx watch main.ts\"",
+    "build:server": "esbuild main.ts --bundle --platform=node --format=esm --target=node20 --outfile=dist/server.mjs --banner:js='import{createRequire as __cr}from\"module\";const require=__cr(import.meta.url);'"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.7.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.0",
+    "@types/node": "22.10.0",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3",
+    "vite": "^6.0.0",
+    "vite-plugin-singlefile": "^2.3.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT"
+}
