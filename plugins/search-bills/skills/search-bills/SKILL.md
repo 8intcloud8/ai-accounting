@@ -141,7 +141,7 @@ the checklist. The category and date range shown in the checklist are a read
 only summary of the completed search. For a different search, the user asks in
 chat. If the search fails or times out, show a concise error and retry action.
 
-`search_bills` ships a UI resource (`ui://bill-checklist/mcp-app.html`) that
+`search_bills` ships a UI resource (`ui://bill-checklist/v2/mcp-app.html`) that
 mounts automatically **only on hosts that render third-party MCP Apps**. On
 hosts that don't, the tool result arrives as plain JSON and the user gets no
 checkboxes.

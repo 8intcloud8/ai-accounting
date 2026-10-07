@@ -86,7 +86,7 @@ const searchBillsOutput = {
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: "bill-search-app", version: "1.0.0" });
-  const resourceUri = "ui://bill-checklist/mcp-app.html";
+  const resourceUri = "ui://bill-checklist/v2/mcp-app.html";
 
   registerAppTool(
     server,
