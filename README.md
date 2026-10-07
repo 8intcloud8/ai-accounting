@@ -7,6 +7,7 @@ Accounting assistant skills and local MCP plugins, licensed under MIT.
 | Plugin | Purpose |
 |---|---|
 | [Search Bills](plugins/search-bills/README.md) | Find Gmail bill candidates and show a checklist, with configurable personal-vendor exclusions. |
+| [Bank Statement Extractor](plugins/extract-bankstatement/README.md) | Extract local bank statements to CSV, validate balances, and print a summary. |
 | [Save Bills](plugins/save-bills/README.md) | Save selected attachments and inline receipts locally, with a CSV manifest. |
 
 Each plugin is independently built and installed. Gmail access comes from your assistant's connected Gmail tools. No Xero integration is included.
@@ -32,6 +33,10 @@ ai-accounting/
     search-bills/
       skills/search-bills/SKILL.md
       mcp-server/
+    extract-bankstatement/
+      skills/extract-bankstatement/SKILL.md
+      agents/
+      requirements.txt
     save-bills/
       skills/save-bills/SKILL.md
       mcp-server/

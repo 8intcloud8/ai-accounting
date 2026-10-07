@@ -1,0 +1,6 @@
+{
+  "name": "extract-bankstatement",
+  "displayName": "Bank Statement Extractor",
+  "version": "1.0.0",
+  "description": "Extracts and combines bank statements (CSV, Excel, PDF) from multiple banks into one standardised CSV with columns: date, description, debit, credit, file. Uses three intelligent subagents (mapper, extractor, validator) in a loop to handle varying statement formats per bank."
+}
