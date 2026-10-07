@@ -136,12 +136,10 @@ same broad payload without addressing the failure.
 
 ### Rendering the checklist
 
-Do not expose an intermediate or persistent loading form to the user. The
-search form must not be rendered with a `Searching...` button or a
-`Searching Gmail...` spinner as the final result. Wait for the Gmail search
-and `search_bills` call to finish before rendering the checklist. If the
-search fails or times out, replace the loading state with a concise error and
-the retry action; never leave the form stuck in a loading state.
+Wait for the Gmail search and `search_bills` call to finish before rendering
+the checklist. The category and date range shown in the checklist are a read
+only summary of the completed search. For a different search, the user asks in
+chat. If the search fails or times out, show a concise error and retry action.
 
 `search_bills` ships a UI resource (`ui://bill-checklist/mcp-app.html`) that
 mounts automatically **only on hosts that render third-party MCP Apps**. On
@@ -183,10 +181,6 @@ the `show_widget` fallback fired. Save **only** the listed ids; any row the
 user unticked must not be saved. Handle it exactly like the Save case below,
 reusing the `category`, `dateRangeTag`, and root folder from the run that
 produced the checklist.
-
-**"Search bills: category=X, date_from=Y, date_to=Z"** — the user changed
-the form and clicked Search again. Repeat State 2 with the new arguments,
-then call `search_bills` again (same shape as before).
 
 **"Save these N bill(s) to root folder "..." (category: ..., date range:
 ..., thread ids: id1, id2, ...)"** — save only selected thread IDs. Prefer

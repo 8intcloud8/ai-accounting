@@ -4,17 +4,12 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { BillTable } from "./components/BillTable";
-import { SearchForm, type SearchArgs } from "./components/SearchForm";
 import { SaveSummary } from "./components/SaveSummary";
 import { ProgressState } from "./components/ProgressState";
-import type { BillCategory, SaveBillsStructured, SearchBillsStructured } from "./types";
+import type { SaveBillsStructured, SearchBillsStructured } from "./types";
 import styles from "./mcp-app.module.css";
 
 const DEFAULT_ROOT_FOLDER = "~/Documents/Bills";
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function isSearchResult(sc: unknown): sc is SearchBillsStructured {
   return !!sc && typeof sc === "object" && Array.isArray((sc as Record<string, unknown>).bills);
@@ -28,21 +23,13 @@ function isSaveResult(sc: unknown): sc is SaveBillsStructured {
 
 // This app has no Gmail access of its own (sandboxed iframe) — only the
 // agent can fetch Gmail data, using its own connected Gmail tools. So
-// "Search" and "Save selected" hand control back to the agent via
-// sendMessage rather than calling search_bills/save_bills directly; the
-// agent gathers what's needed and calls the tool itself, which pushes the
-// result back here via ontoolresult.
-type Phase = "connecting" | "pending-search" | "pending-save" | "results" | "saved" | "error";
+// "Save selected" hands control back to the agent via sendMessage.
+type Phase = "connecting" | "pending-save" | "results" | "saved";
 
 function BillSearchApp() {
   const [hostContext, setHostContext] = useState<McpUiHostContext | undefined>();
   const [phase, setPhase] = useState<Phase>("connecting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [searchArgs, setSearchArgs] = useState<SearchArgs>({
-    category: "personal",
-    dateFrom: "",
-    dateTo: todayIso(),
-  });
   const [searchResult, setSearchResult] = useState<SearchBillsStructured | null>(null);
   const [saveResult, setSaveResult] = useState<SaveBillsStructured | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -53,14 +40,13 @@ function BillSearchApp() {
     if (result.isError) {
       const text = result.content?.find((c) => c.type === "text")?.text;
       setErrorMessage(text ?? "Tool call failed.");
-      setPhase((p) => (p === "connecting" ? "results" : "results"));
+      setPhase("results");
       return;
     }
     const sc = result.structuredContent;
     if (isSearchResult(sc)) {
       setSearchResult(sc);
       setSelected(new Set(sc.bills.map((b) => b.threadId)));
-      setSearchArgs({ category: sc.category, dateFrom: sc.dateFrom, dateTo: sc.dateTo });
       setErrorMessage(null);
       setPhase("results");
     } else if (isSaveResult(sc)) {
@@ -74,17 +60,6 @@ function BillSearchApp() {
     appInfo: { name: "Bill Checklist", version: "1.0.0" },
     capabilities: {},
     onAppCreated: (app) => {
-      app.ontoolinput = async (input) => {
-        const args = input as Partial<{ category: BillCategory; date_from: string; date_to: string }>;
-        if (args.category || args.date_from || args.date_to) {
-          setSearchArgs((prev) => ({
-            category: args.category ?? prev.category,
-            dateFrom: args.date_from ?? prev.dateFrom,
-            dateTo: args.date_to ?? prev.dateTo,
-          }));
-        }
-      };
-
       app.ontoolresult = async (result) => {
         applyToolResult(result);
       };
@@ -164,7 +139,7 @@ function BillSearchApp() {
     return <ProgressState label="Connecting…" />;
   }
 
-  const busy = phase === "pending-search" || phase === "pending-save";
+  const busy = phase === "pending-save";
 
   return (
     <main
@@ -181,12 +156,16 @@ function BillSearchApp() {
         <p className={styles.subtitle}>Multi-pass Gmail search for bills, invoices, and receipts.</p>
       </div>
 
-      <SearchForm args={searchArgs} onChange={setSearchArgs} />
+      {searchResult && (
+        <p className={styles.searchScope}>
+          {searchResult.category === "bills" ? "Bills" : searchResult.category === "business" ? "Business" : "Personal"}
+          {" · "}{searchResult.dateFrom} to {searchResult.dateTo}
+        </p>
+      )}
 
       {errorMessage && <p className={styles.errorText}>{errorMessage}</p>}
 
       {phase === "connecting" && !searchResult && <ProgressState label="Waiting for search results…" />}
-      {phase === "pending-search" && <ProgressState label="Searching Gmail…" />}
 
       {searchResult && phase !== "connecting" && phase !== "saved" && (
         <>

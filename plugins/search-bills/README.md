@@ -42,7 +42,7 @@ On Windows, launch `node` directly with the absolute path to `mcp-server/dist/se
 
 ## Use
 
-Ask: “Find business bills from my connected Gmail accounts for 1 July to 30 September 2026.” Supply category and dates when missing. Review candidates and configured exclusions before saving. Selecting Save sends a request back to the assistant; it requires the separate saving plugin.
+Ask: “Find business bills from my connected Gmail accounts for 1 July to 30 September 2026.” Supply category and dates when missing. The checklist shows the completed search's category and dates as a read only summary; ask in chat to run a different search. Review candidates and configured exclusions before saving. Selecting Save sends a request back to the assistant; it requires the separate saving plugin.
 
 ## Personal-vendor filter
 
