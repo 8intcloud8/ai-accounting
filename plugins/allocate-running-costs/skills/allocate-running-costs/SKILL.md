@@ -1,0 +1,99 @@
+---
+name: allocate-running-costs
+description: Calculate and document business/private allocations for electricity, home internet and phone bills, keeping company reimbursement, income-tax deductions and BAS GST eligibility separate. Use for mixed-use utility bills and home-office running costs.
+---
+
+# Allocate running costs
+
+Produce a traceable allocation from bills and usage evidence. Keep payment matching independent: a full bill can match a full payment even when only part relates to business. Read `references/ato-guidance.md` for the relevant rules and refresh linked ATO guidance for the applicable period before final tax treatment.
+
+## Establish context
+
+Reuse answers already provided. Ask only missing inputs, grouped into concise questions:
+
+- Entity/business ID, company versus sole trader, reporting period, GST registration and cash/accrual GST basis.
+- Bill recipient, actual payer, company payment/reimbursement evidence and date, and whether the same cost is included in another personal/business claim.
+- Actual utility service dates, amounts, printed GST and tariff(s), plus source documents. A payment receipt is not a substitute for the underlying utility bill.
+- Business-use records: AC operating hours by heating/cooling, relevant equipment input or metered consumption, shared-space/private use; for phone/internet, a representative usage record and the method for calculating business share.
+
+Pending answers do not prevent a draft calculation. They do prevent treating the result as an eligible BAS credit. Being a sole director/worker is not evidence of 100% business use. Confirm whose return the proposed deduction belongs to; avoid double claims for reimbursements or expenses covered by an income-tax fixed-rate method.
+
+## Calculate electricity
+
+Use the actual-cost method when requested. Calculate evidenced business energy for lighting, equipment and heating/cooling separately, then reconcile to the source usage charges.
+
+For each usage/tariff segment:
+
+`cost = electrical_input_kW × actual_operating_hours × price_per_kWh × justified_shared_use_factor`
+
+- Prefer metered attributable energy where available: `business_kWh × tariff`.
+- Electrical input is not cooling/heating capacity; indoor-unit wattage alone omits the outdoor compressor. Rated inverter input produces an estimate unless its use as representative consumption is supported.
+- Work hours are not automatically AC operating hours. Split heating/cooling and tariff periods, exclude leave/non-use, and account for shared users.
+- Apply an area/shared-use factor only where justified by how the appliance serves the space. Do not automatically apply an office-area percentage to every appliance or the entire household bill. Avoid applying the same adjustment twice.
+- A billed controlled-load rate belongs only to the associated circuit. Use the correct general tariff for ordinary equipment; do not use an old tariff across a later quarter without evidence.
+- Keep supply charges separate; do not include them automatically in a usage-based estimate. Discount/rebate adjustments require source-supported treatment; flag unresolved credits.
+- Never allocate more than the relevant invoiced costs. Reconcile any discrepancy; do not silently cap an inconsistent calculation.
+
+Record amounts and rates with decimal arithmetic; retain precision through intermediate steps and round final AUD amounts to cents. Distinguish GST-inclusive and exclusive inputs. No tax claim is derived solely from a rounded weekly estimate.
+
+## Calculate internet and phone
+
+Use the business share supported by relevant usage evidence, including other household users. For an ordinary uniformly priced mixed-use bill:
+
+`allocated_cost = relevant_bill_cost × evidenced_business_share`
+
+Document the measurement basis (business calls/data/time or another supported measure), representative period, family/private share and excluded periods. Use itemised charges when usage is directly identifiable. An office-area factor or working-hours fraction is not automatically an internet/phone business-use percentage. Do not invent a standard percentage.
+
+## Assess GST and income tax separately
+
+Maintain four independent statuses: extraction, payment matching, allocation evidence and GST eligibility.
+
+- Retain printed GST as source evidence; unknown GST stays null. Do not mark missing GST as GST-free or invent one-eleventh merely because the supplier is Australian.
+- With a supported uniformly taxable allocation, allocate source GST consistently to the eligible business portion. For an attributable GST-inclusive taxable energy cost, use one-eleventh only after establishing that treatment from valid source evidence. Mixed-tax/credit items require item-level treatment.
+- Establish GST registration, acquisition/reimbursement entitlement and tax-invoice evidence. Personal payment alone does not establish a company GST credit. A director reimbursement needs evidence and its own timing assessment.
+- Apply the confirmed cash/accrual basis and reimbursement rules to attribution; do not use service dates alone as BAS dates. If timing or entitlement is unresolved, leave the BAS amount pending.
+- For income tax, identify the correct entity and supported business cost separately. Where entitled to an input tax credit, exclude that credit from the deduction. Not claiming a credit yet does not prove GST is deductible.
+
+For uncertain claims, retain the gross allocated cost and evidence, with `gst_credit_cents: null` and a reason. Do not block payment matching merely because GST is unresolved.
+
+## Save and report
+
+Ask for or reuse the user's accounting workspace; use the selected accounting workspace consistently. For exports use `output/YYYY-MM-DD/` beneath that workspace, using the user's local date. Never overwrite an existing result; choose a new filename.
+
+Store a JSON allocation record and a readable CSV/report with: business ID, invoice/source IDs, service/report periods, actual inputs and units, allocation method and factor, amount/tax basis, allocated cost, private balance where computable, reimbursement/payment evidence, GST amount/status, income-tax entity/status, unresolved issues, ATO links and calculation date. Record each bill once; aggregate without duplicating invoice/payment/reimbursement amounts.
+
+## Persistent workflow
+
+Use the bundled helper `scripts/accounting_store.py`, resolved relative to this skill directory. Reuse the same database location and business ID as the imported invoices; honour `AI_ACCOUNTING_DB`. Do not create a parallel database for an existing workflow.
+
+1. Read saved rules: `python3 <helper> allocation-rules --business "<ID>"`. Prefer stored rules to asking the user again. The store creates schema version 5 automatically on the first write, preserving bank/invoice/payment records.
+2. For a new or changed user instruction, write a rule JSON and run `save-allocation-rule --rule <JSON>`. Rule versions are append-only; retain provenance/evidence and effective dates. Never silently promote `user_stated` or `provisional` to `supported`. Overlapping date changes require separate allocation segments. Example percentage rule:
+
+```json
+{"business_id":"<ID>","supplier_key":"example-mobile-provider","category":"mobile","method":"percentage","business_percent":"<supported percentage>","effective_from":"2026-07-01","effective_to":null,"evidence_status":"user_stated","provenance":"User confirmed the stated business percentage; company pays bills; usage evidence pending"}
+```
+
+An electricity estimate uses `supplier_key: example-energy-provider`, `category: electricity`, `method: weekly_estimate`, `weekly_amount: "<supported weekly amount>"`, `evidence_status: provisional` and its supporting assumptions in `provenance`. The amount is the already allocated business cost: do not apply the same business-use adjustment again. These are user-specific examples, not default rules shipped to every user. Save them only when authorised in the conversation.
+
+3. Retrieve the source invoices using `invoices --business <ID>`. Calculate and persist with `allocate-running-costs --request <JSON>`:
+
+```json
+{"business_id":"<ID>","supplier_key":"example-mobile-provider","category":"mobile","invoice_id":5,"period_start":"2026-07-01","period_end":"2026-09-30"}
+```
+
+The helper takes invoice amounts and GST from storage; request values cannot override them. Missing currency/source review permits a draft, not an eligible GST credit. Rules match the documented supplier, not filenames. Percentage allocations cover the full relevant invoice once; do not create duplicate period allocations for that invoice. Reverse an allocation using `correct-record` with kind allocation, id and reason before replacement. Reverse dependent journals first; history is retained.
+
+For a weekly estimate, omit `invoice_id` when no valid source invoice is available and provide `active_weeks` excluding leave/non-use (if omitted, calendar weeks are used and must remain provisional). Estimates without source invoices have no computed private remainder or GST claim. An invoice-linked estimate may not exceed its amount; do not link a whole-quarter estimate to one shorter bill.
+
+For `electricity_actual`, save an electricity rule with that method and submit `segments`: each needs `appliance_id`, `start`, `end`, `input_kw`, `hours`, `rate_per_kwh`, `business_percent`, and `evidence`. Inputs are GST-inclusive; heating/cooling/changed tariffs for one appliance use non-overlapping dated segments. Set `usage_supported` only after source verification. Claim candidates require `uniform_gst_taxable` and printed source GST; unknown tax remains unknown.
+
+4. GST stays pending by default. To assess eligibility, provide a `gst_eligibility` object only when verified: `gst_registered`, `company_acquisition_verified`, `tax_invoice_verified`, `business_use_verified`, `uniform_tax_verified` (all true), `basis` (cash/accrual), `attribution_date`, and `evidence`. The allocation rule must be supported and invoice verified in AUD. Cash-basis credits are limited to confirmed payment allocations in the reporting period. Reimbursement-only cases need separate verified attribution and must not be fabricated as invoice payments. Later tax review uses the audited correction/replacement workflow; do not bypass conflicts by changing dates/IDs.
+
+5. Read `allocations --business <ID>` for results. Export with `allocations --business <ID> --output <workspace>/output/<local-date>/running-costs.csv`, creating the dated folder first. The CSV stores integer cents with explicit column names; present dollars in chat. Existing files are not overwritten. The output includes rule IDs, calculation inputs, business/private amounts, candidate/eligible GST, status and issues. SQLite retains immutable request/result snapshots and rule versions.
+
+
+Print in chat: bill amount, supported business allocation, method, GST status, remaining questions and saved file locations. Do not submit BAS or change tax returns as part of this skill.
+
+## Shared runtime
+
+Use the Python executable at `<suite>/.venv/bin/python` when installed, otherwise the host Python 3.11+ runtime. Source files are copied into the workspace documents directory and hash verified. Relative evidence paths survive moving the complete workspace. The canonical runtime is maintained once in `accounting_core/` and bundled automatically for standalone plugins.

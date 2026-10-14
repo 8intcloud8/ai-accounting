@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import { viteSingleFile } from "vite-plugin-singlefile";
+import { viteSingleFile } from "./build/singlefile.mjs";
 
 const INPUT = process.env.INPUT;
 if (!INPUT) {

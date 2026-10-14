@@ -1,0 +1,89 @@
+{
+  "name": "ai-accounting",
+  "plugins": [
+    {
+      "name": "accounting-workflow",
+      "source": {
+        "source": "local",
+        "path": "./plugins/accounting-workflow"
+      }
+    },
+    {
+      "name": "allocate-running-costs",
+      "source": {
+        "source": "local",
+        "path": "./plugins/allocate-running-costs"
+      }
+    },
+    {
+      "name": "classify-transactions",
+      "source": {
+        "source": "local",
+        "path": "./plugins/classify-transactions"
+      }
+    },
+    {
+      "name": "extract-bankstatement",
+      "source": {
+        "source": "local",
+        "path": "./plugins/extract-bankstatement"
+      }
+    },
+    {
+      "name": "extract-invoice",
+      "source": {
+        "source": "local",
+        "path": "./plugins/extract-invoice"
+      }
+    },
+    {
+      "name": "match-payments",
+      "source": {
+        "source": "local",
+        "path": "./plugins/match-payments"
+      }
+    },
+    {
+      "name": "prepare-bas",
+      "source": {
+        "source": "local",
+        "path": "./plugins/prepare-bas"
+      }
+    },
+    {
+      "name": "reconcile-accounts",
+      "source": {
+        "source": "local",
+        "path": "./plugins/reconcile-accounts"
+      }
+    },
+    {
+      "name": "save-bills",
+      "source": {
+        "source": "local",
+        "path": "./plugins/save-bills"
+      }
+    },
+    {
+      "name": "search-bills",
+      "source": {
+        "source": "local",
+        "path": "./plugins/search-bills"
+      }
+    },
+    {
+      "name": "setup-accounting",
+      "source": {
+        "source": "local",
+        "path": "./plugins/setup-accounting"
+      }
+    },
+    {
+      "name": "tax-report",
+      "source": {
+        "source": "local",
+        "path": "./plugins/tax-report"
+      }
+    }
+  ]
+}

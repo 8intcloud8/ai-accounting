@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "schema": 5,
+  "sha256": {
+    "accounting_store.py": "b72cc311c3ddef9e0b7bd2e6b57098a1c861241fd2be74b92bd3e2b215c74bfe",
+    "allocation_store.py": "eb571f9f93ea30b8f94cf2d7fac58c9271c72157cbd6b4da3763041b42b7e6ed",
+    "invoice_store.py": "9db4ea811037d21fc931863fb809720361976908061b9e708a51b79c081d515e",
+    "payment_store.py": "ff9a9c0df3c49c1e7c8a1e769cb77d5306dcd4d325d1329d533c22336ddbae2e",
+    "product_store.py": "63dcdf2eecd9cd6b3d1034e7132cbb6e815986050cb97c73c44ef425ed7b3a93"
+  }
+}

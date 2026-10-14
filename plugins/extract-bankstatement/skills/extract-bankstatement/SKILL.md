@@ -35,7 +35,27 @@ pip install pdfplumber openpyxl --break-system-packages
 - If `approved`: keep the rows for the combined output.
 - **Cap at 3 rounds total per file.** If still not approved after 3 rounds, skip the file and warn the user which file failed and why.
 
-**6. Write output.** Append all approved rows to `<folder>/<FY>.csv` (e.g. `bankstatements/FY25-AU.csv`). If the file already exists, append without duplicating rows already present. **Never move or delete the original source files.**
+**6. Save approved records automatically.** SQLite is internal assistant memory; never ask the user to install, create, or manage a database. `scripts/accounting_store.py` creates `the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`)` on the first approved import. All runs reuse that location; `AI_ACCOUNTING_DB` is an internal override for separate workspaces.
+
+- Identify the bank account from verified source information. Reuse the same stable identifier across files and runs. If absent, ask which account the statement belongs to; never invent one or use the filename as account identity. Only AUD imports are currently supported; stop for other currencies.
+- After the validator approves a file, save its rows as an internal JSON file with `decision: "approved"`, `rows: [...]`, and `issues: []`. Never label unvalidated rows approved.
+- Import the full approved source rows (before financial-year filtering):
+
+```sh
+python3 scripts/accounting_store.py import --source "<original statement>" --approved "<approved JSON>" --account "<stable account ID>"
+```
+
+- The script validates every row before writing, saves amounts as integer cents, and atomically saves the source hash, import history, transactions, and source links. A failure must be reported; never claim data was saved if the command fails.
+- Identical source reimports are skipped. Changed extracted rows for an already imported source require explicit correction; never delete old history to force reimport.
+- Matching rows in a different source are ambiguous without bank transaction IDs. The script rejects the entire import for review instead of silently discarding legitimate payments. Repeated identical rows within one file are retained. Report the conflict; do not alter descriptions or account IDs to bypass it. Exact source reimports are safely skipped.
+- Exclude generated CSV exports from source discovery. Preserve source files.
+- Retrieve the deduplicated records for the requested financial-year dates and create a fresh CSV export. If the destination exists, choose a new filename; the exporter refuses to overwrite files:
+
+```sh
+python3 scripts/accounting_store.py export --account "<stable account ID>" --start "<YYYY-MM-DD>" --end "<YYYY-MM-DD>" --output "<folder>/<FY>.csv"
+```
+
+Omit `--account` only when exporting all imported accounts intentionally. Use `summary` for aggregate totals and `transactions` for relevant dated records in later conversations. Those commands are read-only and do not create missing storage. Do not add opening/closing balance claims to database summaries; use separately verified source balances.
 
 **7. Print a summary directly in chat.** This is mandatory, including single-file tests. A file link or subagent JSON alone is not a completed response. The parent agent converts internal JSON into a readable summary:
 
@@ -51,3 +71,7 @@ For multiple files, also print a compact table with one row per file: filename, 
 ## NAB transaction listings
 
 The inspector and extractor automatically recognise text-based NAB Transaction Listing PDFs. They use printed column positions, retain continuation descriptions, and require summary totals and every running balance to reconcile. Map `Date`, `Details`, `Debits`, and `Credits` to the standard fields; dates use `%d %b %y`. Other PDF layouts still need independent validation.
+
+## Shared runtime
+
+Use the Python executable at `<suite>/.venv/bin/python` when installed, otherwise the host Python 3.11+ runtime. Source files are copied into the workspace documents directory and hash verified. Relative evidence paths survive moving the complete workspace. The canonical runtime is maintained once in `accounting_core/` and bundled automatically for standalone plugins.

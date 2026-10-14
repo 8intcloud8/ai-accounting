@@ -12,3 +12,15 @@ Bills/
 *token*.txt
 *.zip
 *.plugin
+
+# Local accounting data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+__pycache__/
+*.pyc
+
+.venv/
+profile.json
+accounting-workspace.json

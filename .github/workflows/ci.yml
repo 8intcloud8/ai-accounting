@@ -25,3 +25,19 @@ jobs:
       - run: npm run typecheck
       - run: npm run test --if-present
       - run: npm run build
+
+  accounting:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -v
+        env:
+          PYTHONPATH: accounting_core
+      - run: python scripts/build_release.py --output /tmp/accounting-release
+      - run: git diff --exit-code -- plugins .agents
