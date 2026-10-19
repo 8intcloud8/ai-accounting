@@ -1,5 +1,19 @@
 {
   "name": "prepare-bas",
   "version": "0.1.0",
-  "description": "Produce an Australian Simpler BAS GST review workpaper from reviewed local ledger entries and list missing evidence."
+  "description": "Produce an Australian Simpler BAS GST review workpaper from reviewed local ledger entries and list missing evidence.",
+  "interface": {
+    "displayName": "Prepare BAS",
+    "shortDescription": "Produce an Australian Simpler BAS GST review workpaper from reviewed local ledger entries and list missing evidence.",
+    "longDescription": "Drafts a Simpler BAS G1/1A/1B GST review workpaper from reviewed ledger entries and lists any evidence still missing before it's review-ready.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Prepare a draft BAS workpaper for this quarter."
+    ]
+  }
 }

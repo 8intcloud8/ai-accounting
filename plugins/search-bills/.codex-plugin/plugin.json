@@ -3,5 +3,18 @@
   "version": "0.6.0",
   "description": "Find Gmail bills, invoices, and receipts and show an interactive checklist. Saving is provided by the separate save-bills plugin.",
   "skills": "./skills/",
-  "mcpServers": "./.mcp.json"
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Search Bills",
+    "shortDescription": "Find Gmail bills, invoices, and receipts and show an interactive checklist.",
+    "longDescription": "Searches your connected Gmail account for bills, invoices and receipts across keyword, attachment, label and forwarded-mail passes, and shows an interactive checklist to select from. Saving is provided by the separate Save Bills plugin.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Find my bills and receipts from the last 3 months."
+    ]
+  }
 }

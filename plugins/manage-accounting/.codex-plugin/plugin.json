@@ -1,5 +1,19 @@
 {
   "name": "manage-accounting",
   "version": "0.1.0",
-  "description": "Continue a local accounting period, show saved progress and route to the next accounting plugin."
+  "description": "Continue a local accounting period, show saved progress and route to the next accounting plugin.",
+  "interface": {
+    "displayName": "Manage Accounting",
+    "shortDescription": "Continue a local accounting period, show saved progress and route to the next accounting plugin.",
+    "longDescription": "Shows what's done and what's outstanding for the current accounting period, and routes you to the right plugin to continue.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Show me what's outstanding for this accounting period."
+    ]
+  }
 }

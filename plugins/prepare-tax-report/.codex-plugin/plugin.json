@@ -1,5 +1,19 @@
 {
   "name": "prepare-tax-report",
   "version": "0.1.0",
-  "description": "Produce a local bookkeeping trial balance and income/expense workpaper for annual tax review."
+  "description": "Produce a local bookkeeping trial balance and income/expense workpaper for annual tax review.",
+  "interface": {
+    "displayName": "Prepare Tax Report",
+    "shortDescription": "Produce a local bookkeeping trial balance and income/expense workpaper for annual tax review.",
+    "longDescription": "Builds a trial balance and income/expense workpaper for the financial year, ready for your accountant's annual tax review.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Prepare my annual tax workpaper."
+    ]
+  }
 }

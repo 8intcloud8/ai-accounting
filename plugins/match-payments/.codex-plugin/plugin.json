@@ -2,5 +2,19 @@
   "name": "match-payments",
   "displayName": "Match Payments",
   "version": "1.1.0",
-  "description": "Propose and save confirmed matches between invoices and bank payments."
+  "description": "Propose and save confirmed matches between invoices and bank payments.",
+  "interface": {
+    "displayName": "Match Payments",
+    "shortDescription": "Propose and save confirmed matches between invoices and bank payments.",
+    "longDescription": "Proposes matches between imported invoices and bank transactions, and saves confirmed payment links for use in GST and allocation workpapers.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Match this invoice to its bank payment."
+    ]
+  }
 }

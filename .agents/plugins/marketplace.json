@@ -1,88 +1,141 @@
 {
   "name": "ai-accounting",
+  "interface": {
+    "displayName": "AI Accounting"
+  },
   "plugins": [
     {
       "name": "allocate-running-costs",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/allocate-running-costs"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "classify-transactions",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/classify-transactions"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "extract-bankstatement",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/extract-bankstatement"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "extract-invoice",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/extract-invoice"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "manage-accounting",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/manage-accounting"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "match-payments",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/match-payments"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "prepare-bas",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/prepare-bas"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "prepare-tax-report",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/prepare-tax-report"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "reconcile-accounts",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/reconcile-accounts"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     },
     {
       "name": "save-bills",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/save-bills"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_FIRST_USE"
       }
     },
     {
       "name": "search-bills",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/search-bills"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_FIRST_USE"
       }
     },
     {
       "name": "setup-accounting",
+      "category": "Productivity",
       "source": {
         "source": "local",
         "path": "./plugins/setup-accounting"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT"
       }
     }
   ]

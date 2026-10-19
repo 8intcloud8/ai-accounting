@@ -1,5 +1,19 @@
 {
   "name": "classify-transactions",
   "version": "0.1.0",
-  "description": "Review income, expense, transfer and loan classifications and post balanced accounting entries with GST evidence."
+  "description": "Review income, expense, transfer and loan classifications and post balanced accounting entries with GST evidence.",
+  "interface": {
+    "displayName": "Classify Transactions",
+    "shortDescription": "Review income, expense, transfer and loan classifications and post balanced accounting entries with GST evidence.",
+    "longDescription": "Reviews bank transactions, classifies them as income, expense, transfer or loan, and posts balanced double-entry journals with explicit GST evidence.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Classify my unclassified bank transactions."
+    ]
+  }
 }

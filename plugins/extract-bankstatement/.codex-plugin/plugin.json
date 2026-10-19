@@ -2,5 +2,19 @@
   "name": "extract-bankstatement",
   "displayName": "Bank Statement Extractor",
   "version": "1.3.0",
-  "description": "Extract and validate bank statements into CSV and local SQLite storage."
+  "description": "Extract and validate bank statements into CSV and local SQLite storage.",
+  "interface": {
+    "displayName": "Bank Statement Extractor",
+    "shortDescription": "Extract and validate bank statements into CSV and local SQLite storage.",
+    "longDescription": "Extracts transactions from a bank statement, validates them, and imports them into the local accounting workspace for reconciliation and classification.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Import this bank statement."
+    ]
+  }
 }

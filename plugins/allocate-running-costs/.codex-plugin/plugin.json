@@ -2,5 +2,19 @@
   "name": "allocate-running-costs",
   "displayName": "Allocate Running Costs",
   "version": "1.2.0",
-  "description": "Calculate business and personal shares of utility and running costs with evidence and GST status."
+  "description": "Calculate business and personal shares of utility and running costs with evidence and GST status.",
+  "interface": {
+    "displayName": "Allocate Running Costs",
+    "shortDescription": "Calculate business and personal shares of utility and running costs with evidence and GST status.",
+    "longDescription": "Calculates the business-use share of electricity, mobile and internet costs — and ATO fixed-rate home-office deduction workpapers — against saved rules and evidence, with GST eligibility tracked explicitly.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Allocate the business-use share of this month's electricity bill."
+    ]
+  }
 }

@@ -4,6 +4,12 @@ A local Codex accounting suite for Australian bookkeeping, BAS preparation and a
 
 ## Install
 
+### Codex Desktop (one click)
+
+Open the Plugins Directory in Codex Desktop and add this repository (`8intcloud8/ai-accounting`) as a marketplace source. All 12 plugins are marked `INSTALLED_BY_DEFAULT`, so adding the marketplace is the only step — no per-plugin install clicks needed. Then ask: **“Set up AI Accounting for my business.”** Gmail connection for `search-bills`/`save-bills` is requested on first use, not at install time. Python 3.11+ must still be available on your machine; Email plugins also require Node/npm.
+
+### Manual / other hosts
+
 Download and extract a release into a permanent folder. Open it in Codex and ask: **“Set up AI Accounting for my business.”** Codex uses the setup-accounting skill to gather your workspace and business details, install dependencies, and register separate plugins. Python 3.11+ must be available from your computer or assistant host. Email plugins also require Node/npm and a connected Gmail account. The installer creates a private Python environment; SQLite needs no server or separate installation.
 
 For an operator running setup directly:

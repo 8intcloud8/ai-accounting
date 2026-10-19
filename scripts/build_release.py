@@ -44,16 +44,30 @@ def build(root, output):
                 )
                 + "\n"
             )
+        category = metadata.get("interface", {}).get("category", "Productivity")
+        policy = {"installation": "INSTALLED_BY_DEFAULT"}
+        if "mcpServers" in metadata:
+            policy["authentication"] = "ON_FIRST_USE"
         entries.append(
             {
                 "name": metadata["name"],
+                "category": category,
                 "source": {"source": "local", "path": "./plugins/" + plugin.name},
+                "policy": policy,
             }
         )
     marketplace = root / ".agents/plugins/marketplace.json"
     marketplace.parent.mkdir(parents=True, exist_ok=True)
     marketplace.write_text(
-        json.dumps({"name": "ai-accounting", "plugins": entries}, indent=2) + "\n"
+        json.dumps(
+            {
+                "name": "ai-accounting",
+                "interface": {"displayName": "AI Accounting"},
+                "plugins": entries,
+            },
+            indent=2,
+        )
+        + "\n"
     )
     if output:
         output.mkdir(parents=True, exist_ok=True)
