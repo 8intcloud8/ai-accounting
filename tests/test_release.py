@@ -70,6 +70,7 @@ class ReleaseTests(unittest.TestCase):
                 "--codex-home",
                 str(codex),
                 "--local-only",
+                "--register-only",
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
             config = tomllib.loads((codex / "config.toml").read_text())

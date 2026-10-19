@@ -244,12 +244,6 @@ def allocate(path: Path, request: dict, connect) -> dict:
                     ):
                         raise ValueError("Overlapping appliance segments")
                 units.add((appliance, a, b))
-                hours = decimal_value(segment.get("hours"), "Operating hours")
-                if (
-                    hours
-                    > ((date.fromisoformat(b) - date.fromisoformat(a)).days + 1) * 24
-                ):
-                    raise ValueError("Operating hours exceed segment duration")
                 share = (
                     decimal_value(
                         segment.get("business_percent"), "Shared-use percentage"
@@ -258,9 +252,26 @@ def allocate(path: Path, request: dict, connect) -> dict:
                 )
                 if share > 1:
                     raise ValueError("Percentage exceeds 100")
+                if "metered_kwh" in segment:
+                    if "input_kw" in segment or "hours" in segment:
+                        raise ValueError(
+                            "Use metered energy OR power and operating hours, not both"
+                        )
+                    energy = decimal_value(segment["metered_kwh"], "Metered kWh")
+                else:
+                    hours = decimal_value(segment.get("hours"), "Operating hours")
+                    if (
+                        hours
+                        > ((date.fromisoformat(b) - date.fromisoformat(a)).days + 1)
+                        * 24
+                    ):
+                        raise ValueError("Operating hours exceed segment duration")
+                    energy = (
+                        decimal_value(segment.get("input_kw"), "Electrical input")
+                        * hours
+                    )
                 raw += (
-                    decimal_value(segment.get("input_kw"), "Electrical input")
-                    * hours
+                    energy
                     * decimal_value(segment.get("rate_per_kwh"), "Tariff")
                     * share
                 )

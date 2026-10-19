@@ -2,13 +2,6 @@
   "name": "ai-accounting",
   "plugins": [
     {
-      "name": "accounting-workflow",
-      "source": {
-        "source": "local",
-        "path": "./plugins/accounting-workflow"
-      }
-    },
-    {
       "name": "allocate-running-costs",
       "source": {
         "source": "local",
@@ -37,6 +30,13 @@
       }
     },
     {
+      "name": "manage-accounting",
+      "source": {
+        "source": "local",
+        "path": "./plugins/manage-accounting"
+      }
+    },
+    {
       "name": "match-payments",
       "source": {
         "source": "local",
@@ -48,6 +48,13 @@
       "source": {
         "source": "local",
         "path": "./plugins/prepare-bas"
+      }
+    },
+    {
+      "name": "prepare-tax-report",
+      "source": {
+        "source": "local",
+        "path": "./plugins/prepare-tax-report"
       }
     },
     {
@@ -76,13 +83,6 @@
       "source": {
         "source": "local",
         "path": "./plugins/setup-accounting"
-      }
-    },
-    {
-      "name": "tax-report",
-      "source": {
-        "source": "local",
-        "path": "./plugins/tax-report"
       }
     }
   ]

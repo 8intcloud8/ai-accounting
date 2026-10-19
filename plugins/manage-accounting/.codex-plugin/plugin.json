@@ -1,0 +1,5 @@
+{
+  "name": "manage-accounting",
+  "version": "0.1.0",
+  "description": "Continue a local accounting period, show saved progress and route to the next accounting plugin."
+}

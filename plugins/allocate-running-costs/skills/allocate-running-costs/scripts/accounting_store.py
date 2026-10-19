@@ -30,6 +30,7 @@ from allocation_store import (
     list_allocations,
     export_allocations,
 )
+from running_cost_workpapers import WORKPAPER_SCHEMA, save_fixed, list_fixed
 from payment_store import PAYMENT_SCHEMA, propose, confirm
 from invoice_store import INVOICE_SCHEMA, import_invoices, read_invoices
 
@@ -119,6 +120,7 @@ def connect(path: Path) -> sqlite3.Connection:
             + PAYMENT_SCHEMA
             + ALLOCATION_SCHEMA
             + PRODUCT_SCHEMA
+            + WORKPAPER_SCHEMA
             + "\nPRAGMA user_version=5;\nCOMMIT;"
         )
         path.chmod(0o600)
@@ -253,11 +255,20 @@ def main() -> None:
     allocations_command = sub.add_parser("allocations")
     allocations_command.add_argument("--business", required=True)
     allocations_command.add_argument("--output", type=Path)
+    fixed_command = sub.add_parser("calculate-fixed-running-costs")
+    fixed_command.add_argument("--request", type=Path, required=True)
+    fixed_list = sub.add_parser("running-cost-workpapers")
+    fixed_list.add_argument("--business", required=True)
+    fixed_list.add_argument("--output", type=Path)
     add_commands(sub)
     args = parser.parse_args()
     try:
         if args.command in COMMANDS:
             result = dispatch(args, connect)
+        elif args.command == "calculate-fixed-running-costs":
+            result = save_fixed(args.db, json.loads(args.request.read_text()), connect)
+        elif args.command == "running-cost-workpapers":
+            result = list_fixed(args.db, args.business, args.output)
         elif args.command == "save-allocation-rule":
             result = save_rule(args.db, json.loads(args.rule.read_text()), connect)
         elif args.command == "allocation-rules":

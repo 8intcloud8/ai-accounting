@@ -17,11 +17,7 @@ This skill orchestrates three subagents per file — `bank-mapper`, `bank-extrac
 
 **2. Ask the user:** "Which financial year? (e.g. FY25-AU)"
 
-**3. Install dependencies:**
-
-```
-pip install pdfplumber openpyxl --break-system-packages
-```
+**3. Resolve dependencies:** Use the suite's isolated Python environment created by `scripts/install.py --dependencies`. For a standalone installation, create a dedicated virtual environment and install `pdfplumber` and `openpyxl` there. Never change system Python packages or use `--break-system-packages`. Reuse an existing compatible environment when available.
 
 **4. List and identify files.** List all CSV/Excel/PDF files in the folder. Identify which are actual bank statements — skip anything that's clearly an invoice, bill, or receipt (those aren't statements and belong to a different workflow).
 
@@ -35,7 +31,7 @@ pip install pdfplumber openpyxl --break-system-packages
 - If `approved`: keep the rows for the combined output.
 - **Cap at 3 rounds total per file.** If still not approved after 3 rounds, skip the file and warn the user which file failed and why.
 
-**6. Save approved records automatically.** SQLite is internal assistant memory; never ask the user to install, create, or manage a database. `scripts/accounting_store.py` creates `the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`)` on the first approved import. All runs reuse that location; `AI_ACCOUNTING_DB` is an internal override for separate workspaces.
+**6. Save approved records automatically.** SQLite is internal assistant memory; never ask the user to install, create, or manage a database. `scripts/accounting_store.py` creates the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`) on the first approved import. All runs reuse that location; `AI_ACCOUNTING_DB` is an internal override for separate workspaces.
 
 - Identify the bank account from verified source information. Reuse the same stable identifier across files and runs. If absent, ask which account the statement belongs to; never invent one or use the filename as account identity. Only AUD imports are currently supported; stop for other currencies.
 - After the validator approves a file, save its rows as an internal JSON file with `decision: "approved"`, `rows: [...]`, and `issues: []`. Never label unvalidated rows approved.

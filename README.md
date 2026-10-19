@@ -19,7 +19,7 @@ Use `--local-only` for local statements and invoices without Gmail plugins. Prof
 | Plugin | Role |
 |---|---|
 | setup-accounting | Workspace and business setup |
-| accounting-workflow | Resume a period and show outstanding work |
+| manage-accounting | Resume a period and show outstanding work |
 | search-bills | Find Gmail documents |
 | save-bills | Save selected documents |
 | extract-bankstatement | Extract/import bank transactions |
@@ -29,7 +29,7 @@ Use `--local-only` for local statements and invoices without Gmail plugins. Prof
 | classify-transactions | Post balanced ledger entries with GST evidence |
 | reconcile-accounts | Reconcile statement opening/closing balances |
 | prepare-bas | Draft G1/1A/1B GST workpaper |
-| tax-report | Trial balance and annual accounting workpaper |
+| prepare-tax-report | Trial balance and annual accounting workpaper |
 
 Each plugin has one skill. All reuse the same local workspace. Gmail search/save are optional. No Xero account is required.
 

@@ -7,6 +7,7 @@ builds Gmail plugins using an available Node/npm. No database server is needed.
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -30,7 +31,18 @@ def main():
         action="store_true",
         help="Omit Gmail search/save plugins and Node requirement",
     )
+    parser.add_argument(
+        "--register-only",
+        action="store_true",
+        help="Write configuration only for packaging checks; does not install plugins",
+    )
     args = parser.parse_args()
+    args.codex_home = args.codex_home.expanduser().resolve()
+    codex = shutil.which("codex")
+    if not args.register_only and not codex:
+        parser.error(
+            "Codex CLI is required to install plugins. Install Codex, then rerun."
+        )
     root = Path(__file__).resolve().parents[1]
     workspace = args.workspace.expanduser().resolve()
     database = workspace / "db/accounting.db"
@@ -41,6 +53,37 @@ def main():
     config = args.codex_home / "config.toml"
     old = config.read_text() if config.exists() else ""
     tomllib.loads(old)
+    marketplace = {
+        "plugins": [
+            json.loads(p.read_text())
+            for p in sorted((root / "plugins").glob("*/.codex-plugin/plugin.json"))
+        ]
+    }
+    plugins = [
+        e["name"]
+        for e in marketplace["plugins"]
+        if not (args.local_only and e["name"] in ("search-bills", "save-bills"))
+    ]
+    # Validate existing choices before native installation or configuration changes.
+    updated = old
+    existing = tomllib.loads(old)
+    if "ai-accounting" not in existing.get("marketplaces", {}):
+        updated += (
+            '\n[marketplaces.ai-accounting]\nsource_type = "local"\nsource = '
+            + json.dumps(str(root))
+            + "\n"
+        )
+    elif existing["marketplaces"]["ai-accounting"].get("source") != str(root):
+        raise ValueError(
+            "Existing ai-accounting marketplace points elsewhere; update that install in place"
+        )
+    for name in plugins:
+        key = name + "@ai-accounting"
+        if key not in existing.get("plugins", {}):
+            updated += "\n[plugins." + json.dumps(key) + "]\nenabled = true\n"
+        elif not existing["plugins"][key].get("enabled"):
+            raise ValueError(f"{key} is disabled; enable explicitly in Codex")
+    tomllib.loads(updated)
     if args.dependencies:
         env = root / ".venv"
         venv.EnvBuilder(with_pip=True).create(env)
@@ -80,35 +123,44 @@ def main():
             check=True,
         )
     subprocess.run([sys.executable, str(root / "scripts/build_release.py")], check=True)
-    marketplace = json.loads((root / ".agents/plugins/marketplace.json").read_text())
-    plugins = [
-        e["name"]
-        for e in marketplace["plugins"]
-        if not (args.local_only and e["name"] in ("search-bills", "save-bills"))
-    ]
-    updated = old
-    existing = tomllib.loads(old)
-    if "ai-accounting" not in existing.get("marketplaces", {}):
-        updated += (
-            '\n[marketplaces.ai-accounting]\nsource_type = "local"\nsource = '
-            + json.dumps(str(root))
-            + "\n"
-        )
-    elif existing["marketplaces"]["ai-accounting"].get("source") != str(root):
-        raise ValueError(
-            "Existing ai-accounting marketplace points elsewhere; update that install in place"
-        )
-    for name in plugins:
-        key = name + "@ai-accounting"
-        if key not in existing.get("plugins", {}):
-            updated += "\n[plugins." + json.dumps(key) + "]\nenabled = true\n"
-        elif not existing["plugins"][key].get("enabled"):
-            raise ValueError(f"{key} is disabled; enable explicitly in Codex")
-    tomllib.loads(updated)
     config.parent.mkdir(parents=True, exist_ok=True)
-    temp = config.with_suffix(".accounting.tmp")
-    temp.write_text(updated)
-    temp.replace(config)
+    if args.register_only:
+        temp = config.with_suffix(".accounting.tmp")
+        temp.write_text(updated)
+        temp.replace(config)
+    else:
+        environment = dict(os.environ, CODEX_HOME=str(args.codex_home))
+
+        def run_codex(*arguments):
+            result = subprocess.run(
+                [codex, "plugin", *arguments, "--json"],
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return json.loads(result.stdout)
+
+        run_codex("marketplace", "add", str(root))
+        for name in plugins:
+            installed = run_codex("add", name + "@ai-accounting")
+            location = Path(installed["installedPath"])
+            skills = list((location / "skills").glob("*/SKILL.md"))
+            if len(skills) != 1:
+                raise RuntimeError(
+                    f"{name}: expected one installed skill, found {len(skills)}"
+                )
+        discovered = run_codex("list", "--marketplace", "ai-accounting")
+        enabled = {
+            item["name"]
+            for item in discovered["installed"]
+            if item.get("installed") and item.get("enabled")
+        }
+        missing = set(plugins) - enabled
+        if missing:
+            raise RuntimeError(
+                f"Plugins not enabled after installation: {sorted(missing)}"
+            )
     # A host-specific selector alongside config; plugins resolve this before defaults.
     selector = args.codex_home / "accounting-workspace.json"
     selector.parent.mkdir(parents=True, exist_ok=True)
@@ -117,9 +169,15 @@ def main():
     print(
         json.dumps(
             {
-                "installed_plugins": plugins,
+                (
+                    "registered_plugins" if args.register_only else "installed_plugins"
+                ): plugins,
                 "workspace": str(workspace),
-                "next": "Open a new Codex chat. Ask: prepare my accounting period.",
+                "next": (
+                    "Configuration written only; rerun without --register-only to install."
+                    if args.register_only
+                    else "Open a new Codex chat. Ask: prepare my accounting period."
+                ),
             },
             indent=2,
         )

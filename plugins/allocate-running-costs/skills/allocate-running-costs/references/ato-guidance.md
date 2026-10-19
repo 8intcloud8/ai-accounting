@@ -1,6 +1,6 @@
 # ATO guidance
 
-Researched 12 October 2026. Recheck relevant guidance for the period before finalisation. These are paraphrases, not universal allocation percentages.
+Researched 12 October 2026; fixed-rate guidance refreshed 15 October 2026. Recheck relevant guidance for the period before finalisation. These are paraphrases, not universal allocation percentages.
 
 ## Actual costs and usage records
 
@@ -19,3 +19,11 @@ Researched 12 October 2026. Recheck relevant guidance for the period before fina
 [ATO GSTR 2001/3, employee reimbursements](https://www.ato.gov.au/law/view/document?docid=GST/GSTR20013/NAT/ATO/00001): reimbursement-related GST credits have specific conditions. Holding an employee's qualifying tax invoice can meet documentation requirements; an unsupported weekly estimate is not reimbursement evidence.
 
 [ATO working-from-home guidance](https://www.ato.gov.au/individuals-and-families/income-deductions-offsets-and-records/deductions-you-can-claim/working-from-home-expenses): compare actual-cost and applicable fixed-rate methods only for an eligible taxpayer. Refresh current-year rates. Do not use an income-tax cents-per-hour rate to calculate a BAS GST credit or separately deduct costs already covered by that rate.
+
+## Fixed-rate comparison
+
+[ATO fixed-rate method](https://smallbusiness.taxsuperandyou.gov.au/claiming-deductions-for-your-home-based-business/revised-fixed-rate-method), accessed 15 October 2026: the displayed 70 cents/hour bundles electricity, gas heating, internet, phone, stationery and computer consumables. The rate is reviewed yearly; verify the applicable income year rather than treating the display as confirmation for 2026–27. Actual hours must be recorded for the entire income year; extrapolated hours are not accepted. Retain evidence of each covered expense incurred. No additional separate deduction for a covered category, including phone use outside the home. Asset depreciation is separately calculated where eligible. The hourly deduction does not establish an electricity-only allocation, company reimbursement entitlement or GST credit.
+
+[PCG 2023/1, paragraphs 49–50](https://www.ato.gov.au/law/view/document?DocID=COG%2FPCG20231%2FNAT%2FATO%2F00001&PiT=99991231235958): the claimant must incur one or more deductible additional running expenses. If a third party incurs or reimburses all additional running expenses, this criterion is not met. Some employer-paid/reimbursed categories do not by themselves exclude eligibility where other eligible additional expenses remain unreimbursed. Do not confuse initial payment with ultimately bearing the expense. This nuanced rule overrides an overly broad suggestion that any reimbursement prevents fixed-rate eligibility.
+
+Company/business reimbursement and an individual's income-tax deduction are separate calculations. Confirm the actual arrangement; a company paying only the business portion is not paying the private remainder. Do not automatically use an individual's hourly deduction to substantiate a company reimbursement. GST entitlement requires actual acquisition/reimbursement evidence, independently of this income-tax method.
