@@ -45,9 +45,12 @@ def build(root, output):
                 + "\n"
             )
         category = metadata.get("interface", {}).get("category", "Productivity")
-        policy = {"installation": "INSTALLED_BY_DEFAULT"}
-        if "mcpServers" in metadata:
-            policy["authentication"] = "ON_FIRST_USE"
+        # Codex's marketplace schema only recognizes ON_INSTALL/ON_USE; defer
+        # auth for MCP plugins that need an external connection (e.g. Gmail).
+        policy = {
+            "installation": "INSTALLED_BY_DEFAULT",
+            "authentication": "ON_USE" if "mcpServers" in metadata else "ON_INSTALL",
+        }
         entries.append(
             {
                 "name": metadata["name"],

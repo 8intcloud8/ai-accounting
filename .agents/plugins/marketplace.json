@@ -12,7 +12,8 @@
         "path": "./plugins/allocate-running-costs"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -23,7 +24,8 @@
         "path": "./plugins/classify-transactions"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -34,7 +36,8 @@
         "path": "./plugins/extract-bankstatement"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -45,7 +48,8 @@
         "path": "./plugins/extract-invoice"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -56,7 +60,8 @@
         "path": "./plugins/manage-accounting"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -67,7 +72,8 @@
         "path": "./plugins/match-payments"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -78,7 +84,8 @@
         "path": "./plugins/prepare-bas"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -89,7 +96,8 @@
         "path": "./plugins/prepare-tax-report"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -100,7 +108,8 @@
         "path": "./plugins/reconcile-accounts"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     },
     {
@@ -112,7 +121,7 @@
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_FIRST_USE"
+        "authentication": "ON_USE"
       }
     },
     {
@@ -124,7 +133,7 @@
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_FIRST_USE"
+        "authentication": "ON_USE"
       }
     },
     {
@@ -135,7 +144,8 @@
         "path": "./plugins/setup-accounting"
       },
       "policy": {
-        "installation": "INSTALLED_BY_DEFAULT"
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
       }
     }
   ]

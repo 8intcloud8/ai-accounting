@@ -6,7 +6,7 @@ Separate plugins distributed as a suite; canonical runtime and generated copies;
 
 ## Public release gates
 
-- Run the installer in a fresh Codex profile with host plugin discovery. Config-file registration alone does not establish runtime discovery in every host version. The marketplace manifest and all 12 plugin manifests now declare `interface`/`category`/`policy.installation: INSTALLED_BY_DEFAULT` metadata per the documented Codex Desktop schema, but this has not yet been click-tested against the live Plugins Directory.
+- Run the installer in a fresh Codex profile with host plugin discovery. Config-file registration alone does not establish runtime discovery in every host version. The marketplace manifest and all 12 plugin manifests declare `interface`/`category`/`policy` metadata verified against the real Codex marketplace parser (`openai/codex` `core-plugins/src/marketplace.rs`: `installation` ∈ {AVAILABLE, INSTALLED_BY_DEFAULT, NOT_AVAILABLE}, `authentication` ∈ {ON_INSTALL, ON_USE}); a marketplace-sourced install self-builds the two Gmail MCP servers on first launch since `dist/` is gitignored. None of this has been click-tested against the live Desktop Plugins Directory yet.
 - Verify local-file flow and Gmail search/save in that profile; Gmail requires user connection.
 - Package or resolve host runtimes without requiring ordinary users to manage Python/Node. The beta installer uses existing runtimes and installs project dependencies; it does not ship operating-system runtimes.
 - Extend special GST cases and period finalisation/amendment rules before claiming complete BAS functionality.

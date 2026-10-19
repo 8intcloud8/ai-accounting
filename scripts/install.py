@@ -124,6 +124,16 @@ def main():
         )
     subprocess.run([sys.executable, str(root / "scripts/build_release.py")], check=True)
     config.parent.mkdir(parents=True, exist_ok=True)
+    # Write the host-specific workspace selector before any plugin is enabled
+    # below. Plugins resolve this file before falling back to the old/default
+    # database, so a failure partway through plugin-enabling must never leave
+    # an already-enabled plugin pointing at the wrong workspace.
+    selector = args.codex_home / "accounting-workspace.json"
+    selector.parent.mkdir(parents=True, exist_ok=True)
+    selector_temp = selector.with_suffix(".tmp")
+    selector_temp.write_text(json.dumps({"workspace": str(workspace)}) + "\n")
+    selector_temp.chmod(0o600)
+    selector_temp.replace(selector)
     if args.register_only:
         temp = config.with_suffix(".accounting.tmp")
         temp.write_text(updated)
@@ -161,11 +171,6 @@ def main():
             raise RuntimeError(
                 f"Plugins not enabled after installation: {sorted(missing)}"
             )
-    # A host-specific selector alongside config; plugins resolve this before defaults.
-    selector = args.codex_home / "accounting-workspace.json"
-    selector.parent.mkdir(parents=True, exist_ok=True)
-    selector.write_text(json.dumps({"workspace": str(workspace)}) + "\n")
-    selector.chmod(0o600)
     print(
         json.dumps(
             {
