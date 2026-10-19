@@ -33,50 +33,106 @@ if [ -z "$NODE" ]; then
   exit 127
 fi
 
+# npm (and node_modules/.bin tools it runs, e.g. vite/esbuild) are
+# "#!/usr/bin/env node" scripts: running them by absolute path still makes
+# the OS resolve "node" through PATH. A minimal GUI PATH can satisfy our own
+# probing above yet still lack node's directory, so npm fails with
+# "env: node: No such file or directory" even though $NODE is valid. Fix
+# that for every child process below, not just npm's shebang.
+PATH="$(dirname "$NODE")${PATH:+:$PATH}"
+export PATH
+
+# Killing just the subshell below leaves its "npm ci"/"npm run build" child
+# (and that child's own esbuild/vite workers) running orphaned, free to race
+# a subsequent retry's npm ci against the same node_modules. Sweep two
+# levels of descendants too; degrades gracefully if pgrep is unavailable.
+kill_build_tree() {
+  if command -v pgrep >/dev/null 2>&1; then
+    for child in $(pgrep -P "$1" 2>/dev/null); do
+      for grandchild in $(pgrep -P "$child" 2>/dev/null); do
+        kill "$grandchild" 2>/dev/null
+      done
+      kill "$child" 2>/dev/null
+    done
+  fi
+  kill "$1" 2>/dev/null
+}
+
 # A marketplace/git install has no prebuilt dist/ (gitignored); build it on
 # first launch. A release ZIP ships dist/ already, so this is a no-op there.
 if [ ! -f "$DIR/dist/server.mjs" ]; then
   LOCK="$DIR/.build.lock"
-  if mkdir "$LOCK" 2>/dev/null; then
-    if command -v npm >/dev/null 2>&1; then
-      NPM=$(command -v npm)
-    else
-      for c in \
-        /usr/local/bin/npm \
-        /opt/homebrew/bin/npm \
-        /usr/bin/npm \
-        "$HOME/.local/bin/npm" \
-        "$HOME/.volta/bin/npm" \
-        "$HOME/n/bin/npm"
-      do
-        [ -x "$c" ] && NPM="$c" && break
-      done
-    fi
-    if [ -z "$NPM" ] && [ -d "$HOME/.nvm/versions/node" ]; then
-      for c in $(ls -1 "$HOME/.nvm/versions/node" 2>/dev/null | sort -V -r); do
-        [ -x "$HOME/.nvm/versions/node/$c/bin/npm" ] && NPM="$HOME/.nvm/versions/node/$c/bin/npm" && break
-      done
-    fi
-    if [ -z "$NPM" ]; then
-      echo "bill-search-app: dist/server.mjs missing and no npm runtime found to build it" >&2
+  PIDFILE="$LOCK/pid"
+  attempt=0
+  while [ ! -f "$DIR/dist/server.mjs" ]; do
+    if mkdir "$LOCK" 2>/dev/null; then
+      echo $$ >"$PIDFILE" 2>/dev/null
+      # A trap only overrides the default terminate-on-signal behavior; it
+      # does not exit by itself, so without an explicit exit here a signal
+      # would just clean up the lock and then let the build run to
+      # completion anyway. Exit so an interrupted launch actually stops.
+      trap 'rm -f "$PIDFILE" 2>/dev/null; rmdir "$LOCK" 2>/dev/null; exit 1' INT TERM
+
+      if command -v npm >/dev/null 2>&1; then
+        NPM=$(command -v npm)
+      else
+        for c in \
+          /usr/local/bin/npm \
+          /opt/homebrew/bin/npm \
+          /usr/bin/npm \
+          "$HOME/.local/bin/npm" \
+          "$HOME/.volta/bin/npm" \
+          "$HOME/n/bin/npm"
+        do
+          [ -x "$c" ] && NPM="$c" && break
+        done
+      fi
+      if [ -z "$NPM" ] && [ -d "$HOME/.nvm/versions/node" ]; then
+        for c in $(ls -1 "$HOME/.nvm/versions/node" 2>/dev/null | sort -V -r); do
+          [ -x "$HOME/.nvm/versions/node/$c/bin/npm" ] && NPM="$HOME/.nvm/versions/node/$c/bin/npm" && break
+        done
+      fi
+      if [ -z "$NPM" ]; then
+        echo "bill-search-app: dist/server.mjs missing and no npm runtime found to build it" >&2
+        rm -f "$PIDFILE" 2>/dev/null
+        rmdir "$LOCK" 2>/dev/null
+        trap - INT TERM
+        exit 127
+      fi
+
+      ( cd "$DIR" && "$NPM" ci --no-audit --no-fund && "$NPM" run build ) >&2 &
+      BUILD_PID=$!
+      trap 'kill_build_tree "$BUILD_PID"; rm -f "$PIDFILE" 2>/dev/null; rmdir "$LOCK" 2>/dev/null; exit 1' INT TERM
+      wait "$BUILD_PID"
+      BUILD_STATUS=$?
+      rm -f "$PIDFILE" 2>/dev/null
       rmdir "$LOCK" 2>/dev/null
-      exit 127
+      trap - INT TERM
+      if [ "$BUILD_STATUS" -ne 0 ]; then
+        echo "bill-search-app: first-run build failed (npm ci/build exited $BUILD_STATUS)" >&2
+        exit 1
+      fi
+      break
     fi
-    ( cd "$DIR" && "$NPM" ci --no-audit --no-fund && "$NPM" run build ) >&2
-    BUILD_STATUS=$?
-    rmdir "$LOCK" 2>/dev/null
-    if [ "$BUILD_STATUS" -ne 0 ]; then
-      echo "bill-search-app: first-run build failed (npm ci/build exited $BUILD_STATUS)" >&2
-      exit 1
+
+    # Another launch holds the lock. Reclaim it if its owner is gone (killed
+    # build, crash, power loss) or it has simply sat there too long; a build
+    # that takes over two minutes is not coming back on its own. Otherwise
+    # wait for the in-progress build to finish rather than racing it.
+    owner_pid=$(cat "$PIDFILE" 2>/dev/null)
+    if { [ -n "$owner_pid" ] && ! kill -0 "$owner_pid" 2>/dev/null; } \
+      || [ -n "$(find "$LOCK" -maxdepth 0 -mmin +2 2>/dev/null)" ]; then
+      rm -f "$PIDFILE" 2>/dev/null
+      rmdir "$LOCK" 2>/dev/null
+      continue
     fi
-  else
-    # Another launch is already building; wait for it rather than racing it.
-    i=0
-    while [ ! -f "$DIR/dist/server.mjs" ] && [ "$i" -lt 180 ]; do
-      sleep 1
-      i=$((i + 1))
-    done
-  fi
+
+    attempt=$((attempt + 1))
+    if [ "$attempt" -ge 180 ]; then
+      break
+    fi
+    sleep 1
+  done
   if [ ! -f "$DIR/dist/server.mjs" ]; then
     echo "bill-search-app: dist/server.mjs still missing after build attempt" >&2
     exit 1
