@@ -115,13 +115,14 @@ if [ ! -f "$DIR/dist/server.mjs" ]; then
       break
     fi
 
-    # Another launch holds the lock. Reclaim it if its owner is gone (killed
-    # build, crash, power loss) or it has simply sat there too long; a build
-    # that takes over two minutes is not coming back on its own. Otherwise
-    # wait for the in-progress build to finish rather than racing it.
+    # Another launch holds the lock. Reclaim it only if its owner process is
+    # confirmably gone (killed build, crash, power loss) — never merely
+    # because the lock is old, which would preempt a slow-but-alive build
+    # and let two npm ci/build runs race the same node_modules/dist. If the
+    # owner is alive (or we cannot yet tell — the pidfile write lands just
+    # after mkdir), wait for it rather than racing it.
     owner_pid=$(cat "$PIDFILE" 2>/dev/null)
-    if { [ -n "$owner_pid" ] && ! kill -0 "$owner_pid" 2>/dev/null; } \
-      || [ -n "$(find "$LOCK" -maxdepth 0 -mmin +2 2>/dev/null)" ]; then
+    if [ -n "$owner_pid" ] && ! kill -0 "$owner_pid" 2>/dev/null; then
       rm -f "$PIDFILE" 2>/dev/null
       rmdir "$LOCK" 2>/dev/null
       continue
@@ -129,6 +130,10 @@ if [ ! -f "$DIR/dist/server.mjs" ]; then
 
     attempt=$((attempt + 1))
     if [ "$attempt" -ge 180 ]; then
+      # Give up without touching the lock: its owner is still alive for all
+      # we can tell, so removing it here would be the exact race this lock
+      # exists to prevent. The owner's own build, when it finishes, cleans
+      # up its lock either way.
       break
     fi
     sleep 1
