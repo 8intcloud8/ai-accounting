@@ -20,6 +20,14 @@ def read_state(path: Path) -> tuple[list, list, list]:
         db.execute("BEGIN")
         db.row_factory = sqlite3.Row
         invoices = [dict(r) for r in db.execute("SELECT * FROM invoices")]
+        if db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='invoice_roles'"
+        ).fetchone():
+            roles = dict(db.execute("SELECT invoice_id,role FROM invoice_roles"))
+        else:
+            roles = {}
+        for inv in invoices:
+            inv["role"] = roles.get(inv["id"], "purchase")
         transactions = [
             dict(r)
             for r in db.execute(
@@ -76,7 +84,9 @@ def propose(path: Path, business: str, account: str) -> dict:
         ):
             continue
         for t in transactions:
-            available = t["debit_cents"] - transaction_used.get(t["id"], 0)
+            available = t[
+                "credit_cents" if i["role"] == "sale" else "debit_cents"
+            ] - transaction_used.get(t["id"], 0)
             if (
                 t["account_id"] != account
                 or t["currency"] != i["currency"]
@@ -126,7 +136,9 @@ def propose(path: Path, business: str, account: str) -> dict:
                 }
             )
     for t in transactions:
-        available = t["debit_cents"] - transaction_used.get(t["id"], 0)
+        available = max(t["debit_cents"], t["credit_cents"]) - transaction_used.get(
+            t["id"], 0
+        )
         if t["account_id"] == account and available > 0:
             unmatched.append(
                 {
@@ -182,8 +194,8 @@ def confirm(path: Path, payload: dict, connect) -> dict:
                 (invoice_id,),
             ).fetchone()
             t = db.execute(
-                "SELECT t.debit_cents,a.currency,t.account_id FROM transactions t JOIN accounts a ON a.id=t.account_id WHERE t.id=?",
-                (transaction_id,),
+                "SELECT CASE WHEN COALESCE((SELECT role FROM invoice_roles WHERE invoice_id=?),'purchase')='sale' THEN t.credit_cents ELSE t.debit_cents END,a.currency,t.account_id FROM transactions t JOIN accounts a ON a.id=t.account_id WHERE t.id=?",
+                (invoice_id, transaction_id),
             ).fetchone()
             if (
                 not i

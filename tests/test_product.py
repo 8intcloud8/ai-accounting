@@ -364,6 +364,17 @@ class ProductTests(unittest.TestCase):
         )
 
     def test_full_quarter_and_invalidated_review(self):
+        from product_store import configure_reporting
+
+        configure_reporting(
+            self.db,
+            {
+                "method": "simpler",
+                "expected_accounts": ["bank"],
+                "evidence": "Fixture supported scope",
+            },
+            connect,
+        )
         self.supplier_invoice()
         self.match(2)
         post_journal(self.db, self.sale(), connect)
@@ -377,6 +388,8 @@ class ProductTests(unittest.TestCase):
                 "opening_cents": 0,
                 "closing_cents": 5500,
                 "statement": str(self.source),
+                "boundary_kind": "statement",
+                "boundary_evidence": "Fixture independent statement opening and closing",
             },
             connect,
         )

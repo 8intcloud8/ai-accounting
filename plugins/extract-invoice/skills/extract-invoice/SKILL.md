@@ -59,3 +59,17 @@ Stores invoice details and source references; original files must remain availab
 ## Shared runtime
 
 Use the Python executable at `<suite>/.venv/bin/python` when installed, otherwise the host Python 3.11+ runtime. Source files are copied into the workspace documents directory and hash verified. Relative evidence paths survive moving the complete workspace. The canonical runtime is maintained once in `accounting_core/` and bundled automatically for standalone plugins.
+
+## Open the review CSV in Codex
+
+Create an invoice-review CSV from the returned invoice records when no review CSV exists. Include invoice ID, supplier, invoice number/date, currency, total_cents, gst_cents, review status, issues and source path. Open it before requesting extraction corrections or proceeding to matching.
+
+Save the review artifact under the selected workspace's `output/YYYY-MM-DD/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
+
+After the file has been written and its path verified, call `open_in_codex` with `target: { type: "file", path: "<absolute CSV path>" }` and `placement: "right"` to open it beside this chat. Open the new file or the existing current review tab; avoid duplicate tabs. A file link alone does not satisfy opening when that tool is available. Give a short chat summary identifying the file, what to review and any outstanding decision. Only claim it opened when the tool confirms the outcome; if the tool is unavailable or opening fails, state that and provide a clickable absolute-path file link.
+
+Opening or editing a review CSV does not confirm matches, approve classifications or update SQLite. Preserve the skill's existing confirmation requirements. If the user requests applying CSV edits, validate the changes against source evidence and use the existing audited correction/import commands; never silently replace database records from an edited export.
+
+## Sales and RCTIs
+
+Import both supplier bills and customer sales/RCTIs with explicit `role: purchase` or `role: sale`; purchase remains the backward-compatible default. For sale records, contact_name is the customer/counterparty, not this business's supplier. RCTIs document the supplier's sale even when issued by the customer. Verify whose sale it is. Include the role in review CSVs. Credit notes retain positive amounts and the same purchase/sale role. Do not combine purchase and sales totals into one meaningful expense number.

@@ -58,6 +58,9 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
     for record in records:
         if not isinstance(record, dict):
             raise ValueError("Invoice record must be an object")
+        role = record.get("role", "purchase")
+        if role not in ("purchase", "sale"):
+            raise ValueError("Document role must be purchase or sale")
         source = Path(record["file"]).resolve(strict=True)
         source_hash, managed_path = preserve_source(path, source)
         business = optional_text(record.get("business_id"))
@@ -144,7 +147,11 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
             status,
             json.dumps(issues),
         ]
-        record_hash = hashlib.sha256(json.dumps([values, lines]).encode()).hexdigest()
+        record_hash = hashlib.sha256(
+            json.dumps(
+                [values, lines] if role == "purchase" else [values, lines, role]
+            ).encode()
+        ).hexdigest()
         email_account = optional_text(record.get("email_account")) or ""
         message = optional_text(record.get("email_message_id")) or ""
         prepared.append(
@@ -156,6 +163,7 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
                 record_hash,
                 email_account,
                 message,
+                role,
             )
         )
     added = existing = 0
@@ -174,6 +182,7 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
             record_hash,
             email_account,
             message,
+            role,
         ) in prepared:
             db.execute(
                 "INSERT OR IGNORE INTO documents(sha256) VALUES (?)", (source_hash,)
@@ -227,6 +236,9 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
                     "INSERT INTO invoice_lines VALUES (?,?,?,?,?)",
                     [(old[0], index, *line) for index, line in enumerate(lines, 1)],
                 )
+                db.execute(
+                    "INSERT OR REPLACE INTO invoice_roles VALUES (?,?)", (old[0], role)
+                )
                 added += 1
                 continue
             if old:
@@ -253,6 +265,7 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
                 "INSERT INTO invoice_lines VALUES (?,?,?,?,?)",
                 [(invoice_id, index, *line) for index, line in enumerate(lines, 1)],
             )
+            db.execute("INSERT INTO invoice_roles VALUES (?,?)", (invoice_id, role))
             added += 1
     return {
         "new_invoices": added,
@@ -271,7 +284,15 @@ def read_invoices(path: Path, business: str | None, status: str | None) -> dict:
                 (business, business, status, status),
             )
         ]
+        roles = (
+            dict(db.execute("SELECT invoice_id,role FROM invoice_roles"))
+            if db.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='invoice_roles'"
+            ).fetchone()
+            else {}
+        )
         for invoice in invoices:
+            invoice["role"] = roles.get(invoice["id"], "purchase")
             invoice["issues"] = json.loads(invoice.pop("issues_json"))
             invoice["line_items"] = [
                 dict(row)

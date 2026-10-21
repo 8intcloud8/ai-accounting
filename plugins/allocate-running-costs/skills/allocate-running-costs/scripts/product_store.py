@@ -60,6 +60,22 @@ CREATE TABLE IF NOT EXISTS workflow_events (
  id INTEGER PRIMARY KEY, start TEXT NOT NULL, end TEXT NOT NULL,
  step TEXT NOT NULL, evidence TEXT NOT NULL, state_digest TEXT NOT NULL,
  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS journal_document_amounts (
+ journal_id INTEGER NOT NULL REFERENCES journals(id), invoice_id INTEGER NOT NULL REFERENCES invoices(id),
+ gross_cents INTEGER NOT NULL CHECK(gross_cents>=0), PRIMARY KEY(journal_id,invoice_id));
+CREATE TABLE IF NOT EXISTS invoice_roles (
+ invoice_id INTEGER PRIMARY KEY REFERENCES invoices(id), role TEXT NOT NULL CHECK(role IN ('purchase','sale')));
+CREATE TABLE IF NOT EXISTS document_dispositions (
+ id INTEGER PRIMARY KEY, invoice_id INTEGER NOT NULL REFERENCES invoices(id),
+ start TEXT NOT NULL, end TEXT NOT NULL, status TEXT NOT NULL,
+ reason TEXT NOT NULL, source_hash TEXT NOT NULL, review_after TEXT,
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS reporting_scope (
+ id INTEGER PRIMARY KEY CHECK(id=1), method TEXT NOT NULL, expected_accounts_json TEXT NOT NULL,
+ evidence TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS reconciliation_evidence (
+ reconciliation_id INTEGER PRIMARY KEY REFERENCES reconciliations(id), boundary_kind TEXT NOT NULL,
+ evidence TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS report_snapshots (
  id INTEGER PRIMARY KEY, kind TEXT NOT NULL, start TEXT NOT NULL, end TEXT NOT NULL,
  payload_json TEXT NOT NULL, sha256 TEXT NOT NULL UNIQUE,
@@ -485,6 +501,40 @@ def post_journal(path, payload, connect):
                     raise ValueError(
                         "Explicit per-invoice GST allocations must reconcile to journal GST"
                     )
+        recognition_amounts = {}
+        if (
+            p["gst_basis"] == "accrual"
+            and label in ("sale", "purchase", "sale_refund", "purchase_refund")
+            and evidence_ids
+        ):
+            if len(evidence_ids) == 1:
+                recognition_amounts[evidence_ids[0]] = gross
+            else:
+                for item in payload.get("invoice_gross_allocations", []):
+                    iid = integer(item.get("invoice_id"), "Invoice ID", True)
+                    if iid in recognition_amounts:
+                        raise ValueError("Duplicate gross allocation")
+                    recognition_amounts[iid] = integer(
+                        item.get("gross_cents"), "Document gross", True
+                    )
+                if (
+                    set(recognition_amounts) != set(evidence_ids)
+                    or sum(recognition_amounts.values()) != gross
+                ):
+                    raise ValueError(
+                        "Per-document gross allocations must reconcile to journal gross"
+                    )
+            if transaction is None:
+                control = "1100" if sale_label else "2000"
+                control_total = sum(
+                    (d - c if sale_label else c - d) * (-1 if refund else 1)
+                    for a, d, c in parsed
+                    if a == control
+                )
+                if control_total != gross:
+                    raise ValueError(
+                        "Accrual recognition must reconcile to receivable/payable gross"
+                    )
         evidence_gst = 0
         for invoice_id in evidence_ids:
             inv = db.execute(
@@ -498,15 +548,65 @@ def post_journal(path, payload, connect):
                 inv["review_status"] != "verified" or inv["currency"] != "AUD"
             ):
                 raise ValueError("Source invoice must be verified AUD")
-            if label == "purchase" and inv["kind"] == "credit_note":
-                raise ValueError("Credit note must use purchase_refund")
-            if label == "purchase_refund" and inv["kind"] != "credit_note":
-                raise ValueError("Purchase refund requires a source credit note")
+            if label in ("purchase", "sale") and inv["kind"] == "credit_note":
+                raise ValueError("Credit note must use the corresponding refund label")
+            if (
+                label in ("purchase_refund", "sale_refund")
+                and inv["kind"] != "credit_note"
+            ):
+                raise ValueError("Refund requires a source credit note")
+            role_row = db.execute(
+                "SELECT role FROM invoice_roles WHERE invoice_id=?", (invoice_id,)
+            ).fetchone()
+            role = role_row[0] if role_row else "purchase"
+            if label not in ("excluded", "settlement") and role != (
+                "sale" if sale_label else "purchase"
+            ):
+                raise ValueError("Document role conflicts with journal classification")
+            if p["gst_basis"] == "accrual" and label in (
+                "sale",
+                "purchase",
+                "sale_refund",
+                "purchase_refund",
+            ):
+                if db.execute(
+                    "SELECT 1 FROM journal_evidence e JOIN gst_items g ON g.journal_id=e.journal_id WHERE e.invoice_id=? AND g.label IN ('sale','purchase','sale_refund','purchase_refund') AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=e.journal_id)",
+                    (invoice_id,),
+                ).fetchone():
+                    raise ValueError(
+                        "Accrual document already recognised; settle or reverse before replacement"
+                    )
+            if label == "excluded" and evidence_ids:
+                control = "1100" if role == "sale" else "2000"
+                if transaction is None or any(
+                    a not in ("1000", control) for a, d, c in parsed
+                ):
+                    raise ValueError(
+                        "Document settlement must link bank and receivable/payable only"
+                    )
+                if not db.execute(
+                    "SELECT 1 FROM journal_evidence e JOIN gst_items g ON g.journal_id=e.journal_id WHERE e.invoice_id=? AND g.label=? AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=e.journal_id)",
+                    (invoice_id, role),
+                ).fetchone():
+                    raise ValueError("Recognise the document before settlement")
+                if not db.execute(
+                    "SELECT 1 FROM payment_matches WHERE invoice_id=? AND transaction_id=?",
+                    (invoice_id, transaction),
+                ).fetchone():
+                    raise ValueError("Confirm payment match before document settlement")
             allowed_gst = inv["gst_cents"] or 0
             allocations = db.execute(
                 "SELECT * FROM running_cost_allocations WHERE invoice_id=?",
                 (invoice_id,),
             ).fetchall()
+            if invoice_id in recognition_amounts:
+                supported_amounts = {inv["total_cents"]}
+                if allocations:
+                    supported_amounts.add(sum(a["business_cents"] for a in allocations))
+                if recognition_amounts[invoice_id] not in supported_amounts:
+                    raise ValueError(
+                        "Recognise full invoice or recorded business allocation; partial accrual recognition unsupported"
+                    )
             if (
                 allocations
                 and status == "reviewed"
@@ -585,6 +685,28 @@ def post_journal(path, payload, connect):
         if label in ("purchase", "purchase_refund") and status == "reviewed" and gst:
             if gst > evidence_gst:
                 raise ValueError("GST claim exceeds source invoice GST")
+        if label == "excluded" and evidence_ids:
+            matched = sum(
+                db.execute(
+                    "SELECT COALESCE(SUM(amount_cents),0) FROM payment_matches WHERE invoice_id=? AND transaction_id=?",
+                    (iid, transaction),
+                ).fetchone()[0]
+                for iid in evidence_ids
+            )
+            if matched != abs(sum(d - c for a, d, c in parsed if a == "1000")):
+                raise ValueError(
+                    "Settlement bank amount must equal linked confirmed matches"
+                )
+        if sale_label and status == "reviewed":
+            net_sales = sum(
+                (c - d) * (-1 if refund else 1)
+                for a, d, c in parsed
+                if a in ("4000", "4900")
+            )
+            if gross != net_sales + gst:
+                raise ValueError(
+                    "GST-inclusive sales gross must equal net sales plus GST"
+                )
         existing = db.execute(
             "SELECT id FROM journals WHERE reference=?", (reference,)
         ).fetchone()
@@ -601,6 +723,10 @@ def post_journal(path, payload, connect):
         db.executemany(
             "INSERT INTO journal_evidence VALUES (?,?)",
             [(jid, i) for i in set(evidence_ids)],
+        )
+        db.executemany(
+            "INSERT INTO journal_document_amounts VALUES (?,?,?)",
+            [(jid, i, amount) for i, amount in recognition_amounts.items()],
         )
         db.executemany(
             "INSERT INTO journal_tax_allocations VALUES (?,?,?)",
@@ -654,6 +780,17 @@ def reverse_journal(path, payload, connect):
 
 def reconcile(path, payload, connect):
     start, end = period(payload.get("start"), payload.get("end"))
+    boundary_kind = payload.get("boundary_kind", "derived")
+    if boundary_kind not in ("statement", "derived"):
+        raise ValueError("Boundary kind must be statement or derived")
+    boundary_evidence = text(
+        payload.get(
+            "boundary_evidence", "Derived from imported movements; not independent"
+        ),
+        "Boundary evidence",
+    )
+    if boundary_kind == "statement" and not payload.get("boundary_evidence"):
+        raise ValueError("Independent statement boundary evidence required")
     account = text(payload.get("account"), "Account")
     opening = integer(payload.get("opening_cents"), "Opening")
     closing_balance = integer(payload.get("closing_cents"), "Closing")
@@ -690,7 +827,18 @@ def reconcile(path, payload, connect):
                 txhash,
             ),
         )
+        rid = db.execute(
+            "SELECT id FROM reconciliations WHERE account_id=? AND start=? AND end=? AND transaction_digest=?",
+            (account, start, end, txhash),
+        ).fetchone()[0]
+        db.execute(
+            "INSERT OR REPLACE INTO reconciliation_evidence VALUES (?,?,?)",
+            (rid, boundary_kind, boundary_evidence),
+        )
+        audit(db, "reconcile", "account", account, None, payload, boundary_evidence)
     return {
+        "boundary_kind": boundary_kind,
+        "independent_boundaries_verified": boundary_kind == "statement",
         "reconciled": True,
         "transaction_count": len(rows),
         "movement_cents": movement,
@@ -707,14 +855,165 @@ def state_digest(db):
         "running_cost_allocations",
         "journals",
         "journal_lines",
+        "journal_document_amounts",
         "gst_items",
         "reconciliations",
+        "invoice_roles",
+        "document_dispositions",
+        "reporting_scope",
+        "reconciliation_evidence",
     )
     data = {
         table: [list(r) for r in db.execute(f"SELECT * FROM {table} ORDER BY rowid")]
         for table in tables
     }
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+
+
+def configure_reporting(path, payload, connect):
+    method = payload.get("method")
+    accounts = payload.get("expected_accounts")
+    if method not in ("simpler", "full", "instalments", "unknown"):
+        raise ValueError("Explicit BAS reporting method required")
+    if (
+        not isinstance(accounts, list)
+        or not accounts
+        or any(not isinstance(a, str) or not a.strip() for a in accounts)
+    ):
+        raise ValueError("List all expected account names")
+    reason = text(payload.get("evidence"), "Scope evidence")
+    with closing(connect(path)) as db, db:
+        db.row_factory = sqlite3.Row
+        before = db.execute("SELECT * FROM reporting_scope WHERE id=1").fetchone()
+        db.execute(
+            "INSERT OR REPLACE INTO reporting_scope VALUES (1,?,?,?)",
+            (method, json.dumps(sorted(set(accounts))), reason),
+        )
+        audit(
+            db,
+            "configure",
+            "reporting_scope",
+            1,
+            dict(before) if before else None,
+            payload,
+            reason,
+        )
+    return {
+        "method": method,
+        "expected_accounts": accounts,
+        "g1_convention": "GST-inclusive",
+    }
+
+
+def dispose_document(path, payload, connect):
+    ident = integer(payload.get("invoice_id"), "Invoice ID", True)
+    start, end = period(payload.get("start"), payload.get("end"))
+    status = payload.get("status")
+    if status not in ("excluded", "deferred", "unresolved"):
+        raise ValueError(
+            "Use excluded, deferred or unresolved; recognition derives from posted journals"
+        )
+    reason = text(payload.get("reason"), "Disposition evidence/reason")
+    review_after = day(payload.get("review_after")) if status == "deferred" else None
+    if review_after and review_after <= end:
+        raise ValueError("Deferred review date must be after this reporting period")
+    with closing(connect(path)) as db, db:
+        db.row_factory = sqlite3.Row
+        inv = db.execute("SELECT * FROM invoices WHERE id=?", (ident,)).fetchone()
+        if inv is None or inv["business_id"] != profile(db)["business_id"]:
+            raise ValueError("Invoice missing or belongs to another business")
+        db.execute(
+            "INSERT INTO document_dispositions(invoice_id,start,end,status,reason,source_hash,review_after) VALUES (?,?,?,?,?,?,?)",
+            (ident, start, end, status, reason, inv["record_sha256"], review_after),
+        )
+        audit(db, "review", "document", ident, None, payload, reason)
+    return {"invoice_id": ident, "status": status, "review_after": review_after}
+
+
+def document_review(db, start, end):
+    results = []
+    for inv in db.execute(
+        "SELECT * FROM invoices WHERE business_id=? ORDER BY invoice_date,id",
+        (profile(db)["business_id"],),
+    ).fetchall():
+        # Include later-dated documents: payment/reimbursement may precede the invoice.
+        # A period-scoped explicit decision is required for documents not recognised.
+        linked = [
+            dict(x)
+            for x in db.execute(
+                "SELECT g.* FROM journal_evidence e JOIN gst_items g ON g.journal_id=e.journal_id WHERE e.invoice_id=? AND g.label IN ('sale','purchase','sale_refund','purchase_refund') AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=e.journal_id)",
+                (inv["id"],),
+            )
+        ]
+        disposition = db.execute(
+            "SELECT * FROM document_dispositions WHERE invoice_id=? AND start=? AND end=? ORDER BY id DESC LIMIT 1",
+            (inv["id"], start, end),
+        ).fetchone()
+        valid = disposition and disposition["source_hash"] == inv["record_sha256"]
+        status, reason = "unresolved", "No recognition or period disposition"
+        if linked:
+            status = (
+                "recognised"
+                if all(x["status"] == "reviewed" for x in linked)
+                else "pending_gst"
+            )
+            reason = "Linked live recognition journals; dates retained in GST register"
+            if profile(db)["gst_basis"] == "accrual":
+                allowed = {inv["total_cents"]}
+                allocated = db.execute(
+                    "SELECT SUM(business_cents) FROM running_cost_allocations WHERE invoice_id=?",
+                    (inv["id"],),
+                ).fetchone()[0]
+                if allocated is not None:
+                    allowed.add(allocated)
+                # Exact multi-document per-invoice coverage is persisted at posting.
+                covered = 0
+                for item in linked:
+                    saved = db.execute(
+                        "SELECT gross_cents FROM journal_document_amounts WHERE journal_id=? AND invoice_id=?",
+                        (item["journal_id"], inv["id"]),
+                    ).fetchone()
+                    count = db.execute(
+                        "SELECT COUNT(*) FROM journal_evidence WHERE journal_id=?",
+                        (item["journal_id"],),
+                    ).fetchone()[0]
+                    covered += (
+                        saved[0]
+                        if saved
+                        else (item["gross_cents"] if count == 1 else 0)
+                    )
+                if covered not in allowed:
+                    status, reason = (
+                        "unresolved",
+                        "Recognition amount does not cover source or business allocation",
+                    )
+        elif valid:
+            status, reason = disposition["status"], disposition["reason"]
+        # Extraction uncertainty cannot be hidden by a deferment/exclusion.
+        if inv["review_status"] != "verified":
+            status, reason = "unresolved", "Source extraction requires review"
+        allocation_pending = db.execute(
+            "SELECT 1 FROM running_cost_allocations WHERE invoice_id=? AND period_start<=? AND period_end>=? AND gst_credit_cents IS NULL",
+            (inv["id"], end, start),
+        ).fetchone()
+        if allocation_pending and status not in ("excluded", "deferred"):
+            status, reason = "pending_gst", "Running-cost GST eligibility unresolved"
+        role = db.execute(
+            "SELECT role FROM invoice_roles WHERE invoice_id=?", (inv["id"],)
+        ).fetchone()
+        results.append(
+            {
+                "invoice_id": inv["id"],
+                "role": role[0] if role else "purchase",
+                "invoice_date": inv["invoice_date"],
+                "contact": inv["supplier"],
+                "total_cents": inv["total_cents"],
+                "currency": inv["currency"],
+                "status": status,
+                "reason": reason,
+            }
+        )
+    return results
 
 
 def status_report(db, start, end):
@@ -731,7 +1030,18 @@ def status_report(db, start, end):
         "SELECT count(*) FROM gst_items g JOIN journals j ON j.id=g.journal_id WHERE g.attribution_date BETWEEN ? AND ? AND g.status!='reviewed' AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=j.id)",
         (start, end),
     ).fetchone()[0]
+    documents = document_review(db, start, end)
     blockers = []
+    unresolved = [d for d in documents if d["status"] in ("unresolved", "pending_gst")]
+    if unresolved:
+        blockers.append(
+            f"{len(unresolved)} documents need recognition/disposition or GST review"
+        )
+    scope = db.execute("SELECT * FROM reporting_scope WHERE id=1").fetchone()
+    if not scope:
+        blockers.append("Confirm BAS method and expected account coverage")
+    elif scope["method"] != "simpler":
+        blockers.append("Only confirmed Simpler BAS GST reporting is supported")
     if p["gst_registered"] is None or p["gst_basis"] == "unknown":
         blockers.append("GST profile incomplete")
     if unclassified:
@@ -747,6 +1057,10 @@ def status_report(db, start, end):
             (start, end),
         )
     ]
+    if scope:
+        for expected in json.loads(scope["expected_accounts_json"]):
+            if expected not in accounts:
+                blockers.append(f"Missing account-period evidence: {expected}")
     if not accounts:
         blockers.append("No bank evidence for period")
     for account in accounts:
@@ -758,11 +1072,21 @@ def status_report(db, start, end):
             )
         ]
         txhash = hashlib.sha256(json.dumps(rows, sort_keys=True).encode()).hexdigest()
-        if not db.execute(
-            "SELECT 1 FROM reconciliations WHERE account_id=? AND start=? AND end=? AND transaction_digest=?",
+        reconciliation = db.execute(
+            "SELECT id FROM reconciliations WHERE account_id=? AND start=? AND end=? AND transaction_digest=?",
             (account, start, end, txhash),
-        ).fetchone():
+        ).fetchone()
+        if not reconciliation:
             blockers.append(f"Bank reconciliation required: {account}")
+        else:
+            boundary = db.execute(
+                "SELECT boundary_kind FROM reconciliation_evidence WHERE reconciliation_id=?",
+                (reconciliation[0],),
+            ).fetchone()
+            if not boundary or boundary[0] != "statement":
+                blockers.append(
+                    f"Independent statement boundary verification required: {account}"
+                )
     digest = state_digest(db)
     steps = {
         r["step"]
@@ -787,6 +1111,8 @@ def status_report(db, start, end):
         "unclassified_transactions": unclassified,
         "invoices_needing_review": unreviewed,
         "pending_gst": pending,
+        "documents": documents,
+        "unresolved_documents": len(unresolved),
     }
 
 
@@ -839,6 +1165,7 @@ def report(path, kind, start, end, connect):
                 ),
             }
             result["gst_evidence"] = rows
+            result["g1_convention"] = "GST-inclusive"
             result["scope"] = (
                 "Simpler BAS GST workpaper only; PAYG and other labels require separate review"
             )
@@ -874,15 +1201,70 @@ def report(path, kind, start, end, connect):
         with csv_path.open("x", newline="") as handle:
             writer = csv.writer(handle)
             if kind == "bas":
-                writer.writerow(["label", "reviewed_subtotal_cents", "status"])
+                writer.writerow(
+                    [
+                        "business_id",
+                        "period_start",
+                        "period_end",
+                        "currency",
+                        "label",
+                        "reviewed_subtotal_cents",
+                        "status",
+                        "ready_for_review",
+                        "g1_convention",
+                        "blockers",
+                        "scope",
+                    ]
+                )
                 for label, amount in result["reviewed_subtotals_cents"].items():
-                    writer.writerow([label, amount, "draft"])
+                    writer.writerow(
+                        [
+                            p["business_id"],
+                            start,
+                            end,
+                            "AUD",
+                            label,
+                            amount,
+                            "draft",
+                            result["ready_for_review"],
+                            "GST-inclusive",
+                            "; ".join(result["blockers"]),
+                            result["scope"],
+                        ]
+                    )
             else:
                 writer.writerow(["code", "name", "kind", "balance_cents"])
                 for row in result["account_balances"]:
                     writer.writerow(
                         [row["code"], row["name"], row["kind"], row["balance_cents"]]
                     )
+    exceptions = filename.with_name(filename.stem + "-exceptions.csv")
+    if not exceptions.exists():
+        with exceptions.open("x", newline="") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(["business_id", "period_start", "period_end", "blocker"])
+            for blocker in result["blockers"]:
+                writer.writerow([p["business_id"], start, end, blocker])
+    register = filename.with_name(filename.stem + "-documents.csv")
+    if not register.exists():
+        with register.open("x", newline="") as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=[
+                    "invoice_id",
+                    "role",
+                    "invoice_date",
+                    "contact",
+                    "total_cents",
+                    "currency",
+                    "status",
+                    "reason",
+                ],
+            )
+            writer.writeheader()
+            writer.writerows(result["documents"])
+    result["saved_exceptions_csv"] = str(exceptions)
+    result["saved_documents_csv"] = str(register)
     result["saved_csv"] = str(csv_path)
     result["saved_report"] = str(filename)
     return result
@@ -997,6 +1379,8 @@ def add_commands(sub):
         "reconcile-account",
         "repair-sources",
         "complete-step",
+        "configure-reporting",
+        "review-document",
     ):
         cmd = sub.add_parser(name)
         cmd.add_argument("--request", type=Path, required=True)
@@ -1017,6 +1401,8 @@ COMMANDS = {
     "reconcile-account",
     "repair-sources",
     "complete-step",
+    "configure-reporting",
+    "review-document",
     "workflow-status",
     "prepare-bas",
     "tax-report",
@@ -1029,6 +1415,8 @@ def dispatch(args, connect):
     if args.command == "restore-workspace":
         return restore(args.archive, args.destination)
     handlers = {
+        "configure-reporting": configure_reporting,
+        "review-document": dispose_document,
         "setup-accounting": setup,
         "update-profile": update_profile,
         "correct-record": correct,

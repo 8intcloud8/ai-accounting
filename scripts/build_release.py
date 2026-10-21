@@ -8,12 +8,18 @@ import shutil
 import zipfile
 from pathlib import Path
 
+from check_mcp_package import validate
+
 
 def build(root, output):
     core = root / "accounting_core"
     modules = sorted(core.glob("*.py"))
     if not modules:
         raise ValueError("Canonical runtime missing")
+    # Validate every plugin before changing bundles or creating archives.
+    for plugin in (root / "plugins").iterdir():
+        if plugin.is_dir():
+            validate(plugin)
     entries = []
     for plugin in sorted((root / "plugins").iterdir()):
         if not plugin.is_dir():

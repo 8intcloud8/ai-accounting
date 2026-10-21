@@ -25,6 +25,11 @@ jobs:
       - run: npm run typecheck
       - run: npm run test --if-present
       - run: npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate extracted client package
+        run: python ../../../scripts/check_mcp_package.py .. --output /tmp/${{ matrix.plugin }}.zip --expected-tool ${{ matrix.plugin == 'save-bills' && 'save_bills' || 'search_bills' }}
 
   accounting:
     strategy:

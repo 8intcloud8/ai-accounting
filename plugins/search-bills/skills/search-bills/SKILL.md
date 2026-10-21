@@ -33,6 +33,20 @@ If `save-bills` is unavailable, tell the user to install/enable the companion
 `save-bills` plugin. If Gmail cannot provide these links, report that saving is
 unavailable in this host; never relay raw MIME or PDF through the model.
 
+## State 0 — confirm Gmail connection
+
+Before asking anything, confirm a Gmail account is actually connected.
+Make one minimal Gmail call (e.g. a one-result search) and read the
+connected account's own address from it. State it up front, e.g.
+"Connected Gmail account: name@example.com." If more than one Gmail
+account is connected, name all of them.
+
+If no Gmail account is connected — the Gmail tool errors with an
+authorization/connection error, or the host reports none configured —
+say so plainly (e.g. "No Gmail account is connected; connect one before
+I can search for bills.") and stop. Do not proceed to State 1, do not
+search, do not guess an account.
+
 ## State 1 — ask inputs
 
 Ask, in one message: (1) personal or business bills — business runs get a

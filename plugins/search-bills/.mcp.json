@@ -3,9 +3,10 @@
     "bill-search-app": {
       "command": "/bin/sh",
       "args": [
-        "${CLAUDE_PLUGIN_ROOT}/mcp-server/launch.sh",
+        "mcp-server/launch.sh",
         "--stdio"
-      ]
+      ],
+      "cwd": "."
     }
   }
 }

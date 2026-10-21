@@ -13,6 +13,12 @@ No separate Gmail OAuth client is used by this plugin. Download links currently 
 
 ## Build and install
 
+Version 1.0.1 packages the Codex launch-path correction. Older uploaded 1.0.0
+packages may use `${CLAUDE_PLUGIN_ROOT}` in `.mcp.json`; Codex can pass that
+value literally and fail before initialization. Install the corrected package
+with `"cwd": "."` and `"args": ["mcp-server/launch.sh", "--stdio"]`.
+Enabling or restarting the old package alone does not repair its configuration.
+
 Clone or extract ai-accounting. From `plugins/save-bills/`:
 
 ```sh
