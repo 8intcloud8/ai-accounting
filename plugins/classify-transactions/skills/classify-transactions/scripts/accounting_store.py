@@ -260,9 +260,18 @@ def main() -> None:
     fixed_list = sub.add_parser("running-cost-workpapers")
     fixed_list.add_argument("--business", required=True)
     fixed_list.add_argument("--output", type=Path)
+    review = sub.add_parser("review-table", help="Open a local CSV review table")
+    review.add_argument("--csv", type=Path, required=True)
+    review.add_argument("--title")
+    review.add_argument("--port", type=int, default=0)
     add_commands(sub)
     args = parser.parse_args()
     try:
+        if args.command == "review-table":
+            from review_table import serve
+
+            serve(args.csv, args.db.resolve().parent.parent, args.title, args.port)
+            return
         if args.command in COMMANDS:
             result = dispatch(args, connect)
         elif args.command == "calculate-fixed-running-costs":

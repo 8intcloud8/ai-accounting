@@ -7,7 +7,7 @@ description: Continue a local accounting period, show saved progress and route t
 
 Resolve the saved workspace and reporting dates. Run `scripts/accounting_store.py workflow-status --start YYYY-MM-DD --end YYYY-MM-DD` with `AI_ACCOUNTING_DB` pointing to the workspace database. Read the returned blockers; do not derive completion from chat history alone.
 
-Route using the document-first workflow below: setup-accounting; search-bills/save-bills when wanted; extract-invoice and extract-bankstatement; classify-transactions and allocate-running-costs; match-payments and settlement classification; reconcile-accounts; prepare-bas; prepare-tax-report. Each is a separate plugin. Use available plugins; explain any missing installation.
+Route using the document-first workflow below: setup-accounting; search-email-invoices/save-invoices when wanted; extract-invoices and extract-bankstatement; classify-transactions and allocate-running-costs; match-payments and settlement classification; reconcile-accounts; prepare-bas; prepare-tax-report. Each is a separate plugin. Use available plugins; explain any missing installation.
 
 Show a short completed/pending list and the next concrete action. Missing GST does not mean zero. Never count invoice plus its bank payment as two expenses. Bank transfers, director loans and repayments need explicit treatment.
 
@@ -15,13 +15,15 @@ After actual source/sales completeness checks and PAYG/tax-adjustment review, re
 
 For corrections run `correct-record --request <JSON>` with kind invoice/payment/allocation, id and reason. Reverse linked journals first with `reverse-journal`. Invoice withdrawal preserves history and requires corrected reimport of the same source. Recompute reports after corrections. `backup-workspace --output <new.zip>` creates a consistent local snapshot; `restore-workspace --archive <zip> --destination <new folder>` restores for inspection. Never restore over a live workspace.
 
-## Open the review CSV in Codex
+## Show the review table in Codex
 
 Open the current stage’s review CSV before asking the user to decide. Route to the producing skill to create it if needed. Show one current review file at a time; do not open every historical export or unrelated period.
 
 Save the review artifact under the selected workspace's `output/YYYY-MM-DD/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
 
-After the file has been written and its path verified, call `open_in_codex` with `target: { type: "file", path: "<absolute CSV path>" }` and `placement: "right"` to open it beside this chat. Open the new file or the existing current review tab; avoid duplicate tabs. A file link alone does not satisfy opening when that tool is available. Give a short chat summary identifying the file, what to review and any outstanding decision. Only claim it opened when the tool confirms the outcome; if the tool is unavailable or opening fails, state that and provide a clickable absolute-path file link.
+Show the CSV through the local table view by default. Start `python3 <helper> --db <selected workspace>/db/accounting.db review-table --csv <absolute CSV path> --title "<stage> review"` in a persistent command session. Read the initial JSON review_url, then call `open_in_codex` with `target: { type: "browser", url: "<returned review_url>" }` and `placement: "right"`. Reuse a current tab/server for the same unchanged CSV; stop stale servers when replacing them. The table provides search, sorting, issue filtering, formatted amounts/dates, managed-source document links and check/correction request buttons. Keep the underlying CSV as the versioned export. Do not open raw CSV text unless requested or the table cannot run; report a fallback honestly. If the tool returns queued, describe opening as queued rather than displayed.
+
+The table saves requests under output/YYYY-MM-DD/review-request-*.json. It does not approve matches/classifications or update accounting records. When the user asks to process requests, read those for the current CSV, verify csv_sha256, row identity, original values and source evidence, then apply supported changes through the existing audited correction/import commands. Treat proposed values as user input, not verified facts. Ask only about unresolved evidence; preserve existing confirmation requirements for new accounting entries. Report applied versus pending requests explicitly and regenerate the affected CSV/table after corrections. An unchanged or stale CSV must never silently approve a request.
 
 Opening or editing a review CSV does not confirm matches, approve classifications or update SQLite. Preserve the skill's existing confirmation requirements. If the user requests applying CSV edits, validate the changes against source evidence and use the existing audited correction/import commands; never silently replace database records from an edited export.
 

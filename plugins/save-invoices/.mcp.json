@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "save-invoices": {
+      "command": "/bin/sh",
+      "args": [
+        "mcp-server/launch.sh",
+        "--stdio"
+      ],
+      "cwd": "."
+    }
+  }
+}

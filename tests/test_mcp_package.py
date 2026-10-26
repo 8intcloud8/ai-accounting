@@ -38,5 +38,5 @@ class McpPackageTests(unittest.TestCase):
 
     def test_current_plugins_use_portable_launchers(self):
         root = Path(__file__).resolve().parents[1]
-        for name in ('search-bills', 'save-bills'):
+        for name in ('search-email-invoices', 'save-invoices'):
             self.assertTrue(validate(root / 'plugins' / name))

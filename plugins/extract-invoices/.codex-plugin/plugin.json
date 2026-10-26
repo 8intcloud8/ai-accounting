@@ -1,0 +1,20 @@
+{
+  "name": "extract-invoices",
+  "displayName": "Invoice Extractor",
+  "version": "1.1.0",
+  "description": "Extract local bills, invoices and receipts into shared local accounting storage.",
+  "interface": {
+    "displayName": "Invoice Extractor",
+    "shortDescription": "Extract local bills, invoices and receipts into shared local accounting storage.",
+    "longDescription": "Extracts supplier, line items, totals and GST from a bill or invoice file and imports it as hash-verified evidence in the local accounting workspace.",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Import this invoice."
+    ]
+  }
+}

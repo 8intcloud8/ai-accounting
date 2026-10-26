@@ -41,11 +41,11 @@
       }
     },
     {
-      "name": "extract-invoice",
+      "name": "extract-invoices",
       "category": "Productivity",
       "source": {
         "source": "local",
-        "path": "./plugins/extract-invoice"
+        "path": "./plugins/extract-invoices"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",
@@ -113,11 +113,11 @@
       }
     },
     {
-      "name": "save-bills",
+      "name": "save-invoices",
       "category": "Productivity",
       "source": {
         "source": "local",
-        "path": "./plugins/save-bills"
+        "path": "./plugins/save-invoices"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",
@@ -125,11 +125,11 @@
       }
     },
     {
-      "name": "search-bills",
+      "name": "search-email-invoices",
       "category": "Productivity",
       "source": {
         "source": "local",
-        "path": "./plugins/search-bills"
+        "path": "./plugins/search-email-invoices"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",

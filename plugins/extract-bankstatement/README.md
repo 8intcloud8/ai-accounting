@@ -34,7 +34,7 @@ Storage includes accounts, transactions, import history, and source links. Money
 
 The store exposes `import`, `summary`, `transactions`, and `export` commands. Only approved rows may be imported. Summaries and exports can be filtered by account and ISO date range. CSV exports never overwrite existing files. Generated CSVs must not be reimported as statements.
 
-Invoice extraction, payment matching and running-cost allocation are separate plugins: `extract-invoice`, `match-payments`, and `allocate-running-costs`. Each has one skill and bundles compatible storage helpers. All reuse the same database. Preserve source documents: storage retains references, not document copies.
+Invoice extraction, payment matching and running-cost allocation are separate plugins: `extract-invoices`, `match-payments`, and `allocate-running-costs`. Each has one skill and bundles compatible storage helpers. All reuse the same database. Preserve source documents: storage retains references, not document copies.
 
 ## Scripts
 

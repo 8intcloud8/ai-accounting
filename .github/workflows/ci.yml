@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
-        plugin: [search-bills, save-bills]
+        plugin: [search-email-invoices, save-invoices]
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Validate extracted client package
-        run: python ../../../scripts/check_mcp_package.py .. --output /tmp/${{ matrix.plugin }}.zip --expected-tool ${{ matrix.plugin == 'save-bills' && 'save_bills' || 'search_bills' }}
+        run: python ../../../scripts/check_mcp_package.py .. --output /tmp/${{ matrix.plugin }}.zip --expected-tool ${{ matrix.plugin == 'save-invoices' && 'save_bills' || 'search_bills' }}
 
   accounting:
     strategy:

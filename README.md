@@ -6,7 +6,7 @@ A local Codex accounting suite for Australian bookkeeping, BAS preparation and a
 
 ### Codex Desktop (one click)
 
-Open the Plugins Directory in Codex Desktop and add this repository (`8intcloud8/ai-accounting`) as a marketplace source. All 12 plugins are marked `INSTALLED_BY_DEFAULT`, so adding the marketplace is the only step — no per-plugin install clicks needed. Then ask: **“Set up AI Accounting for my business.”** Gmail connection for `search-bills`/`save-bills` is requested on first use, not at install time. Python 3.11+ must still be available on your machine; Email plugins also require Node/npm.
+Open the Plugins Directory in Codex Desktop and add this repository (`8intcloud8/ai-accounting`) as a marketplace source. All 12 plugins are marked `INSTALLED_BY_DEFAULT`, so adding the marketplace is the only step — no per-plugin install clicks needed. Then ask: **“Set up AI Accounting for my business.”** Gmail connection for `search-email-invoices`/`save-invoices` is requested on first use, not at install time. Python 3.11+ must still be available on your machine; Email plugins also require Node/npm.
 
 ### Manual / other hosts
 
@@ -26,10 +26,10 @@ Use `--local-only` for local statements and invoices without Gmail plugins. Prof
 |---|---|
 | setup-accounting | Workspace and business setup |
 | manage-accounting | Resume a period and show outstanding work |
-| search-bills | Find Gmail documents |
-| save-bills | Save selected documents |
+| search-email-invoices | Find Gmail documents |
+| save-invoices | Save selected documents |
 | extract-bankstatement | Extract/import bank transactions |
-| extract-invoice | Extract/import invoice evidence |
+| extract-invoices | Extract/import invoice evidence |
 | match-payments | Propose and confirm payment links |
 | allocate-running-costs | Apply business-use allocations |
 | classify-transactions | Post balanced ledger entries with GST evidence |
@@ -75,3 +75,13 @@ python3 scripts/build_release.py --output /tmp/ai-accounting-release
 Release builds must also build the two Node MCP plugins. CI runs storage/workflow tests on macOS and Linux, validates bundled parity, and tests Node plugins. Run fresh-install validation before public distribution. See docs/RELEASE-READINESS.md for remaining scope.
 
 MIT licensed. Never commit private statements, invoices, credentials or database files.
+
+## Review tables in Codex
+
+Accounting skills show review CSVs as a local table beside the chat: search, sort, filter issues, read formatted amounts, open managed source documents and save check/correction requests. CSV exports remain available. The view runs only on this computer and needs no cloud service or additional Python package.
+
+```sh
+python3 accounting_core/accounting_store.py --db /path/to/accounting/db/accounting.db review-table --csv /path/to/accounting/output/YYYY-MM-DD/invoice-review.csv --title "Invoice review"
+```
+
+Open the returned review_url in Codex’s browser panel. Keep the command running while reviewing; stop it with Ctrl-C afterwards. Requests are saved as dated JSON workpapers with original row values and the CSV hash. Ask Codex to review and apply them through audited accounting commands. The table itself never edits SQLite or silently approves tax treatment. Source links serve only existing managed files under that workspace’s documents folder.

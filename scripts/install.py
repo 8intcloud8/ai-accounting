@@ -62,7 +62,7 @@ def main():
     plugins = [
         e["name"]
         for e in marketplace["plugins"]
-        if not (args.local_only and e["name"] in ("search-bills", "save-bills"))
+        if not (args.local_only and e["name"] in ("search-email-invoices", "save-invoices"))
     ]
     # Validate existing choices before native installation or configuration changes.
     updated = old
@@ -100,7 +100,7 @@ def main():
                 raise RuntimeError(
                     "Node/npm required for Gmail plugins; use --local-only for local files"
                 )
-            for name in ("search-bills", "save-bills"):
+            for name in ("search-email-invoices", "save-invoices"):
                 subprocess.run(
                     [npm, "ci"], cwd=root / "plugins" / name / "mcp-server", check=True
                 )

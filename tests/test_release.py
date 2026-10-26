@@ -195,8 +195,8 @@ class ReleaseTests(unittest.TestCase):
             )
             enabled = set(json.loads(state.read_text()))
             self.assertEqual(len(enabled), 10)
-            self.assertNotIn("search-bills", enabled)
-            self.assertNotIn("save-bills", enabled)
+            self.assertNotIn("search-email-invoices", enabled)
+            self.assertNotIn("save-invoices", enabled)
             selector = json.loads((codex_home / "accounting-workspace.json").read_text())
             self.assertEqual(selector["workspace"], str(workspace.resolve()))
 
