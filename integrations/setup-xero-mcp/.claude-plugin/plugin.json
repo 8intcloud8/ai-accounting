@@ -1,0 +1,8 @@
+{
+  "name": "setup-xero-mcp",
+  "version": "0.3.0",
+  "description": "Local Xero OAuth setup and MCP launcher with validated callbacks and protected token rotation",
+  "author": {
+    "name": "Ammar"
+  }
+}
