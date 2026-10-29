@@ -1,0 +1,19 @@
+{
+  "name": "upload-invoices-drive",
+  "version": "0.1.0",
+  "description": "Store original invoices in a dedicated Google Drive invoices/YYYY-MM folder hierarchy.",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Upload Invoices to Drive",
+    "shortDescription": "Store invoices in monthly Google Drive folders",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Upload this invoice to my Google Drive invoice space."
+    ]
+  }
+}

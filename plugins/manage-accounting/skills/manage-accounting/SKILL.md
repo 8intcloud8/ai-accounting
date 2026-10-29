@@ -5,9 +5,13 @@ description: Continue a local accounting period, show saved progress and route t
 
 # Manage Accounting
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
 Resolve the saved workspace and reporting dates. Run `scripts/accounting_store.py workflow-status --start YYYY-MM-DD --end YYYY-MM-DD` with `AI_ACCOUNTING_DB` pointing to the workspace database. Read the returned blockers; do not derive completion from chat history alone.
 
-Route using the document-first workflow below: setup-accounting; search-email-invoices/save-invoices when wanted; extract-invoices and extract-bankstatement; classify-transactions and allocate-running-costs; match-payments and settlement classification; reconcile-accounts; prepare-bas; prepare-tax-report. Each is a separate plugin. Use available plugins; explain any missing installation.
+Route using the document-first workflow below: setup-accounting; search-email-invoices/save-invoices when wanted; extract-invoices and extract-bankstatements; classify-transactions and allocate-running-costs; match-payments and settlement classification; reconcile-accounts; prepare-bas; prepare-tax-report. Each is a separate plugin. Use available plugins; explain any missing installation.
 
 Show a short completed/pending list and the next concrete action. Missing GST does not mean zero. Never count invoice plus its bank payment as two expenses. Bank transfers, director loans and repayments need explicit treatment.
 
@@ -34,3 +38,7 @@ After extraction, review every document independently of payment. For accrual GS
 Use `review-document --request <JSON>` for period-specific decisions: invoice_id, start, end, status (excluded/deferred/unresolved), reason and, for deferred, review_after after the period end. Recognition derives from live journals. Retain source/payment timing and prior-claim evidence; never exclude documents merely to clear blockers. Source corrections invalidate decisions through their source hash. Deferred decisions apply only to that period and require review in later periods.
 
 Route: setup and source inventory; import purchases, sales/RCTIs and all bank/card accounts; review document recognition, allocation and GST; match settlements without duplicate expenses/revenue; reconcile; resolve document/account/PAYG exceptions; prepare draft BAS. Cash and accrual have different timing; these are iterative passes rather than mandatory payment-first steps. Read classify-transactions references/accrual-workflow.md for entries.
+
+## Identify the BAS work required
+
+For BAS preparation, read `references/bas-applicability.md`. Run `bas-applicability --start YYYY-MM-DD --end YYYY-MM-DD` against the selected workspace, show its saved CSV through the review table, then save confirmed answers using `save-bas-applicability --request <JSON>`. This is a period-specific assessment, separate from generic review checkpoints. Missing/stale answers and applicable follow-ups remain blockers. Ask only relevant missing questions in small groups; a saved yes does not complete the required calculation. The current engine still produces GST-only drafts.

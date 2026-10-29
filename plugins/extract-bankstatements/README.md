@@ -38,7 +38,7 @@ Invoice extraction, payment matching and running-cost allocation are separate pl
 
 ## Scripts
 
-Scripts live in `skills/extract-bankstatement/scripts/`:
+Scripts live in `skills/extract-bankstatements/scripts/`:
 
 - `inspect_statement.py`: inspect source headers and sample rows.
 - `extract.py`: extract transactions using a mapping.

@@ -144,7 +144,8 @@ class ReleaseTests(unittest.TestCase):
             ]
             subprocess.run(command, check=True, capture_output=True, text=True)
             config = tomllib.loads((codex / "config.toml").read_text())
-            self.assertEqual(len(config["plugins"]), 10)
+            total_plugins = sum(1 for p in (suite / "plugins").iterdir() if p.is_dir())
+            self.assertEqual(len(config["plugins"]), total_plugins - 2)
             self.assertTrue((workspace / "db/accounting.db").exists())
             selector = json.loads((codex / "accounting-workspace.json").read_text())
             self.assertEqual(selector["workspace"], str(workspace.resolve()))
@@ -194,7 +195,8 @@ class ReleaseTests(unittest.TestCase):
                 command, env=env, check=True, capture_output=True, text=True
             )
             enabled = set(json.loads(state.read_text()))
-            self.assertEqual(len(enabled), 10)
+            total_plugins = sum(1 for p in (suite / "plugins").iterdir() if p.is_dir())
+            self.assertEqual(len(enabled), total_plugins - 2)
             self.assertNotIn("search-email-invoices", enabled)
             self.assertNotIn("save-invoices", enabled)
             selector = json.loads((codex_home / "accounting-workspace.json").read_text())

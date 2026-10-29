@@ -393,6 +393,28 @@ class ProductTests(unittest.TestCase):
             },
             connect,
         )
+        from bas_applicability import CATALOG, save_answers
+        from product_store import audit
+
+        save_answers(
+            self.db,
+            {
+                "business_id": "example",
+                "start": "2026-07-01",
+                "end": "2026-09-30",
+                "answers": [
+                    {
+                        "topic": key,
+                        "answer": "no",
+                        "evidence": "Synthetic fixture: no additional obligations or exceptional events",
+                        "provenance": "source_verified",
+                    }
+                    for key in CATALOG
+                ],
+            },
+            connect,
+            audit,
+        )
         for step in (
             "source_completeness",
             "sales_completeness",

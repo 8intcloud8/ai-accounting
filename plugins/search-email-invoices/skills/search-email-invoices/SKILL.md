@@ -17,6 +17,10 @@ metadata:
 
 # search-email-invoices
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
 Find every bill, invoice, and receipt in Gmail within a date range, show
 them as an interactive checklist (the bill-search-app MCP App, or the
 `show_widget` fallback on hosts that don't render it), and save

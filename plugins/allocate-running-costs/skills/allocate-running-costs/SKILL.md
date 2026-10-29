@@ -5,6 +5,10 @@ description: Calculate the business portion of electricity, internet and phone c
 
 # Allocate running costs
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
 Help calculate the business portion of running costs, considering both actual costs and the applicable ATO fixed-rate method. Produce a traceable calculation from bills, hours and usage evidence. Keep payment matching independent: a full bill can match a full payment even when only part relates to business. Read `references/user-workflow.md` for the user journey and expected report, `references/fixed-rate-request.md` when saving a fixed-rate calculation, and `references/ato-guidance.md` for the relevant rules and refresh linked ATO guidance for the applicable period before final tax treatment.
 
 ## Establish context

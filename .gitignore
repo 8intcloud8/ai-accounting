@@ -24,3 +24,6 @@ __pycache__/
 .venv/
 profile.json
 accounting-workspace.json
+
+# Personal reference material; never shipped with the suite (see docs/OFFICIAL-GUIDANCE.md)
+GST-course-transcripts-*/

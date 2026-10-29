@@ -5,6 +5,10 @@ description: Review income, expense, transfer and loan classifications and post 
 
 # Classify Transactions
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
 Read the imported bank transactions, invoices, payment matches and saved allocation results. Ask about ambiguous transactions. Reuse confirmed supplier treatments only when applicable. Propose category, business/private amount and GST treatment with evidence; obtain confirmation before posting newly inferred classifications.
 
 Use `scripts/accounting_store.py post-journal --request <JSON>`. Resolve helper relative to this skill and reuse AI_ACCOUNTING_DB. Money is integer cents. Every journal must balance. Chart: 1000 bank clearing, 1100 receivables, 1200 GST receivable, 1500 equipment, 2000 payables, 2100 GST payable, 2200 loans, 3000 capital/drawings, 4000 sales, 4900 other income, 5000 general expenses, 5100 utilities, 5200 travel, 5300 insurance.

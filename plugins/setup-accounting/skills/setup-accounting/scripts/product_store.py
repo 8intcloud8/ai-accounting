@@ -12,6 +12,13 @@ import sqlite3
 from contextlib import closing
 from datetime import date
 from pathlib import Path
+from bas_applicability import (
+    BAS_APPLICABILITY_SCHEMA,
+    checklist,
+    save_answers,
+    complete_task,
+    export_checklist,
+)
 
 PRODUCT_SCHEMA = """
 CREATE TABLE IF NOT EXISTS workspace_profile (
@@ -81,6 +88,8 @@ CREATE TABLE IF NOT EXISTS report_snapshots (
  payload_json TEXT NOT NULL, sha256 TEXT NOT NULL UNIQUE,
  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 """
+
+PRODUCT_SCHEMA += BAS_APPLICABILITY_SCHEMA
 
 CHART = [
     ("1000", "Bank clearing", "asset"),
@@ -862,6 +871,8 @@ def state_digest(db):
         "document_dispositions",
         "reporting_scope",
         "reconciliation_evidence",
+        "bas_applicability_events",
+        "bas_task_reviews",
     )
     data = {
         table: [list(r) for r in db.execute(f"SELECT * FROM {table} ORDER BY rowid")]
@@ -1031,7 +1042,8 @@ def status_report(db, start, end):
         (start, end),
     ).fetchone()[0]
     documents = document_review(db, start, end)
-    blockers = []
+    applicability = checklist(db, start, end)
+    blockers = list(applicability["blockers"])
     unresolved = [d for d in documents if d["status"] in ("unresolved", "pending_gst")]
     if unresolved:
         blockers.append(
@@ -1113,6 +1125,7 @@ def status_report(db, start, end):
         "pending_gst": pending,
         "documents": documents,
         "unresolved_documents": len(unresolved),
+        "bas_applicability": applicability,
     }
 
 
@@ -1381,13 +1394,17 @@ def add_commands(sub):
         "complete-step",
         "configure-reporting",
         "review-document",
+        "save-bas-applicability",
+        "complete-bas-task",
     ):
         cmd = sub.add_parser(name)
         cmd.add_argument("--request", type=Path, required=True)
-    for name in ("workflow-status", "prepare-bas", "tax-report"):
+    for name in ("workflow-status", "prepare-bas", "tax-report", "bas-applicability"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--start", required=True)
         cmd.add_argument("--end", required=True)
+        if name == "bas-applicability":
+            cmd.add_argument("--output", type=Path)
 
 
 COMMANDS = {
@@ -1403,6 +1420,9 @@ COMMANDS = {
     "complete-step",
     "configure-reporting",
     "review-document",
+    "save-bas-applicability",
+    "complete-bas-task",
+    "bas-applicability",
     "workflow-status",
     "prepare-bas",
     "tax-report",
@@ -1410,6 +1430,16 @@ COMMANDS = {
 
 
 def dispatch(args, connect):
+    if args.command == "complete-bas-task":
+        return complete_task(
+            args.db, json.loads(args.request.read_text()), connect, audit
+        )
+    if args.command == "save-bas-applicability":
+        return save_answers(
+            args.db, json.loads(args.request.read_text()), connect, audit
+        )
+    if args.command == "bas-applicability":
+        return export_checklist(args.db, args.start, args.end, connect, args.output)
     if args.command == "backup-workspace":
         return backup(args.db, args.output)
     if args.command == "restore-workspace":

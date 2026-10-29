@@ -5,6 +5,12 @@ description: Produce an Australian Simpler BAS GST review workpaper from reviewe
 
 # Prepare BAS
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
+If direct web-fetch fails, follow that reference's browser fallback before declaring official guidance unavailable. For an advice-only or read-only assessment, do not run reporting or save commands that write accounting records; use supplied facts as assumptions and identify any unverified client facts.
+
 Resolve workspace, entity and reporting period. Read references/ato-guidance.md and refresh official guidance before tax treatment. Confirm registration and cash/accrual basis from the stored profile. The initial implementation covers Simpler BAS GST subtotals G1, 1A and 1B; PAYG and other labels need separate review.
 
 Run `scripts/accounting_store.py prepare-bas --start YYYY-MM-DD --end YYYY-MM-DD`. The engine selects reviewed GST items by explicit attribution date, excludes reversed journals, subtracts refund adjustments, and saves immutable report snapshots plus dated JSON/CSV exports. Unknown/unreviewed items are blockers, not zero GST.
@@ -26,3 +32,7 @@ Opening or editing a review CSV does not confirm matches, approve classification
 ## Complete review exports
 
 The helper returns saved_csv, saved_documents_csv and saved_exceptions_csv. BAS CSV includes entity, dates, currency, GST-inclusive G1 convention, ready_for_review, blockers and scope. Open the exceptions CSV first when blocked, then the document register for decisions, and the draft totals when useful. A zero subtotal with unresolved items is not a nil BAS. Do not mark review checkpoints complete while documents or account coverage are unresolved.
+
+## Identify the BAS work required
+
+For BAS preparation, read `references/bas-applicability.md`. Run `bas-applicability --start YYYY-MM-DD --end YYYY-MM-DD` against the selected workspace, show its saved CSV through the review table, then save confirmed answers using `save-bas-applicability --request <JSON>`. This is a period-specific assessment, separate from generic review checkpoints. Missing/stale answers and applicable follow-ups remain blockers. Ask only relevant missing questions in small groups; a saved yes does not complete the required calculation. The current engine still produces GST-only drafts.

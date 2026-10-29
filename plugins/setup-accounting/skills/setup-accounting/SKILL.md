@@ -5,6 +5,10 @@ description: Configure the local accounting workspace and business profile once,
 
 # Set up Accounting
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
 Ask for the accounting folder, legal business name, entity type and stable business ID. Reuse known details. Ask whether GST registered and cash/accrual basis; unknown stays null/unknown. One business per workspace. Support AUD initially.
 
 Create the workspace at the user's chosen folder with `db/`, `documents/`, `output/YYYY-MM-DD/`, and `backups/`. Use `scripts/accounting_store.py --db <folder>/db/accounting.db setup-accounting --request <profile.json>`; paths are relative to this skill. Profile example:
@@ -20,3 +24,7 @@ If GST settings were initially unknown, use `update-profile --request <JSON>` wi
 ## Confirm reporting scope
 
 Run `configure-reporting --request <JSON>` after verifying the BAS reporting method and all relevant bank/card account names. Example: `{"method":"simpler","expected_accounts":["CBA business","Credit card"],"evidence":"User confirmed reporting method and full account inventory"}`. Supported methods are simpler/full/instalments/unknown; only confirmed simpler can pass this version's BAS scope gate. Do not invent eligibility from GST registration. Missing expected account-period evidence blocks readiness. The package reports G1 GST-inclusive; communicate that convention. PAYG and other labels remain separate checks.
+
+## Identify the BAS work required
+
+For BAS preparation, read `references/bas-applicability.md`. Run `bas-applicability --start YYYY-MM-DD --end YYYY-MM-DD` against the selected workspace, show its saved CSV through the review table, then save confirmed answers using `save-bas-applicability --request <JSON>`. This is a period-specific assessment, separate from generic review checkpoints. Missing/stale answers and applicable follow-ups remain blockers. Ask only relevant missing questions in small groups; a saved yes does not complete the required calculation. The current engine still produces GST-only drafts.

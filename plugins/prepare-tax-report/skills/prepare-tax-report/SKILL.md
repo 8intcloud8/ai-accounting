@@ -5,6 +5,10 @@ description: Produce a local bookkeeping trial balance and income/expense workpa
 
 # Prepare Tax Report
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
 Resolve entity and financial-year dates. Run `scripts/accounting_store.py tax-report --start YYYY-MM-DD --end YYYY-MM-DD` against the selected workspace. Show account balances, unresolved classifications and saved CSV/JSON.
 
 This is an accounting workpaper, not a tax payable calculation or lodged return. Separately review capital assets/depreciation, non-deductible items, private use, reimbursements, losses and entity-specific tax adjustments using current ATO guidance. Keep company and individual returns distinct. Income-tax and GST timing can differ; do not relabel cash movements as accrual profit.

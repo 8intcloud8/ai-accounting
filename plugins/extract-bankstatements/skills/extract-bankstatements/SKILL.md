@@ -1,9 +1,13 @@
 ---
-name: extract-bankstatement
-description: Process, extract, combine, or consolidate bank statements (CSV, Excel, or PDF) from multiple banks into one standardised CSV for a financial year. Trigger when the user asks to process bank statements, extract transactions from statements, combine or consolidate statements from multiple banks, mentions a "bankstatements folder", a financial year (e.g. FY25, FY25-AU), or asks to run extract-bankstatement.
+name: extract-bankstatements
+description: Process, extract, combine, or consolidate bank statements (CSV, Excel, or PDF) from multiple banks into one standardised CSV for a financial year. Trigger when the user asks to process bank statements, extract transactions from statements, combine or consolidate statements from multiple banks, mentions a "bankstatements folder", a financial year (e.g. FY25, FY25-AU), or asks to run extract-bankstatements.
 ---
 
 # Extract Bank Statement
+
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
 
 Combine bank statement files (CSV, Excel, PDF) from multiple banks into one standardised CSV with columns: `date, description, debit, credit, file`.
 

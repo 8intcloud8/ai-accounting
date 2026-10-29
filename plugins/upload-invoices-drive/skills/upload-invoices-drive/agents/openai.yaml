@@ -1,0 +1,4 @@
+interface:
+  display_name: "Upload Invoices to Drive"
+  short_description: "Store invoices in monthly Google Drive folders"
+  default_prompt: "Use $upload-invoices-drive to store these invoices in my Google Drive invoices space."

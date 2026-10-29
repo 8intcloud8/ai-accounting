@@ -28,7 +28,8 @@ Use `--local-only` for local statements and invoices without Gmail plugins. Prof
 | manage-accounting | Resume a period and show outstanding work |
 | search-email-invoices | Find Gmail documents |
 | save-invoices | Save selected documents |
-| extract-bankstatement | Extract/import bank transactions |
+| upload-invoices-drive | Store invoices in Google Drive invoices/YYYY-MM folders |
+| extract-bankstatements | Extract/import bank transactions |
 | extract-invoices | Extract/import invoice evidence |
 | match-payments | Propose and confirm payment links |
 | allocate-running-costs | Apply business-use allocations |
@@ -85,3 +86,9 @@ python3 accounting_core/accounting_store.py --db /path/to/accounting/db/accounti
 ```
 
 Open the returned review_url in Codex’s browser panel. Keep the command running while reviewing; stop it with Ctrl-C afterwards. Requests are saved as dated JSON workpapers with original row values and the CSV hash. Ask Codex to review and apply them through audited accounting commands. The table itself never edits SQLite or silently approves tax treatment. Source links serve only existing managed files under that workspace’s documents folder.
+
+## Official guidance lookup
+
+Every skill packages topic-specific official-source references. Before tax or regulatory decisions, Codex searches and reads applicable ATO guidance (or ASIC/Fair Work for the relevant obligations), cites exact URLs and access dates, and retains source notes with the draft workpaper. Failed access is disclosed and dependent treatment remains pending. Routine extraction and matching can continue.
+
+Browsing/search is supplied by the host, not installed by this package. These instructions do not add a tax/payroll engine or a scheduled crawler. See [docs/OFFICIAL-GUIDANCE.md](docs/OFFICIAL-GUIDANCE.md) for routing, evidence records and observed source-access failures. Rebuild the suite to distribute changed references; existing installed caches are not updated by editing source files alone.

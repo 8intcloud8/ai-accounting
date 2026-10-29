@@ -5,6 +5,10 @@ description: Propose matches between stored invoices and bank payments, show out
 
 # Match payments
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
 Use shared local SQLite storage. Users do not configure a database. Retrieve records through the bundled helper at `scripts/accounting_store.py` (resolve relative to this skill directory).
 
 1. Establish the business and bank account from existing user instructions or ask if unknown. Never match unrelated businesses/accounts. Both bank transactions and verified invoices must already be imported; report missing inputs.

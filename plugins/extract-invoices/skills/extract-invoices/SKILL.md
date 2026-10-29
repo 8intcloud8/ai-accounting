@@ -5,6 +5,10 @@ description: Extract locally saved bills, invoices and receipts into the assista
 
 # Extract bills and invoices
 
+## Official guidance for tax and regulatory decisions
+
+Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
+
 SQLite is internal assistant memory. Users provide documents, not database setup. This skill uses the same automatically managed `the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`)` as bank imports; respect the `AI_ACCOUNTING_DB` override consistently.
 
 ## Workflow
