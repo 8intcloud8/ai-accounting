@@ -206,6 +206,47 @@ class ReviewFolderTests(unittest.TestCase):
             urlopen(request)
         self.assertEqual(error.exception.code, 403)
 
+    def _write_csv(self, rows):
+        with self.csv_path.open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=FIELDS)
+            writer.writeheader()
+            writer.writerows(rows)
+
+    def test_drifted_outcome_is_rejected_not_silently_unprotected(self):
+        """`protected` keys off the exact outcome string, so a drifted
+        "control_file" would make a prior review export quarantinable."""
+        row = self._row("r1", "manifest.csv", "control", "Control_File", "keep")
+        self._write_csv([row])
+        with self.assertRaisesRegex(ValueError, "unknown outcome"):
+            Review(self.root, self.csv_path)
+
+    def test_drifted_document_kind_is_rejected(self):
+        row = self._row("r1", "invoice_A.pdf", "Tax Invoice", "keep_invoice", "keep")
+        self._write_csv([row])
+        with self.assertRaisesRegex(ValueError, "unknown document_kind"):
+            Review(self.root, self.csv_path)
+
+    def test_blank_document_kind_allowed_only_for_unreadable(self):
+        unreadable = self._row("r1", "invoice_A.pdf", "", "unreadable_needs_review", "keep")
+        self._write_csv([unreadable])
+        self.assertTrue(Review(self.root, self.csv_path).by_id["r1"]["protected"])
+        blank = self._row("r1", "invoice_A.pdf", "", "keep_invoice", "keep")
+        self._write_csv([blank])
+        with self.assertRaisesRegex(ValueError, "unknown document_kind"):
+            Review(self.root, self.csv_path)
+
+    def test_every_documented_value_is_accepted(self):
+        """Guards against the validator drifting from SKILL.md and review.html."""
+        for kind in ("invoice", "receipt", "credit_note", "sale", "supporting", "control"):
+            self._write_csv([self._row("r1", "invoice_A.pdf", kind, "keep_invoice", "keep")])
+            self.assertEqual(Review(self.root, self.csv_path).by_id["r1"]["document_kind"], kind)
+        for outcome in ("keep_invoice", "keep_receipt", "keep_credit_note",
+                        "keep_sale_or_rcti", "keep_supporting", "exact_duplicate",
+                        "possible_duplicate", "non_invoice", "unreadable_needs_review",
+                        "control_file"):
+            self._write_csv([self._row("r1", "invoice_A.pdf", "invoice", outcome, "keep")])
+            self.assertEqual(Review(self.root, self.csv_path).by_id["r1"]["outcome"], outcome)
+
     def test_blocked_loopback_reports_the_sandbox_remedy(self):
         """A sandboxed host denies 127.0.0.1 with EPERM; the operator must see
         the config remedy, not a bare traceback."""

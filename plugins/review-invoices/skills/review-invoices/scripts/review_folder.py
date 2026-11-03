@@ -16,6 +16,17 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
 
+# Must match the outcome table and document_kind list in SKILL.md, and the
+# category filter and status labels in assets/review.html.
+OUTCOMES = frozenset({
+    "keep_invoice", "keep_receipt", "keep_credit_note", "keep_sale_or_rcti",
+    "keep_supporting", "exact_duplicate", "possible_duplicate", "non_invoice",
+    "unreadable_needs_review", "control_file",
+})
+DOCUMENT_KINDS = frozenset({
+    "invoice", "receipt", "credit_note", "sale", "supporting", "control",
+})
+
 SANDBOX_BLOCKED = (
     "Cannot start the local review page: this host blocked the loopback port.\n"
     "Codex sandboxes shell commands and denies all network access by default, "
@@ -120,6 +131,24 @@ class Review:
             path = checked_path(self.root, row["relative_path"])
             if len(row["sha256"]) != 64:
                 raise ValueError("Review row is missing its file hash")
+            # Reject unknown spellings rather than degrade. `protected` below
+            # keys off the exact outcome, so a drifted "control_file" would
+            # silently make a prior review export or recovery log
+            # quarantinable, and a drifted kind drops the row out of the
+            # review page's category filter.
+            if row["outcome"] not in OUTCOMES:
+                raise ValueError(
+                    f"Row {key} has unknown outcome {row['outcome']!r}; "
+                    f"use one of: {', '.join(sorted(OUTCOMES))}"
+                )
+            if row["document_kind"] not in DOCUMENT_KINDS and not (
+                row["document_kind"] == "" and row["outcome"] == "unreadable_needs_review"
+            ):
+                raise ValueError(
+                    f"Row {key} has unknown document_kind {row['document_kind']!r}; "
+                    f"use one of: {', '.join(sorted(DOCUMENT_KINDS))} "
+                    "(may be blank only for unreadable_needs_review)"
+                )
             row["protected"] = (
                 row["outcome"] in ("control_file", "unreadable_needs_review")
                 or path.name == "manifest.csv" or path == self.report

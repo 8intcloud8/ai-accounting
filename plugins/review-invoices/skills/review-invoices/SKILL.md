@@ -174,6 +174,13 @@ Write `invoice-folder-review-<run>.csv` with these fields:
 document_number, document_date, total, currency, outcome, duplicate_group,
 keeper_relative_path, proposed_action, reason, confidence, review_status`
 
+`document_kind` must be exactly one of `invoice`, `receipt`, `credit_note`,
+`sale`, `supporting` or `control` — lowercase, no other spelling. The review
+page's category filter and status labels match these literals, so any other
+value silently drops the row out of its filter and shows a raw outcome string
+instead of a label. It records what the document *is*; `outcome` records the
+review decision about it.
+
 Use a CSV writer. Include one row per file, preserve filenames exactly, and keep
 extracted values distinct from uncertain interpretations. Write an accompanying
 Markdown report with counts, transaction groups, keeper recommendations,
