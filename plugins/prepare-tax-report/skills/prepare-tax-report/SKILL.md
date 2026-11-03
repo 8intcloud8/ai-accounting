@@ -19,10 +19,28 @@ Do not claim a complete income statement or balance sheet without opening balanc
 
 Open the generated annual accounting workpaper CSV returned by the helper. Explain its period, incomplete classifications and bookkeeping scope before asking for review; do not describe it as a complete tax return.
 
-Save the review artifact under the selected workspace's `output/YYYY-MM-DD/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
+Save the review artifact under the selected workspace's `output/YYYY-MM-DD/reports/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
 
 Show the CSV through the local table view by default. Start `python3 <helper> --db <selected workspace>/db/accounting.db review-table --csv <absolute CSV path> --title "<stage> review"` in a persistent command session. Read the initial JSON review_url, then call `open_in_codex` with `target: { type: "browser", url: "<returned review_url>" }` and `placement: "right"`. Reuse a current tab/server for the same unchanged CSV; stop stale servers when replacing them. The table provides search, sorting, issue filtering, formatted amounts/dates, managed-source document links and check/correction request buttons. Keep the underlying CSV as the versioned export. Do not open raw CSV text unless requested or the table cannot run; report a fallback honestly. If the tool returns queued, describe opening as queued rather than displayed.
 
 The table saves requests under output/YYYY-MM-DD/review-request-*.json. It does not approve matches/classifications or update accounting records. When the user asks to process requests, read those for the current CSV, verify csv_sha256, row identity, original values and source evidence, then apply supported changes through the existing audited correction/import commands. Treat proposed values as user input, not verified facts. Ask only about unresolved evidence; preserve existing confirmation requirements for new accounting entries. Report applied versus pending requests explicitly and regenerate the affected CSV/table after corrections. An unchanged or stale CSV must never silently approve a request.
 
 Opening or editing a review CSV does not confirm matches, approve classifications or update SQLite. Preserve the skill's existing confirmation requirements. If the user requests applying CSV edits, validate the changes against source evidence and use the existing audited correction/import commands; never silently replace database records from an edited export.
+
+## Fixed HTML report contract
+
+Use the bundled `review-table` renderer for every CSV review. Its fixed HTML
+and controls live in `scripts/review_table.py` (canonical package source:
+`accounting_core/review_table.py`). Do not generate a replacement HTML page,
+invent a dashboard, rewrite CSS, or change layout between runs. Preserve the
+renderer’s column order from the exported CSV, controls, labels, formatting,
+source links and correction-request behaviour. Data, title, period, row counts,
+issue messages and schema-required columns may change; presentation must not.
+A different export schema may have different columns without a new design.
+
+Open and verify the returned browser URL. Keep detailed results in that report;
+chat should provide its link and any necessary action/blocker, not a duplicate
+table. If the renderer fails, report the failure and link the saved CSV as an
+explicit fallback; do not improvise another HTML design. Template changes require
+an explicit implementation request and belong in the canonical source, followed
+by release generation to synchronise bundled copies, never in per-run output.

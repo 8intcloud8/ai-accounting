@@ -19,7 +19,7 @@ Reconcile each account separately. A numerical balance match does not prove clas
 
 Create and open a reconciliation-review CSV showing each account/period, opening balance, credits, debits, calculated closing, source closing, difference and verification status. Use explicit cents/AUD column labels. Distinguish independently printed statement balances from boundaries derived from transaction running balances.
 
-Save the review artifact under the selected workspace's `output/YYYY-MM-DD/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
+Save the review artifact under the selected workspace's `output/YYYY-MM-DD/reports/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
 
 Show the CSV through the local table view by default. Start `python3 <helper> --db <selected workspace>/db/accounting.db review-table --csv <absolute CSV path> --title "<stage> review"` in a persistent command session. Read the initial JSON review_url, then call `open_in_codex` with `target: { type: "browser", url: "<returned review_url>" }` and `placement: "right"`. Reuse a current tab/server for the same unchanged CSV; stop stale servers when replacing them. The table provides search, sorting, issue filtering, formatted amounts/dates, managed-source document links and check/correction request buttons. Keep the underlying CSV as the versioned export. Do not open raw CSV text unless requested or the table cannot run; report a fallback honestly. If the tool returns queued, describe opening as queued rather than displayed.
 
@@ -32,3 +32,21 @@ Opening or editing a review CSV does not confirm matches, approve classification
 Supply boundary_kind=statement only with independently checked statement opening/closing balances and boundary_evidence identifying their source/pages. Otherwise use boundary_kind=derived; arithmetic can pass while BAS readiness remains blocked. Do not relabel reconstructed balances as independent evidence. `configure-reporting` records all expected account names; a missing account-period is a blocker.
 
 Also inspect all unresolved documents, outstanding matches and ledger receivable/payable/GST control balances before completing source/sales review checkpoints. Arithmetic reconciliation is not a complete ledger audit. Zero-activity accounts currently need manual evidence and remain blocked by the helper; do not manufacture transactions to clear coverage.
+
+## Fixed HTML report contract
+
+Use the bundled `review-table` renderer for every CSV review. Its fixed HTML
+and controls live in `scripts/review_table.py` (canonical package source:
+`accounting_core/review_table.py`). Do not generate a replacement HTML page,
+invent a dashboard, rewrite CSS, or change layout between runs. Preserve the
+renderer’s column order from the exported CSV, controls, labels, formatting,
+source links and correction-request behaviour. Data, title, period, row counts,
+issue messages and schema-required columns may change; presentation must not.
+A different export schema may have different columns without a new design.
+
+Open and verify the returned browser URL. Keep detailed results in that report;
+chat should provide its link and any necessary action/blocker, not a duplicate
+table. If the renderer fails, report the failure and link the saved CSV as an
+explicit fallback; do not improvise another HTML design. Template changes require
+an explicit implementation request and belong in the canonical source, followed
+by release generation to synchronise bundled copies, never in per-run output.

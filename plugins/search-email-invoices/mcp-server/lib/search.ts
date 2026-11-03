@@ -7,7 +7,7 @@ import type {
   BillResult,
   ExcludedBill,
   SearchBillsStructured,
-} from "../src/types.js";
+} from "./types.js";
 
 /**
  * Consolidates candidate occurrences (gathered by the agent via its own

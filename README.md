@@ -4,9 +4,26 @@ A local Codex accounting suite for Australian bookkeeping, BAS preparation and a
 
 ## Install
 
+### Required: allow the local review pages
+
+`search-email-invoices` and `review-invoices` present their checklists as pages
+served on `127.0.0.1`. Codex sandboxes shell commands and denies **all** network
+access by default — loopback included — so these pages cannot be served or
+opened until you add to `~/.codex/config.toml` and restart Codex:
+
+```toml
+[sandbox_workspace_write]
+network_access = true
+```
+
+Without it, `review-invoices` cannot quarantine or restore anything (its
+confirmation page is the only approval path), and `search-email-invoices` loses
+its **Choose folder** picker. Both report this blocker explicitly rather than
+appearing to succeed. The other 13 plugins are unaffected.
+
 ### Codex Desktop (one click)
 
-Open the Plugins Directory in Codex Desktop and add this repository (`8intcloud8/ai-accounting`) as a marketplace source. All 12 plugins are marked `INSTALLED_BY_DEFAULT`, so adding the marketplace is the only step — no per-plugin install clicks needed. Then ask: **“Set up AI Accounting for my business.”** Gmail connection for `search-email-invoices`/`save-invoices` is requested on first use, not at install time. Python 3.11+ must still be available on your machine; Email plugins also require Node/npm.
+Open the Plugins Directory in Codex Desktop and add this repository (`8intcloud8/ai-accounting`) as a marketplace source. All 15 plugins are marked `INSTALLED_BY_DEFAULT`, so adding the marketplace is the only step — no per-plugin install clicks needed. Then ask: **“Set up AI Accounting for my business.”** Gmail connection for `search-email-invoices`/`save-invoices` is requested on first use, not at install time. Python 3.11+ must still be available on your machine; Email plugins also require Node/npm.
 
 ### Manual / other hosts
 
@@ -25,9 +42,11 @@ Use `--local-only` for local statements and invoices without Gmail plugins. Prof
 | Plugin | Role |
 |---|---|
 | setup-accounting | Workspace and business setup |
+| setup-xero-mcp | Optional Xero OAuth setup and automatically refreshed MCP connection |
 | manage-accounting | Resume a period and show outstanding work |
 | search-email-invoices | Find Gmail documents |
 | save-invoices | Save selected documents |
+| review-invoices | Review duplicates and non-invoices; quarantine approved files |
 | upload-invoices-drive | Store invoices in Google Drive invoices/YYYY-MM folders |
 | extract-bankstatements | Extract/import bank transactions |
 | extract-invoices | Extract/import invoice evidence |
@@ -46,7 +65,7 @@ Each plugin has one skill. All reuse the same local workspace. Gmail search/save
 Accounting/
   db/accounting.db
   documents/<hash-prefix>/<hash>.<extension>
-  output/YYYY-MM-DD/
+  output/YYYY-MM-DD/reports/
   backups/
 ```
 
@@ -82,7 +101,7 @@ MIT licensed. Never commit private statements, invoices, credentials or database
 Accounting skills show review CSVs as a local table beside the chat: search, sort, filter issues, read formatted amounts, open managed source documents and save check/correction requests. CSV exports remain available. The view runs only on this computer and needs no cloud service or additional Python package.
 
 ```sh
-python3 accounting_core/accounting_store.py --db /path/to/accounting/db/accounting.db review-table --csv /path/to/accounting/output/YYYY-MM-DD/invoice-review.csv --title "Invoice review"
+python3 accounting_core/accounting_store.py --db /path/to/accounting/db/accounting.db review-table --csv /path/to/accounting/output/YYYY-MM-DD/reports/invoice-review.csv --title "Invoice review"
 ```
 
 Open the returned review_url in Codex’s browser panel. Keep the command running while reviewing; stop it with Ctrl-C afterwards. Requests are saved as dated JSON workpapers with original row values and the CSV hash. Ask Codex to review and apply them through audited accounting commands. The table itself never edits SQLite or silently approves tax treatment. Source links serve only existing managed files under that workspace’s documents folder.

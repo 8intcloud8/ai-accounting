@@ -37,7 +37,7 @@ function csvEscape(value: string): string {
 }
 
 /** Appends rows to <folderPath>/manifest.csv, writing the header only if the
- * file doesn't already exist (safe to call across multiple save_bills runs
+ * file doesn't already exist (safe to call across multiple save_invoices runs
  * into the same folder). */
 export function appendManifestRows(folderPath: string, rows: ManifestRow[]): void {
   const manifestPath = path.join(folderPath, "manifest.csv");

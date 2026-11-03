@@ -23,7 +23,7 @@ For corrections run `correct-record --request <JSON>` with kind invoice/payment/
 
 Open the current stage’s review CSV before asking the user to decide. Route to the producing skill to create it if needed. Show one current review file at a time; do not open every historical export or unrelated period.
 
-Save the review artifact under the selected workspace's `output/YYYY-MM-DD/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
+Save the review artifact under the selected workspace's `output/YYYY-MM-DD/reports/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
 
 Show the CSV through the local table view by default. Start `python3 <helper> --db <selected workspace>/db/accounting.db review-table --csv <absolute CSV path> --title "<stage> review"` in a persistent command session. Read the initial JSON review_url, then call `open_in_codex` with `target: { type: "browser", url: "<returned review_url>" }` and `placement: "right"`. Reuse a current tab/server for the same unchanged CSV; stop stale servers when replacing them. The table provides search, sorting, issue filtering, formatted amounts/dates, managed-source document links and check/correction request buttons. Keep the underlying CSV as the versioned export. Do not open raw CSV text unless requested or the table cannot run; report a fallback honestly. If the tool returns queued, describe opening as queued rather than displayed.
 
@@ -42,3 +42,21 @@ Route: setup and source inventory; import purchases, sales/RCTIs and all bank/ca
 ## Identify the BAS work required
 
 For BAS preparation, read `references/bas-applicability.md`. Run `bas-applicability --start YYYY-MM-DD --end YYYY-MM-DD` against the selected workspace, show its saved CSV through the review table, then save confirmed answers using `save-bas-applicability --request <JSON>`. This is a period-specific assessment, separate from generic review checkpoints. Missing/stale answers and applicable follow-ups remain blockers. Ask only relevant missing questions in small groups; a saved yes does not complete the required calculation. The current engine still produces GST-only drafts.
+
+## Fixed HTML report contract
+
+Use the bundled `review-table` renderer for every CSV review. Its fixed HTML
+and controls live in `scripts/review_table.py` (canonical package source:
+`accounting_core/review_table.py`). Do not generate a replacement HTML page,
+invent a dashboard, rewrite CSS, or change layout between runs. Preserve the
+renderer’s column order from the exported CSV, controls, labels, formatting,
+source links and correction-request behaviour. Data, title, period, row counts,
+issue messages and schema-required columns may change; presentation must not.
+A different export schema may have different columns without a new design.
+
+Open and verify the returned browser URL. Keep detailed results in that report;
+chat should provide its link and any necessary action/blocker, not a duplicate
+table. If the renderer fails, report the failure and link the saved CSV as an
+explicit fallback; do not improvise another HTML design. Template changes require
+an explicit implementation request and belong in the canonical source, followed
+by release generation to synchronise bundled copies, never in per-run output.

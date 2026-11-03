@@ -77,7 +77,7 @@ For uncertain claims, retain the gross allocated cost and evidence, with `gst_cr
 
 ## Save and report
 
-Ask for or reuse the user's accounting workspace; use the selected accounting workspace consistently. For exports use `output/YYYY-MM-DD/` beneath that workspace, using the user's local date. Never overwrite an existing result; choose a new filename.
+Ask for or reuse the user's accounting workspace; use the selected accounting workspace consistently. For exports use `output/YYYY-MM-DD/reports/` beneath that workspace, using the user's local date. Never overwrite an existing result; choose a new filename.
 
 Store a JSON allocation record and a readable CSV/report with: business ID, invoice/source IDs, service/report periods, actual inputs and units, allocation method and factor, amount/tax basis, allocated cost, private balance where computable, reimbursement/payment evidence, GST amount/status, income-tax entity/status, unresolved issues, ATO links and calculation date. Record each bill once; aggregate without duplicating invoice/payment/reimbursement amounts.
 
@@ -108,7 +108,7 @@ For `electricity_actual`, save an electricity rule with that method and submit `
 
 4. GST stays pending by default. To assess eligibility, provide a `gst_eligibility` object only when verified: `gst_registered`, `company_acquisition_verified`, `tax_invoice_verified`, `business_use_verified`, `uniform_tax_verified` (all true), `basis` (cash/accrual), `attribution_date`, and `evidence`. The allocation rule must be supported and invoice verified in AUD. Cash-basis credits are limited to confirmed payment allocations in the reporting period. Reimbursement-only cases need separate verified attribution and must not be fabricated as invoice payments. Later tax review uses the audited correction/replacement workflow; do not bypass conflicts by changing dates/IDs.
 
-5. Read `allocations --business <ID>` for results. Export with `allocations --business <ID> --output <workspace>/output/<local-date>/running-costs.csv`, creating the dated folder first. The CSV stores integer cents with explicit column names; present dollars in chat. Existing files are not overwritten. The output includes rule IDs, calculation inputs, business/private amounts, candidate/eligible GST, status and issues. SQLite retains immutable request/result snapshots and rule versions.
+5. Read `allocations --business <ID>` for results. Export with `allocations --business <ID> --output <workspace>/output/<local-date>/reports/running-costs.csv`, creating the dated folder first. The CSV stores integer cents with explicit column names; present dollars in chat. Existing files are not overwritten. The output includes rule IDs, calculation inputs, business/private amounts, candidate/eligible GST, status and issues. SQLite retains immutable request/result snapshots and rule versions.
 
 
 Print in chat: bill amount, supported business allocation, method, GST status, remaining questions and saved file locations. Do not submit BAS or change tax returns as part of this skill.
@@ -121,10 +121,28 @@ Use the Python executable at `<suite>/.venv/bin/python` when installed, otherwis
 
 Open the exported running-costs CSV before asking the user to review business amounts and GST status. When a fixed-rate comparison exists, open its workpaper CSV at that step, clearly distinguishing it from invoice allocations. Explain cents columns in dollars in the chat summary.
 
-Save the review artifact under the selected workspace's `output/YYYY-MM-DD/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
+Save the review artifact under the selected workspace's `output/YYYY-MM-DD/reports/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
 
 Show the CSV through the local table view by default. Start `python3 <helper> --db <selected workspace>/db/accounting.db review-table --csv <absolute CSV path> --title "<stage> review"` in a persistent command session. Read the initial JSON review_url, then call `open_in_codex` with `target: { type: "browser", url: "<returned review_url>" }` and `placement: "right"`. Reuse a current tab/server for the same unchanged CSV; stop stale servers when replacing them. The table provides search, sorting, issue filtering, formatted amounts/dates, managed-source document links and check/correction request buttons. Keep the underlying CSV as the versioned export. Do not open raw CSV text unless requested or the table cannot run; report a fallback honestly. If the tool returns queued, describe opening as queued rather than displayed.
 
 The table saves requests under output/YYYY-MM-DD/review-request-*.json. It does not approve matches/classifications or update accounting records. When the user asks to process requests, read those for the current CSV, verify csv_sha256, row identity, original values and source evidence, then apply supported changes through the existing audited correction/import commands. Treat proposed values as user input, not verified facts. Ask only about unresolved evidence; preserve existing confirmation requirements for new accounting entries. Report applied versus pending requests explicitly and regenerate the affected CSV/table after corrections. An unchanged or stale CSV must never silently approve a request.
 
 Opening or editing a review CSV does not confirm matches, approve classifications or update SQLite. Preserve the skill's existing confirmation requirements. If the user requests applying CSV edits, validate the changes against source evidence and use the existing audited correction/import commands; never silently replace database records from an edited export.
+
+## Fixed HTML report contract
+
+Use the bundled `review-table` renderer for every CSV review. Its fixed HTML
+and controls live in `scripts/review_table.py` (canonical package source:
+`accounting_core/review_table.py`). Do not generate a replacement HTML page,
+invent a dashboard, rewrite CSS, or change layout between runs. Preserve the
+renderer’s column order from the exported CSV, controls, labels, formatting,
+source links and correction-request behaviour. Data, title, period, row counts,
+issue messages and schema-required columns may change; presentation must not.
+A different export schema may have different columns without a new design.
+
+Open and verify the returned browser URL. Keep detailed results in that report;
+chat should provide its link and any necessary action/blocker, not a duplicate
+table. If the renderer fails, report the failure and link the saved CSV as an
+explicit fallback; do not improvise another HTML design. Template changes require
+an explicit implementation request and belong in the canonical source, followed
+by release generation to synchronise bundled copies, never in per-run output.

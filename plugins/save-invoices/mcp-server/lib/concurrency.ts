@@ -1,5 +1,5 @@
 /** Runs `fn` over `items` with at most `limit` in flight at once, preserving
- * result order. Used for both search metadata fetches and save_bills'
+ * result order. Used for both search metadata fetches and save_invoices'
  * batched attachment fetches. */
 export async function mapWithConcurrency<T, R>(
   items: T[],

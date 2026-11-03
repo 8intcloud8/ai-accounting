@@ -1,0 +1,5 @@
+{
+  "name": "review-invoices",
+  "version": "0.2.2",
+  "description": "Review local invoice folders for duplicates and non-invoices, then quarantine approved files with a recovery log."
+}

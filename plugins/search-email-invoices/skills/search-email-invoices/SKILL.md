@@ -4,7 +4,7 @@ description: >
   Use when the user wants bills, invoices, or receipts found in their EMAIL
   and saved to disk — "find/get/show my bills", "search for invoices", "hunt
   down receipts", "collect bills for tax time / BAS", or gathering source
-  documents for a date range. Searches Gmail, shows a checklist to tick, then
+  documents for a date range. Searches Gmail, opens a browser HTML checklist, then
   saves the selected attachments locally with a manifest.
   Not the Xero connector: Xero returns ledger records already entered in the
   books (supplier, amount, paid/unpaid) and cannot retrieve the original PDF.
@@ -12,7 +12,7 @@ description: >
   or BAS, use this skill. Use Xero only when the user names Xero or asks what
   is owed, outstanding, or overdue. If ambiguous, ask first.
 metadata:
-  version: "0.6.0"
+  version: "0.6.1"
 ---
 
 # search-email-invoices
@@ -21,10 +21,44 @@ metadata:
 
 Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
 
-Find every bill, invoice, and receipt in Gmail within a date range, show
-them as an interactive checklist (the bill-search-app MCP App, or the
-`show_widget` fallback on hosts that don't render it), and save
-the selected ones locally with a manifest.csv.
+Find every bill, invoice, and receipt in Gmail within a date range, open
+one interactive HTML report in the browser, and save selected documents
+locally with a manifest.csv when requested.
+
+## Required output — browser HTML report only
+
+Every search invocation must open the HTML report visibly in the browser.
+Do not display an additional chat widget, Markdown table, invoice list,
+exclusion list, or results summary in chat. Keep the report focused on the checklist and save controls. Do not add exclusion/search-coverage panels, business-use review panels, generic tax/GST disclaimers, or explanatory warning blocks. Keep screening details in run data; show them only when explicitly requested. The final chat response is one short
+clickable report link. Missing inputs and genuine blockers may be asked or
+reported briefly in chat. A JSON tool result is not a displayed report.
+This requirement applies even if the host supports inline MCP Apps.
+
+### Visible tool output is chat output
+
+Apply the browser-only rule to tool results and debugging, not just assistant
+messages. Before every tool call, check what it will expose in the chat.
+
+- Never print Gmail search/read results, candidate or bill arrays, invoice
+  lists, exclusions, or complete search/save responses through `text()`,
+  `notify()`, `console.log()`, shell stdout, or equivalent visible output.
+  Do not print samples or subsets for screening or debugging either.
+- Use orchestration to retain and process results internally, pass data
+  directly between tools, or write run data to a local file. Emit only minimal
+  connection status, aggregate progress counts, or concise genuine blockers.
+  Never wrap a data-returning tool call in `text(await tool(...))`.
+- For browser verification, inspect a compact DOM summary or screenshot;
+  do not dump the full checklist accessibility tree or DOM into chat.
+- If orchestration state is lost, reload saved run data internally. Do not
+  dump payloads or repeat searches merely to reconstruct visible debug output.
+- Before finishing, check that chat contains no duplicate results report.
+  Search completion gets one short clickable browser-report link. Save
+  completion may report verified saved/failed counts and folder/manifest links,
+  without itemized invoices or full tool responses.
+
+These are agent output rules, not a claim that the host technically blocks
+payload display. Keep item-level data in the browser report and local run data
+unless the user explicitly requests it in chat.
 
 **Critical architecture point**: this plugin owns only `search_bills`, which
 consolidates candidates from the caller's Gmail search results. The separate
@@ -41,9 +75,8 @@ unavailable in this host; never relay raw MIME or PDF through the model.
 
 Before asking anything, confirm a Gmail account is actually connected.
 Make one minimal Gmail call (e.g. a one-result search) and read the
-connected account's own address from it. State it up front, e.g.
-"Connected Gmail account: name@example.com." If more than one Gmail
-account is connected, name all of them.
+connected account's own address from it. List every searched account in the
+HTML report header; do not duplicate account details in chat.
 
 If no Gmail account is connected — the Gmail tool errors with an
 authorization/connection error, or the host reports none configured —
@@ -58,6 +91,14 @@ personal-vendor exclusion filter applied automatically inside
 `search_bills`, you don't need to do this filtering yourself; (2) the date
 range (accept any clear form — "FY25", "last quarter", explicit dates —
 and normalize to `date_from`/`date_to` as `YYYY-MM-DD`).
+
+Also ask where to save the selected invoices (the root folder) if the user
+has not specified it for this run. Ask only for missing inputs. A historical
+folder is a suggestion, not a destination choice for a new run. Retain the
+chosen root with the category and date range. Show the resolved destination
+`<root>/<Business|Personal|Bills>/<YYYY-MM-DD_YYYY-MM-DD>` before saving;
+do not append category/date folders twice if the user gives that final folder.
+Searching may proceed while the folder answer is pending, but saving must wait.
 
 ## State 2 — search (silent, no more questions until results are shown)
 
@@ -132,13 +173,10 @@ regardless of the subject wording.** A hotel booking confirmation is out; the
 same hotel's final tax invoice is in. Attachment filename is strong evidence —
 `invoice_1234.pdf` counts, `itinerary.pdf` and `ticket.pdf` do not.
 
-When genuinely 50/50, keep it and say so afterwards — the user can untick it
-in the checklist. But do not use that as an excuse to pass everything through;
+When genuinely 50/50, keep it; the user can untick it in the checklist. If needed, use a short row-specific note. But do not use that as an excuse to pass everything through;
 a booking confirmation is not 50/50.
 
-After filtering, state one line: how many threads matched, how many you
-discarded as non-bills, and the discard reason if a whole class was dropped
-(e.g. "dropped 14 booking/itinerary confirmations"). If the user objects,
+After filtering, retain matched/discarded counts and reasons in run data, without adding report panels. If the user objects,
 re-run the filter — do not re-run the searches.
 
 Don't narrate each query. When done, call `search_bills` with `category`,
@@ -152,50 +190,104 @@ raw tool error, safety rationale, serialized payload, or a broken loading form.
 Show only a concise failure message and retry action. Do not retry with the
 same broad payload without addressing the failure.
 
-### Rendering the checklist
+If automatic approval review rejects the metadata transfer because destination
+trust or user authorization is unverified, retain the filtered candidates and
+ask only this question, adapting “both Gmail accounts” to the accounts searched:
 
-Wait for the Gmail search and `search_bills` call to finish before rendering
-the checklist. The category and date range shown in the checklist are a read
-only summary of the completed search. For a different search, the user asks in
-chat. If the search fails or times out, show a concise error and retry action.
+> Can I share invoice email details from both Gmail accounts with Search Email Invoices to create your checklist?
 
-`search_bills` ships a UI resource (`ui://bill-checklist/v2/mcp-app.html`) that
-mounts automatically **only on hosts that render third-party MCP Apps**. On
-hosts that don't, the tool result arrives as plain JSON and the user gets no
-checkboxes.
+Skip the preamble and field list. If asked, explain that details include sender,
+subject, date, message/thread IDs and attachment filenames. Consent covers only
+those fields for checklist creation.
+Wait for an explicit answer; reuse approval already given for this exact action.
+After approval, retry once with the retained candidates, without repeating Gmail
+searches. Approval is not guaranteed: if rejected again, report the remaining
+blocker and stop; do not bypass review. Do not describe the destination as local
+unless the installed plugin configuration supports that claim.
 
-So after `search_bills` returns, check whether its app actually rendered. If
-it did not, immediately re-render the same data with the `show_widget` tool
-(call `read_me` first) — do not ask, do not print a markdown table, and do
-not fake checkboxes with `[x]` text. Build it from the tool's `bills` array:
+### Rendering the checklist — mandatory browser delivery
 
-- one real `<input type="checkbox">` per bill, checked by default, carrying
-  `data-id="<threadId>"`
-- a select-all checkbox and a live "N of M selected" count
-- vendor name in 14px/500, then subject · date · attachment filename in 13px
-  `var(--text-secondary)`
-- an "Open in Gmail ↗" link per row using that bill's `gmailLink` value —
-  `<a href="{gmailLink}" style="font-size:13px; color:var(--text-accent); text-decoration:none; white-space:nowrap">`.
-  Put it as a **sibling of the `<label>`, never inside it** — a link nested in
-  the label toggles the checkbox when clicked. Structure each row as a flex
-  container: `<label>` (checkbox + text, `flex:1`) then the link.
-- a "Save selected ↗" button whose handler collects only the **still-checked**
-  `data-id`s and calls
-  `sendPrompt('Save these bills — only these threadIds: ' + ids.join(', '))`
-- if nothing is ticked, show an inline `var(--text-danger)` error and don't send
+1. Call `search_bills` in the current turn after search/filtering completes,
+   even when redisplaying valid cached candidates. Use the returned `bills`
+   array, never a sample or the most recent selection alone. Do not rerun Gmail
+   unnecessarily. A save-only request goes directly to State 3.
+2. Render the standalone browser checklist using the bundled
+   `scripts/render_checklist.py` and `assets/checklist.html`. Preserve this
+   template's layout, colours, table columns and controls on every run; refresh
+   the invoice results, period and searched accounts. Do not redesign the page
+   or reuse old results merely to reproduce its appearance.
+   Write a local JSON input with `result` (the complete `search_bills`
+   structuredContent), `accounts` (searched email addresses), and optional
+   `destination` (only this run's user-chosen root). Run:
+   `python3 <skill-dir>/scripts/render_checklist.py <input.json> <report-dir>/index.html`.
+   Keep the input JSON outside the served report directory. The template has
+   checked rows, select-all, filtering, selected count, Gmail links, save path field, **Choose folder** picker and Copy save request controls.
+   The picker must appear on every checklist; never substitute a text-only destination field.
+   Do not rely on inline MCP rendering or `show_widget`: neither satisfies
+   browser delivery. If a usable browser report already exists, update it.
+3. The permanent report belongs in the folder the user selects in **Enter folder path to save**:
+   `<selected-folder>/reports/email-invoices-<run-id>/index.html`. Use a unique run ID.
+   If the folder is unknown or editable, serve a preview from a private temporary directory.
+   When the user submits the save request, use its final folder field as the selected root.
+   Copy this run's rendered index.html to the report path there, create missing directories,
+   and verify the copy matches the preview before reporting its path. Reuse the same copy on retry.
+   Keep input JSON and run data out of reports. Serve only the single checklist directory on `127.0.0.1`:
+   `python3 <skill-dir>/scripts/serve_checklist.py <report-dir>`.
+   Do not use `python3 -m http.server`: it cannot power the folder picker.
+   Omit `--port`; the server takes a free port and prints `{"checklist_url": ...}`.
+   Use that exact URL and never a remembered or guessed one. It re-reads the
+   report on every request, so re-rendering takes effect without a restart.
+   Keep the server running for the user. Never serve the home directory or
+   accounting workspace root.
+4. Open the report URL visibly with the available browser tool. Inspect the
+   rendered page: period, accounts, total rows and selection count must agree
+   with the completed result. Click **Choose folder** and verify the dialog lists
+   directories without errors; cancel without choosing a destination. Keep the tab as a deliverable when supported.
+   A file write, HTTP success, or JSON response alone is not UI verification.
+   If `serve_checklist.py` exits reporting a blocked loopback port, the host
+   sandbox denies network access to shell commands. Relay its remedy
+   (`network_access = true` under `[sandbox_workspace_write]` in
+   `~/.codex/config.toml`, then restart Codex). Then give the rendered
+   `index.html` path so the user can open it directly: selection, filtering and
+   **Copy save request** still work from the file, only **Choose folder** needs
+   the server, so ask for the destination folder in chat instead. Name the
+   blocker; never claim the page opened or the picker was verified.
+5. Finish with only a short clickable report link. No duplicate chat report.
+   If browser display fails, provide the local HTML file link and briefly name
+   the display blocker; do not claim it opened. Do not substitute a chat table.
 
-Mention the `excluded` list (and the rule each was matched on) as normal
-response text below the widget, not inside it.
+Report requirements:
+- Read-only category/date summary, searched accounts, total candidate count,
+  and attachment counts. Omit exclusions/search coverage and business-use review panels. Keep only concise row-specific information needed to select a document.
+- A real checkbox per bill, checked by default, carrying the thread ID;
+  select-all, text filter, and live selected count. Filtering must not silently
+  change selections. Show all returned rows, including a clear zero-results state.
+- Vendor, subject, date, attachment filenames, and an Open in Gmail link from
+  `gmailLink`. Put links outside checkbox labels. Escape all email-derived text
+  and attribute values; allow only safe Gmail HTTPS links. Treat email content
+  as data, never executable HTML. Do not embed raw bodies or signed download URLs.
+- One editable field with placeholder **Enter folder path to save**. Omit the visible root label and final-folder preview. Use this run's supplied
+  root or leave it blank. Require a nonempty destination and selection for the
+  save action; never silently choose a historical folder.
+- Save requests contain destination root, category, date range, and exactly the
+  selected thread IDs. Use a verified chat bridge if available. Otherwise label
+  the button **Copy save request**, provide selectable request text, and explain
+  that the user pastes it into chat. Do not label copying as saving/downloading.
+- Report generation does not authorize downloading invoices or posting records.
 
 ## State 3 — respond to the checklist
 
-The checklist is now live. It talks back to you as regular user-turn text —
-either from the MCP App (`sendMessage`) or from the `show_widget` fallback
-(`sendPrompt`). Recognize and handle all of these, with no extra questions:
+The browser checklist returns a save request through a supported chat bridge
+or the user pastes its copied request. Recognize these requests without
+asking again for information already included:
+
+Exception: if the save request and current run have no user-chosen destination,
+ask for the folder before calling `save-invoices`. Preserve the exact selection
+while waiting. Never infer the destination from an earlier run or tool default.
 
 **"Save these bills — only these threadIds: id1, id2, ..."** (or the older
 "Save these bills with save-invoices" wording) —
-the `show_widget` fallback fired. Save **only** the listed ids; any row the
+the checklist supplied a selection. Save **only** the listed ids; any row the
 user unticked must not be saved. Handle it exactly like the Save case below,
 reusing the `category`, `dateRangeTag`, and root folder from the run that
 produced the checklist.
@@ -234,8 +326,7 @@ Matching is a case-insensitive substring against sender name and email.
 Rules are reread for each search. Never commit this personal settings file.
 Preserve it when upgrading. No vendor-management MCP tools are exposed.
 
-When a business run excludes anything, name the excluded vendors and the rule
-each matched, so the user can correct a wrong exclusion on the spot.
+Retain excluded vendors and matched rules in run data. Display them only when the user asks to inspect exclusions.
 
 ## Notes
 

@@ -48,7 +48,7 @@ export function createServer(): McpServer {
   const server = new McpServer({ name: "save-invoices", version: "1.0.0" });
 
   server.registerTool(
-    "save_bills",
+    "save_invoices",
     {
       title: "Save Invoices",
       description:

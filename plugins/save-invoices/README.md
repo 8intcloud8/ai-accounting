@@ -1,6 +1,6 @@
 # Save Invoices
 
-A local MCP plugin that saves selected Gmail bill attachments and inline receipts. Exposes one tool: `save_bills`. The companion search-email-invoices plugin discovers candidates; this plugin saves only the selections supplied by the assistant.
+A local MCP plugin that saves selected Gmail bill attachments and inline receipts. Exposes one tool: `save_invoices`. The companion search-email-invoices plugin discovers candidates; this plugin saves only the selections supplied by the assistant.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ Make `skills/save-invoices/SKILL.md` available to your assistant. The Codex rela
 
 ## Use
 
-Select bills in your search checklist, then ask the assistant to save those selections. It retrieves exact attachment links or inline bodies and calls `save_bills` in batches of up to five threads. Keep links and email bodies within tool orchestration, not chat output. Retry failed items with fresh links.
+Select bills in your search checklist, then ask the assistant to save those selections. It retrieves exact attachment links or inline bodies and calls `save_invoices` in batches of up to five threads. Keep links and email bodies within tool orchestration, not chat output. Retry failed items with fresh links.
 
 Saved files go under `<root_folder>/<category>/<date_range>/`, with `manifest.csv` appended after each run. The tool requires a `root_folder` string; an empty string uses `BILLS_ROOT_DEFAULT` or `~/Documents/Bills`. Categories are personal, business, or bills. `date_range` has the form `YYYY-MM-DD_YYYY-MM-DD`.
 

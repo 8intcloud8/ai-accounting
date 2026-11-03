@@ -20,7 +20,7 @@ Both plugins passed local build/type checks before consolidation. Save Invoices 
 After building, create client archives with the checked packager (Python 3.11+):
 
 ```sh
-python scripts/check_mcp_package.py plugins/save-invoices --output dist/save-invoices-1.0.1.zip --expected-tool save_bills
+python scripts/check_mcp_package.py plugins/save-invoices --output dist/save-invoices-1.0.1.zip --expected-tool save_invoices
 python scripts/check_mcp_package.py plugins/search-email-invoices --output dist/search-email-invoices.zip --expected-tool search_bills
 ```
 

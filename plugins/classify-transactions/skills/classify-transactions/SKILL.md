@@ -29,7 +29,7 @@ Review current official ATO guidance before final tax treatment. Use `reverse-jo
 
 Before confirmation, create and open a classification-review CSV from the proposed entries. Include transaction ID/date, description, proposed account, business/private amounts with explicit units, GST treatment/status, evidence and unresolved issues. Keep proposed entries distinct from posted journals. Do not post a proposal just to populate the review file.
 
-Save the review artifact under the selected workspace's `output/YYYY-MM-DD/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
+Save the review artifact under the selected workspace's `output/YYYY-MM-DD/reports/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
 
 Show the CSV through the local table view by default. Start `python3 <helper> --db <selected workspace>/db/accounting.db review-table --csv <absolute CSV path> --title "<stage> review"` in a persistent command session. Read the initial JSON review_url, then call `open_in_codex` with `target: { type: "browser", url: "<returned review_url>" }` and `placement: "right"`. Reuse a current tab/server for the same unchanged CSV; stop stale servers when replacing them. The table provides search, sorting, issue filtering, formatted amounts/dates, managed-source document links and check/correction request buttons. Keep the underlying CSV as the versioned export. Do not open raw CSV text unless requested or the table cannot run; report a fallback honestly. If the tool returns queued, describe opening as queued rather than displayed.
 
@@ -42,3 +42,21 @@ Opening or editing a review CSV does not confirm matches, approve classification
 Read `references/accrual-workflow.md` for complete invoice/settlement examples. Use invoice_ids for sales as well as purchases so document completeness is visible. For accrual, post invoices to receivables/payables without requiring a bank link. Later payments settle those accounts with zero additional GST and confirmed payment links. The engine rejects a second live recognition of an accrual document; reverse and replace a mistaken recognition. Split recognition of one document is not supported by this version.
 
 G1 uses GST-inclusive gross: for reviewed sales, gross_cents must reconcile to net sales/other-income lines plus GST. GST-free/input-taxed sales still use sale with evidenced zero GST, not excluded. Separate non-sales receipts into justified balance-sheet lines.
+
+## Fixed HTML report contract
+
+Use the bundled `review-table` renderer for every CSV review. Its fixed HTML
+and controls live in `scripts/review_table.py` (canonical package source:
+`accounting_core/review_table.py`). Do not generate a replacement HTML page,
+invent a dashboard, rewrite CSS, or change layout between runs. Preserve the
+renderer’s column order from the exported CSV, controls, labels, formatting,
+source links and correction-request behaviour. Data, title, period, row counts,
+issue messages and schema-required columns may change; presentation must not.
+A different export schema may have different columns without a new design.
+
+Open and verify the returned browser URL. Keep detailed results in that report;
+chat should provide its link and any necessary action/blocker, not a duplicate
+table. If the renderer fails, report the failure and link the saved CSV as an
+explicit fallback; do not improvise another HTML design. Template changes require
+an explicit implementation request and belong in the canonical source, followed
+by release generation to synchronise bundled copies, never in per-run output.

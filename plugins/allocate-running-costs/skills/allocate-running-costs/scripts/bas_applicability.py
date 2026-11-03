@@ -465,6 +465,7 @@ def export_checklist(path, start, end, connect, output=None):
         or root
         / "output"
         / date.today().isoformat()
+        / "reports"
         / f"bas-applicability-{start}-{end}-{digest}.csv"
     )
     target = Path(target)

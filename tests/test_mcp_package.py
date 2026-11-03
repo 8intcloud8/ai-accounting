@@ -34,7 +34,7 @@ class McpPackageTests(unittest.TestCase):
                 manifest.write_text(json.dumps(metadata))
                 (root / ".mcp.json").write_text(json.dumps({"mcpServers": {}}))
                 with self.assertRaisesRegex(ValueError, "No MCP servers"):
-                    smoke(root, "save_bills")
+                    smoke(root, "save_invoices")
 
     def test_current_plugins_use_portable_launchers(self):
         root = Path(__file__).resolve().parents[1]

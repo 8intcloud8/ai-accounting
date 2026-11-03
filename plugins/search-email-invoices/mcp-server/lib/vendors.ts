@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { BillSender } from "../src/types.js";
+import type { BillSender } from "./types.js";
 
 // Each installation starts with no personal-vendor assumptions.
 const DEFAULT_PERSONAL_VENDORS: string[] = [];

@@ -13,7 +13,7 @@ function tokenFilePath(): string {
  * instead). Needed because the endpoint is meant to be tunneled to a chat
  * host as a custom connector — without this, anyone who reaches the URL (or
  * any page in the operator's own browser, given permissive CORS) could call
- * search_bills/save_bills using the operator's Gmail session.
+ * search_bills/save_invoices using the operator's Gmail session.
  */
 export function getOrCreateMcpToken(): string {
   if (process.env.MCP_AUTH_TOKEN) return process.env.MCP_AUTH_TOKEN;

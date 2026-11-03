@@ -11,13 +11,19 @@ metadata:
 
 Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
 
-Save only the bills selected by the user. Use `save_bills` in batches of at
+Save only the bills selected by the user. Use `save_invoices` in batches of at
 most five threads.
+
+When fulfilling an email checklist save request, persist its rendered HTML at
+`<user-selected-root>/reports/email-invoices-<run-id>/index.html`. Use the
+submitted root and the current run's preview. Create missing directories,
+verify the copy, and include its path with the save result. Reuse the same
+report on retries. If the preview is unavailable, report that separately.
 
 For each attachment, call `gmail_read_attachment` with the exact Gmail message
 ID and complete attachment ID when available, otherwise the exact filename.
 Pass only `structuredContent.file_uri.download_url` and the filename to
-`save_bills`.
+`save_invoices`.
 
 For a thread without attachments, call `gmail_read_email(format="full")` once.
 Traverse nested MIME parts and take `text/html`, falling back to `text/plain`.
@@ -26,7 +32,7 @@ Construct each item as
 `{threadId,date,vendor,subject,foundVia,attachments,html?,text?}`. Never request
 raw MIME. Never print email bodies, signed URLs, or attachment bytes into model
 output. When tool orchestration is available, collect Gmail results and call
-`save_bills` inside it, exposing only final counts and failures.
+`save_invoices` inside it, exposing only final counts and failures.
 
 Signed links expire. Save promptly and retry failed items only with fresh
 links. If the Gmail connector cannot provide temporary file links, report that

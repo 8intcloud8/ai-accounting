@@ -11,7 +11,7 @@ Read `references/official-sources.md` when this task requires tax or regulatory 
 
 Ask for the accounting folder, legal business name, entity type and stable business ID. Reuse known details. Ask whether GST registered and cash/accrual basis; unknown stays null/unknown. One business per workspace. Support AUD initially.
 
-Create the workspace at the user's chosen folder with `db/`, `documents/`, `output/YYYY-MM-DD/`, and `backups/`. Use `scripts/accounting_store.py --db <folder>/db/accounting.db setup-accounting --request <profile.json>`; paths are relative to this skill. Profile example:
+Create the workspace at the user's chosen folder with `db/`, `documents/`, `output/YYYY-MM-DD/reports/`, and `backups/`. Use `scripts/accounting_store.py --db <folder>/db/accounting.db setup-accounting --request <profile.json>`; paths are relative to this skill. Profile example:
 ```json
 {"business_id":"example-business","legal_name":"Example Business","entity_type":"sole_trader","gst_registered":null,"gst_basis":"unknown"}
 ```

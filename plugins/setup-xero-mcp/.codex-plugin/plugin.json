@@ -4,5 +4,6 @@
   "version": "0.3.0",
   "author": {
     "name": "Ammar"
-  }
+  },
+  "skills": "./skills/"
 }

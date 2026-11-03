@@ -113,6 +113,18 @@
       }
     },
     {
+      "name": "review-invoices",
+      "category": "Productivity",
+      "source": {
+        "source": "local",
+        "path": "./plugins/review-invoices"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      }
+    },
+    {
       "name": "save-invoices",
       "category": "Productivity",
       "source": {
@@ -142,6 +154,18 @@
       "source": {
         "source": "local",
         "path": "./plugins/setup-accounting"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      }
+    },
+    {
+      "name": "setup-xero-mcp",
+      "category": "Productivity",
+      "source": {
+        "source": "local",
+        "path": "./plugins/setup-xero-mcp"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",

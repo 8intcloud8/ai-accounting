@@ -84,6 +84,8 @@ def main():
         elif not existing["plugins"][key].get("enabled"):
             raise ValueError(f"{key} is disabled; enable explicitly in Codex")
     tomllib.loads(updated)
+    # Synchronize generated shared UI styles before npm compiles the email UI.
+    subprocess.run([sys.executable, str(root / "scripts/build_release.py")], check=True)
     if args.dependencies:
         env = root / ".venv"
         venv.EnvBuilder(with_pip=True).create(env)
@@ -122,7 +124,6 @@ def main():
             ],
             check=True,
         )
-    subprocess.run([sys.executable, str(root / "scripts/build_release.py")], check=True)
     config.parent.mkdir(parents=True, exist_ok=True)
     # Write the host-specific workspace selector before any plugin is enabled
     # below. Plugins resolve this file before falling back to the old/default

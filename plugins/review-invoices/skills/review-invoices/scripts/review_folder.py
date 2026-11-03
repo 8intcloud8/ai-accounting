@@ -1,0 +1,349 @@
+"""Serve a reviewed invoice CSV and quarantine only explicitly confirmed rows."""
+
+import argparse
+import csv
+import errno
+import hashlib
+import hmac
+import json
+import os
+from pathlib import Path
+import secrets
+import stat
+import threading
+from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
+
+
+SANDBOX_BLOCKED = (
+    "Cannot start the local review page: this host blocked the loopback port.\n"
+    "Codex sandboxes shell commands and denies all network access by default, "
+    "including 127.0.0.1, so the review page cannot be served or opened.\n"
+    "To enable it, add to ~/.codex/config.toml and restart Codex:\n"
+    "\n"
+    "    [sandbox_workspace_write]\n"
+    "    network_access = true\n"
+    "\n"
+    "Quarantine and restore need this page; there is no chat-only equivalent. "
+    "Report this blocker instead of describing the review as opened or applied."
+)
+
+
+def bind_loopback(handler, port):
+    """Bind loopback, or fail with the sandbox remedy instead of a bare EPERM."""
+    try:
+        return ThreadingHTTPServer(("127.0.0.1", port), handler)
+    except PermissionError as error:
+        raise SystemExit(SANDBOX_BLOCKED) from error
+    except OSError as error:
+        if error.errno in (errno.EPERM, errno.EACCES, errno.EAFNOSUPPORT):
+            raise SystemExit(SANDBOX_BLOCKED) from error
+        raise
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def checked_path(root, relative):
+    """Refuse symlinks in every component, traversal and hidden/control folders."""
+    path = Path(relative)
+    if path.is_absolute() or not path.parts or any(
+        part in ("..", ".") or part.startswith(".")
+        or part in ("output", "_quarantine") for part in path.parts
+    ):
+        raise ValueError("Choose a reviewed document inside the source folder")
+    current = root
+    for part in path.parts:
+        current = current / part
+        if current.is_symlink():
+            raise ValueError("Symlink documents are not supported")
+    if not current.resolve().is_relative_to(root):
+        raise ValueError("Document escapes source folder")
+    return current
+
+
+def secure_directory(root, relative):
+    current = root
+    for part in Path(relative).parts:
+        if part in ("..", ".") or "/" in part:
+            raise ValueError("Invalid quarantine folder")
+        current = current / part
+        if current.is_symlink():
+            raise ValueError("Quarantine folders must not be symlinks")
+        current.mkdir(exist_ok=True)
+        if not current.is_dir():
+            raise ValueError("Quarantine destination is not a folder")
+    return current
+
+
+def write_log(path, value):
+    temp = path.with_name(path.name + "." + secrets.token_hex(6) + ".tmp")
+    try:
+        with temp.open("x", encoding="utf-8") as handle:
+            os.chmod(temp, 0o600)
+            json.dump(value, handle, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp, path)
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+class Review:
+    def __init__(self, source, report):
+        self.root = source.resolve(strict=True)
+        # Managed evidence is report-only, including its subdirectories.
+        self.read_only = any(
+            (p.parent / "db/accounting.db").exists() and p.name == "documents"
+            for p in [self.root, *self.root.parents]
+        )
+        if source.is_symlink() or not self.root.is_dir():
+            raise ValueError("Source must be a real directory")
+        self.report = report.resolve(strict=True)
+        if report.is_symlink() or self.report.suffix.lower() != ".csv" or not self.report.is_file():
+            raise ValueError("Choose a regular review CSV")
+        self.report_hash = sha256(self.report)
+        with self.report.open(newline="", encoding="utf-8-sig") as handle:
+            self.rows = list(csv.DictReader(handle))
+        self.by_id = {}
+        for row in self.rows:
+            key = row["row_id"]
+            if not key or key in self.by_id:
+                raise ValueError("Review row IDs must be unique")
+            path = checked_path(self.root, row["relative_path"])
+            if len(row["sha256"]) != 64:
+                raise ValueError("Review row is missing its file hash")
+            row["protected"] = (
+                row["outcome"] in ("control_file", "unreadable_needs_review")
+                or path.name == "manifest.csv" or path == self.report
+                or path.suffix.lower() in (".db", ".sqlite", ".sqlite3")
+                or "db" in Path(row["relative_path"]).parts
+                or any(p.name == "documents" and (p.parent / "db/accounting.db").exists()
+                       for p in path.parents)
+            )
+            self.by_id[key] = row
+        self.token = secrets.token_urlsafe(32)
+        self.lock = threading.Lock()
+        self.operations = {}
+        self.moved = {}
+
+    def validate_source(self, row):
+        path = checked_path(self.root, row["relative_path"])
+        if not path.exists() or not stat.S_ISREG(path.stat().st_mode):
+            raise ValueError("Document is missing or no longer a regular file")
+        if path.stat().st_size != int(row["size_bytes"]) or sha256(path) != row["sha256"]:
+            raise ValueError("Document changed since review; review it again")
+        return path
+
+    def move(self, request):
+        with self.lock:
+            if self.read_only:
+                raise ValueError("Managed accounting evidence is read-only")
+            if request.get("report_sha256") != self.report_hash or sha256(self.report) != self.report_hash:
+                raise ValueError("The review changed; reload and review again")
+            ids = request.get("row_ids")
+            reason = request.get("reason", "")
+            if not isinstance(ids, list) or not ids or len(ids) > len(self.rows):
+                raise ValueError("Select at least one reviewed document")
+            if any(not isinstance(key, str) for key in ids) or len(set(ids)) != len(ids):
+                raise ValueError("Invalid selection")
+            if not isinstance(reason, str) or not reason.strip() or len(reason) > 2000:
+                raise ValueError("Provide a reason for this selection")
+            plans = []
+            run = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + secrets.token_hex(4)
+            for key in ids:
+                if key not in self.by_id or key in self.moved:
+                    raise ValueError("Unknown or already moved review row")
+                row = self.by_id[key]
+                if row["protected"]:
+                    raise ValueError("Managed evidence, databases, unreadable files and control exports must be preserved")
+                if row["outcome"] == "unreadable_needs_review":
+                    raise ValueError("Resolve unreadable documents before cleanup")
+                path = self.validate_source(row)
+                outcome = row["outcome"]
+                folder = {"exact_duplicate": "duplicates", "keep_supporting": "supporting",
+                          "non_invoice": "non-invoices"}.get(outcome, "selected")
+                if outcome == "exact_duplicate":
+                    keeper = row.get("keeper_relative_path", "")
+                    retained = checked_path(self.root, keeper)
+                    if any(self.by_id[k]["relative_path"] == keeper for k in ids if k in self.by_id):
+                        raise ValueError("The duplicate keeper is also selected")
+                    if not retained.is_file() or sha256(retained) != row["sha256"] or retained.read_bytes() != path.read_bytes():
+                        raise ValueError("Duplicate keeper changed or does not match")
+                relative = Path("_quarantine") / run / folder / row["relative_path"]
+                dest_dir = secure_directory(self.root, relative.parent)
+                target = dest_dir / path.name
+                if target.exists() or target.is_symlink():
+                    raise ValueError("Destination exists; nothing overwritten")
+                plans.append({"row_id": key, "original": str(path), "destination": str(target),
+                              "sha256": row["sha256"], "reason": reason.strip(),
+                              "review_reason": row["reason"], "status": "pending"})
+            log_path = self.root / "_quarantine" / run / "recovery.json"
+            record = {"run_id": run, "source_root": str(self.root), "report": str(self.report),
+                      "report_sha256": self.report_hash, "approval": "Explicit selection and confirmation in local review page",
+                      "created_at": datetime.now(timezone.utc).isoformat(), "files": plans}
+            write_log(log_path, record)
+            for item in plans:
+                try:
+                    source = self.validate_source(self.by_id[item["row_id"]])
+                    target = Path(item["destination"])
+                    # Exclusive link prevents overwriting even if a collision appears
+                    # after preflight. Both paths are on the same source filesystem.
+                    os.link(source, target, follow_symlinks=False)
+                    if sha256(target) != item["sha256"]:
+                        target.unlink()
+                        raise ValueError("Destination verification failed; original retained")
+                    source.unlink()
+                    item["status"] = "moved"
+                    item["moved_at"] = datetime.now(timezone.utc).isoformat()
+                    self.moved[item["row_id"]] = item
+                except (OSError, ValueError) as error:
+                    item["status"] = "failed"
+                    item["error"] = str(error)
+                write_log(log_path, record)
+            self.operations[run] = log_path
+            return {"run_id": run, "recovery_log": str(log_path), "files": plans,
+                    "moved_count": sum(p["status"] == "moved" for p in plans)}
+
+    def restore(self, run):
+        with self.lock:
+            if run not in self.operations:
+                raise ValueError("Unknown recovery run")
+            log_path = self.operations[run]
+            if log_path.is_symlink():
+                raise ValueError("Recovery log changed")
+            record = json.loads(log_path.read_text())
+            for item in record["files"]:
+                if item["status"] != "moved":
+                    continue
+                row_id = item["row_id"]
+                original = checked_path(self.root, self.by_id[row_id]["relative_path"])
+                expected = self.moved.get(row_id)
+                if not expected or item["destination"] != expected["destination"] or item["sha256"] != self.by_id[row_id]["sha256"]:
+                    raise ValueError("Recovery record does not match this review")
+                destination = Path(item["destination"])
+                if not destination.resolve().is_relative_to(self.root / "_quarantine" / run):
+                    raise ValueError("Invalid recovery destination")
+                if any(p.is_symlink() for p in [destination, *destination.parents] if p.is_relative_to(self.root)):
+                    raise ValueError("Recovery destination contains a symlink")
+                if original.exists() or original.is_symlink():
+                    item["restore_error"] = "Original path exists; nothing overwritten"
+                elif not destination.is_file() or sha256(destination) != item["sha256"]:
+                    item["restore_error"] = "Quarantined file changed; review manually"
+                else:
+                    os.link(destination, original, follow_symlinks=False)
+                    destination.unlink()
+                    item["status"] = "restored"
+                    item["restored_at"] = datetime.now(timezone.utc).isoformat()
+                    self.moved.pop(row_id, None)
+                write_log(log_path, record)
+            return {"files": record["files"], "recovery_log": str(log_path)}
+
+
+def create_server(review, port=0):
+    assets = Path(__file__).parent.parent / "assets"
+    template = (assets / "review.html").read_text().replace(
+        "CHECKLIST_STYLE", (assets / "checklist.css").read_text()
+    )
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+
+        def send(self, body, mime="application/json", status=200):
+            self.send_response(status)
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Referrer-Policy", "no-referrer")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def authenticated(self):
+            host = f"127.0.0.1:{self.server.server_port}"
+            if self.headers.get("Host") != host:
+                return False
+            supplied = parse_qs(urlsplit(self.path).query).get("token", [""])[0]
+            return hmac.compare_digest(supplied, review.token)
+
+        def do_GET(self):
+            if not self.authenticated():
+                self.send_error(403)
+                return
+            route = urlsplit(self.path).path
+            try:
+                if route == "/":
+                    data = json.dumps({"rows": review.rows, "token": review.token,
+                                       "report_sha256": review.report_hash, "source": str(review.root),
+                                       "moved": list(review.moved), "read_only": review.read_only})
+                    data = data.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+                    self.send(template.replace("REVIEW_DATA", data).encode(), "text/html; charset=utf-8")
+                elif route == "/export":
+                    self.send(review.report.read_bytes(), "text/csv; charset=utf-8")
+                elif route.startswith("/document/"):
+                    key = route.rsplit("/", 1)[-1]
+                    if key not in review.by_id:
+                        raise ValueError("Unknown document")
+                    if key in review.moved:
+                        raise ValueError("Document is in quarantine; use the recovery log")
+                    path = checked_path(review.root, review.by_id[key]["relative_path"])
+                    self.send(path.read_bytes(), "application/pdf" if path.suffix.lower() == ".pdf" else "text/plain; charset=utf-8")
+                else:
+                    self.send_error(404)
+            except (ValueError, OSError) as error:
+                self.send(str(error).encode(), "text/plain; charset=utf-8", 400)
+
+        def do_POST(self):
+            origin = f"http://127.0.0.1:{self.server.server_port}"
+            if (not self.authenticated() or self.headers.get("Origin") != origin
+                    or not hmac.compare_digest(self.headers.get("X-Review-Token", ""), review.token)
+                    or self.headers.get("Content-Type") != "application/json"):
+                self.send_error(403)
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 < length <= 16384:
+                    raise ValueError("Invalid request size")
+                request = json.loads(self.rfile.read(length))
+                if not isinstance(request, dict):
+                    raise ValueError("Invalid request")
+                route = urlsplit(self.path).path
+                if route == "/quarantine":
+                    result = review.move(request)
+                elif route == "/restore":
+                    result = review.restore(request.get("run_id"))
+                else:
+                    raise ValueError("Unknown operation")
+                self.send(json.dumps(result).encode())
+            except (ValueError, KeyError, TypeError, OSError) as error:
+                self.send(json.dumps({"error": str(error)}).encode(), status=400)
+
+    server = bind_loopback(Handler, port)
+    server.daemon_threads = True
+    server.review_url = f"http://127.0.0.1:{server.server_port}/?token={review.token}"
+    return server
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument("--csv", type=Path, required=True)
+    parser.add_argument("--port", type=int, default=0)
+    args = parser.parse_args()
+    review = Review(args.source, args.csv)
+    server = create_server(review, args.port)
+    print(json.dumps({"review_url": server.review_url}), flush=True)
+    server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

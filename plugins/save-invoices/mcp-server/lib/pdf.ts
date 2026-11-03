@@ -4,31 +4,43 @@ import fs from "node:fs";
 let browserPromise: Promise<Browser> | null = null;
 
 async function getBrowser(): Promise<Browser> {
+  if (browserPromise) {
+    const pending = browserPromise;
+    const browser = await pending;
+    if (browser.connected) return browser;
+    if (browserPromise === pending) browserPromise = null;
+  }
   if (!browserPromise) {
     // Lazy import: the server (and its interactive UI) must load even when
     // puppeteer isn't installed. Only PDF rendering needs it.
-    browserPromise = import("puppeteer")
-      .then((m) => {
+    const pending = import("puppeteer")
+      .then(async (m) => {
         const macChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
         const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH ||
           (process.platform === "darwin" && fs.existsSync(macChrome) ? macChrome : undefined);
-        return m.default.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
+        const browser = await m.default.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
+        browser.once("disconnected", () => {
+          if (browserPromise === pending) browserPromise = null;
+        });
+        return browser;
       })
       .catch((e) => {
-        browserPromise = null;
+        if (browserPromise === pending) browserPromise = null;
         throw new Error(
-          "PDF rendering needs puppeteer, which isn't available: " +
+          "Could not start the invoice PDF browser: " +
             (e instanceof Error ? e.message : String(e))
         );
       });
+    browserPromise = pending;
   }
   return browserPromise;
 }
 
 export async function renderHtmlToPdf(html: string, outPath: string): Promise<void> {
   const browser = await getBrowser();
-  const page = await browser.newPage();
+  let page: Awaited<ReturnType<Browser["newPage"]>> | undefined;
   try {
+    page = await browser.newPage();
     // Email bodies are attacker-controlled HTML. Disabling JS blocks any
     // <script>/fetch()-driven requests (SSRF-adjacent risk) while still
     // letting normal <img>/<link> resources load for a faithful render.
@@ -42,8 +54,20 @@ export async function renderHtmlToPdf(html: string, outPath: string): Promise<vo
       printBackground: true,
       margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" },
     });
+  } catch (error) {
+    // A closed protocol connection can precede the disconnected event. Evict
+    // this browser so the caller's retry starts a fresh transport.
+    if (!browser.connected || /connection closed|target closed|session closed|browser.*disconnect/i.test(String(error))) {
+      const pending = browserPromise;
+      if (pending && await pending.catch(() => null) === browser && browserPromise === pending) {
+        browserPromise = null;
+      }
+      await browser.close().catch(() => {});
+    }
+    throw error;
   } finally {
-    await page.close();
+    // Cleanup must not hide the rendering error when the browser disconnected.
+    await page?.close().catch(() => {});
   }
 }
 
@@ -58,8 +82,9 @@ export function wrapPlainTextAsHtml(text: string, subject: string): string {
 /** Call once at process shutdown to release the shared headless browser. */
 export async function closePdfBrowser(): Promise<void> {
   if (browserPromise) {
-    const browser = await browserPromise;
-    await browser.close();
+    const pending = browserPromise;
     browserPromise = null;
+    const browser = await pending;
+    await browser.close();
   }
 }

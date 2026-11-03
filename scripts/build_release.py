@@ -12,6 +12,13 @@ from check_mcp_package import validate
 
 
 def build(root, output):
+    # review-invoices ships the canonical browser-checklist styling, including
+    # when installed individually. Never maintain a separate theme copy by hand.
+    checklist_css = root / "ui/checklist.css"
+    if checklist_css.is_file():
+        destination = root / "plugins/review-invoices/skills/review-invoices/assets/checklist.css"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(checklist_css, destination)
     core = root / "accounting_core"
     modules = sorted(core.glob("*.py"))
     if not modules:
@@ -90,6 +97,7 @@ def build(root, output):
                 ".agents",
                 "docs",
                 "tests",
+                "ui",
             }
             for f in root.rglob("*"):
                 rel = f.relative_to(root)

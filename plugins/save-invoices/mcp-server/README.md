@@ -10,4 +10,4 @@ npm run build
 ./launch.sh --stdio
 ```
 
-Only `save_bills` is exposed. Attachment saving uses host-supplied temporary links; inline conversion uses Puppeteer. The server does not log into Gmail or upload to accounting services.
+Only `save_invoices` is exposed. Attachment saving uses host-supplied temporary links; inline conversion uses Puppeteer. The server does not log into Gmail or upload to accounting services.

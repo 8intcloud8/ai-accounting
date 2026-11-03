@@ -1204,7 +1204,7 @@ def report(path, kind, start, end, connect):
             "INSERT OR IGNORE INTO report_snapshots(kind,start,end,payload_json,sha256) VALUES (?,?,?,?,?)",
             (kind, start, end, encoded, digest),
         )
-    folder = root_for(path) / "output" / date.today().isoformat()
+    folder = root_for(path) / "output" / date.today().isoformat() / "reports"
     folder.mkdir(parents=True, exist_ok=True)
     filename = folder / f"{kind}-{start}-{end}-{digest[:12]}.json"
     if not filename.exists():

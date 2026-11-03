@@ -1,0 +1,19 @@
+{
+  "name": "review-invoices",
+  "version": "0.2.2",
+  "description": "Review local invoice folders for duplicates and non-invoices, then quarantine approved files with a recovery log.",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Review Invoices",
+    "shortDescription": "Review duplicates and non-invoices before cleanup",
+    "developerName": "AI Accounting contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Review this invoice folder for duplicates and non-invoices."
+    ]
+  }
+}

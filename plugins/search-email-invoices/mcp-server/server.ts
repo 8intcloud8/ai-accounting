@@ -1,25 +1,7 @@
-import {
-  registerAppResource,
-  registerAppTool,
-  RESOURCE_MIME_TYPE,
-} from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import fs from "node:fs/promises";
-import path from "node:path";
-import fsSync from "node:fs";
-import { fileURLToPath } from "node:url";
 import { consolidateBills } from "./lib/search.js";
-
-// When running from source, the built UI lives in ./dist. When running as a
-// bundle that itself sits inside dist/, the UI is a sibling. Accept both.
-// import.meta.dirname needs Node 20.11+; derive it from import.meta.url so
-// the server also starts on older Node runtimes.
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const DIST_DIR = fsSync.existsSync(path.join(HERE, "mcp-app.html"))
-  ? HERE
-  : path.join(HERE, "dist");
 
 const CATEGORY = z.enum(["personal", "business", "bills"]);
 const ISO_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
@@ -86,23 +68,22 @@ const searchBillsOutput = {
 
 export function createServer(): McpServer {
   const server = new McpServer({ name: "bill-search-app", version: "1.0.0" });
-  const resourceUri = "ui://bill-checklist/v2/mcp-app.html";
-
-  registerAppTool(
-    server,
+  // Browser delivery is owned by the skill. Advertising an MCP App here
+  // causes hosts to render a second checklist inside the chat.
+  server.registerTool(
     "search_bills",
     {
       title: "Search Bills",
       description:
         "Consolidates candidate bills/invoices/receipts you found via your own Gmail search " +
-        "into a deduped, vendor-grouped checklist UI. This tool does not search Gmail itself — " +
+        "into structured data for a standalone browser checklist. Never display its bill " +
+        "payload in chat. This tool does not search Gmail itself — " +
         "pass every candidate occurrence you found (see the companion skill for the multi-pass " +
         "search strategy: keyword/attachment/label/inline/forwarded passes, then sender-domain " +
         "and synonym expansion, run until a full round adds nothing new). Business runs exclude " +
         "personal vendors.",
       inputSchema: searchBillsInput,
       outputSchema: searchBillsOutput,
-      _meta: { ui: { resourceUri } },
     },
     async ({ category, date_from, date_to, candidates }): Promise<CallToolResult> => {
       const result = consolidateBills(candidates, category, date_from, date_to);
@@ -115,19 +96,6 @@ export function createServer(): McpServer {
       return {
         content: [{ type: "text", text: summary }],
         structuredContent: { ...result },
-      };
-    },
-  );
-
-  registerAppResource(
-    server,
-    resourceUri,
-    resourceUri,
-    { mimeType: RESOURCE_MIME_TYPE },
-    async (): Promise<ReadResourceResult> => {
-      const html = await fs.readFile(path.join(DIST_DIR, "mcp-app.html"), "utf-8");
-      return {
-        contents: [{ uri: resourceUri, mimeType: RESOURCE_MIME_TYPE, text: html }],
       };
     },
   );
