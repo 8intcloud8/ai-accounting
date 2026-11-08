@@ -1,0 +1,16 @@
+{
+  "name": "ato-docs",
+  "version": "0.1.1",
+  "description": "Research official ATO guidance with sources, reporting-year checks and taxpayer-specific applicability.",
+  "interface": {
+    "displayName": "ATO Docs",
+    "shortDescription": "Research official ATO guidance with sources, reporting-year checks and taxpayer-specific applicability.",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "defaultPrompt": [
+      "Use ato-docs to research the ATO guidance relevant to my BAS or tax-return question."
+    ]
+  }
+}

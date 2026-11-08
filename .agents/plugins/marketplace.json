@@ -17,6 +17,18 @@
       }
     },
     {
+      "name": "ato-docs",
+      "category": "Productivity",
+      "source": {
+        "source": "local",
+        "path": "./plugins/ato-docs"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      }
+    },
+    {
       "name": "classify-transactions",
       "category": "Productivity",
       "source": {
@@ -46,6 +58,18 @@
       "source": {
         "source": "local",
         "path": "./plugins/extract-invoices"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      }
+    },
+    {
+      "name": "grill-me-tax",
+      "category": "Productivity",
+      "source": {
+        "source": "local",
+        "path": "./plugins/grill-me-tax"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",

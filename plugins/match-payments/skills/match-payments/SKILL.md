@@ -3,17 +3,27 @@ name: match-payments
 description: Propose matches between stored invoices and bank payments, show outstanding invoices and unmatched debits, and save user-confirmed allocations for local accounting and BAS preparation.
 ---
 
+## Shared case memory
+
+When working in a selected accounting workspace, use manage-accounting’s `references/agent-harness.md` memory workflow to recall applicable entity/period facts before asking questions. Persist explicit new facts and corrections through its memory helper, read them back, and return evidence to the coordinator. Resolve conflicts with operational profile/allocation records through their owning skill; memory does not authorize posting or establish tax entitlement. If the coordinator is unavailable, disclose memory persistence as unavailable rather than claiming information was saved.
+
+## Shared ATO research
+
+Inspect available case facts first. Before interpreting Australian tax or GST rules, use the installed `ato-docs` skill: discover and read its `SKILL.md`, then follow its official-source search, page retrieval, entity/year checks and citation workflow. Carry the conclusion, source URLs/sections, access date and unresolved facts into this skill's work. Routine searching, saving, extraction, matching and technical setup require no tax lookup unless tax treatment is being assessed.
+
+If `ato-docs` is unavailable, read references/ato-first.md and follow this skill's bundled official-source guidance and disclose the fallback when giving tax conclusions. Do not block routine work or claim that shared research ran when it did not. Tax research does not approve accounting entries or lodgment.
+
+
+
 # Match payments
 
-## Official guidance for tax and regulatory decisions
 
-Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
 
 Use shared local SQLite storage. Users do not configure a database. Retrieve records through the bundled helper at `scripts/accounting_store.py` (resolve relative to this skill directory).
 
 1. Establish the business and bank account from existing user instructions or ask if unknown. Never match unrelated businesses/accounts. Both bank transactions and verified invoices must already be imported; report missing inputs.
 2. Run `python3 <helper> match-payments --business "<ID>" --account "<ID>"`. Respect `AI_ACCOUNTING_DB` consistently. This command is read-only.
-3. Print a concise table of candidates: invoice ID, supplier, invoice total/outstanding amount, transaction ID, bank date/description, proposed allocation, reasons, and ambiguity. Retrieve details using `invoices --business <ID>` and `transactions --account <ID>` if needed. Amounts are stored in cents; display currency and two decimals.
+3. Populate the review report with candidates: invoice ID, supplier, invoice total/outstanding amount, transaction ID, bank date/description, proposed allocation, reasons, and ambiguity. Retrieve details using `invoices --business <ID>` and `transactions --account <ID>` if needed. Amounts are stored in cents; display currency and two decimals.
 4. Matching uses currency, outstanding amount, invoice reference/supplier tokens, and dates within seven days before or ninety days after invoice date. These are proposals, not proof. Amount-only matches and candidates sharing invoices/payments must be flagged. Missing invoice dates/GST/currency remain unresolved. Confirmed allocations do not establish GST eligibility, business-use percentage or tax deductibility.
 5. Ask the user to confirm concrete proposed allocations. Never convert a request to find matches into confirmation. Only after explicit user confirmation write an internal JSON payload:
 
@@ -24,7 +34,7 @@ Use shared local SQLite storage. Users do not configure a database. Retrieve rec
 Run `python3 <helper> confirm-payments --confirmed "<JSON path>"`. The command atomically validates identities/currency and remaining balances, preventing over-allocation. Exact confirmation replays are skipped; changed allocations require audited reversal through `correct-record` before replacement. Never fabricate user confirmation.
 
 6. Partial payments use allocations below the invoice total. A combined bank payment can allocate to multiple invoices; multiple bank payments can allocate to one invoice. Present the whole allocation group for confirmation. These group combinations are manual proposals; the helper does not automatically search all combinations. No refunds, credit-note matching, currency conversion, or automatic correction are implemented. Explicit unmatching uses `correct-record` with kind payment, id and reason.
-7. Print confirmed matches, remaining invoice balances, unallocated debits and unresolved cases. Use “unmatched/outstanding in records”, not “unpaid”: absent bank evidence does not prove nonpayment. A payment email or invoice receipt alone must not create a bank transaction or match. Keep invoice/receipt duplicate handling separate.
+7. Report confirmed matches, remaining invoice balances, unallocated debits and unresolved cases. Use “unmatched/outstanding in records”, not “unpaid”: absent bank evidence does not prove nonpayment. A payment email or invoice receipt alone must not create a bank transaction or match. Keep invoice/receipt duplicate handling separate.
 
 ## Shared runtime
 
@@ -63,3 +73,11 @@ table. If the renderer fails, report the failure and link the saved CSV as an
 explicit fallback; do not improvise another HTML design. Template changes require
 an explicit implementation request and belong in the canonical source, followed
 by release generation to synchronise bundled copies, never in per-run output.
+
+Personal-card purchases belong in expense claims. Match a company reimbursement
+to its claim using record-purchase action reimburse, not to the supplier invoice.
+Use the existing payment reference when linking a previously recorded reimbursement.
+
+## Expense-claim ownership
+
+Own payment-source and expense-claim state through record-purchase: set-source, approve, confirm-unreimbursed and reimburse. Inspect the bundled helper schema before constructing requests. Require actual user confirmation and evidence for each mutation. Keep supplier payment separate from company reimbursement. Reuse stable reimbursement references; link bank debits without recording the payment twice. These actions do not post journals; route posting to classify-transactions. Return saved claim fields to invoice reports.

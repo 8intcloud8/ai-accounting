@@ -28,6 +28,18 @@ def read_state(path: Path) -> tuple[list, list, list]:
             roles = {}
         for inv in invoices:
             inv["role"] = roles.get(inv["id"], "purchase")
+        has_claims = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='claim_payments'"
+        ).fetchone()
+        if has_claims:
+            personal = {
+                r[0]
+                for r in db.execute(
+                    """SELECT invoice_id FROM purchase_funding
+                JOIN payment_sources USING(business_id,nickname) WHERE owner='personal'"""
+                )
+            }
+            invoices = [inv for inv in invoices if inv["id"] not in personal]
         transactions = [
             dict(r)
             for r in db.execute(
@@ -42,6 +54,14 @@ def read_state(path: Path) -> tuple[list, list, list]:
             if has_matches
             else []
         )
+        if has_claims:
+            matches.extend(
+                dict(r)
+                for r in db.execute(
+                    """SELECT NULL AS invoice_id,transaction_id,amount_cents
+                FROM claim_payments WHERE transaction_id IS NOT NULL"""
+                )
+            )
     return invoices, transactions, matches
 
 
@@ -212,6 +232,12 @@ def confirm(path: Path, payload: dict, connect) -> dict:
                 raise ValueError(
                     "Invoice/payment is ineligible or currency/business/account differs"
                 )
+            if db.execute(
+                """SELECT 1 FROM purchase_funding JOIN payment_sources USING(business_id,nickname)
+                    WHERE invoice_id=? AND owner='personal'""",
+                (invoice_id,),
+            ).fetchone():
+                raise ValueError("Personal purchases settle through expense claims")
             if old:
                 if old[0] != amount:
                     raise ValueError("Existing allocation differs; correction required")
@@ -223,6 +249,10 @@ def confirm(path: Path, payload: dict, connect) -> dict:
             ).fetchone()[0]
             used_t = db.execute(
                 "SELECT COALESCE(SUM(amount_cents),0) FROM payment_matches WHERE transaction_id=?",
+                (transaction_id,),
+            ).fetchone()[0]
+            used_t += db.execute(
+                "SELECT coalesce(sum(amount_cents),0) FROM claim_payments WHERE transaction_id=?",
                 (transaction_id,),
             ).fetchone()[0]
             if amount > i[0] - used_i or amount > t[0] - used_t:

@@ -15,11 +15,21 @@ metadata:
   version: "0.6.1"
 ---
 
+## Shared case memory
+
+When working in a selected accounting workspace, use manage-accounting’s `references/agent-harness.md` memory workflow to recall applicable entity/period facts before asking questions. Persist explicit new facts and corrections through its memory helper, read them back, and return evidence to the coordinator. Resolve conflicts with operational profile/allocation records through their owning skill; memory does not authorize posting or establish tax entitlement. If the coordinator is unavailable, disclose memory persistence as unavailable rather than claiming information was saved.
+
+## Shared ATO research
+
+Inspect available case facts first. Before interpreting Australian tax or GST rules, use the installed `ato-docs` skill: discover and read its `SKILL.md`, then follow its official-source search, page retrieval, entity/year checks and citation workflow. Carry the conclusion, source URLs/sections, access date and unresolved facts into this skill's work. Routine searching, saving, extraction, matching and technical setup require no tax lookup unless tax treatment is being assessed.
+
+If `ato-docs` is unavailable, read references/ato-first.md and follow this skill's bundled official-source guidance and disclose the fallback when giving tax conclusions. Do not block routine work or claim that shared research ran when it did not. Tax research does not approve accounting entries or lodgment.
+
+
+
 # search-email-invoices
 
-## Official guidance for tax and regulatory decisions
 
-Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
 
 Find every bill, invoice, and receipt in Gmail within a date range, open
 one interactive HTML report in the browser, and save selected documents
@@ -92,13 +102,11 @@ personal-vendor exclusion filter applied automatically inside
 range (accept any clear form — "FY25", "last quarter", explicit dates —
 and normalize to `date_from`/`date_to` as `YYYY-MM-DD`).
 
-Also ask where to save the selected invoices (the root folder) if the user
-has not specified it for this run. Ask only for missing inputs. A historical
-folder is a suggestion, not a destination choice for a new run. Retain the
-chosen root with the category and date range. Show the resolved destination
-`<root>/<Business|Personal|Bills>/<YYYY-MM-DD_YYYY-MM-DD>` before saving;
-do not append category/date folders twice if the user gives that final folder.
-Searching may proceed while the folder answer is pending, but saving must wait.
+Ask only for missing search inputs (category and dates). Never ask for a save
+folder at the start of a search. Start searching as soon as those inputs are known.
+Let the user choose the folder in the HTML checklist. Prefill it only if the
+user supplied a folder for this run. When saving, resolve the category and date
+subfolders once, even if the user already selected the final invoice folder.
 
 ## State 2 — search (silent, no more questions until results are shown)
 
@@ -192,9 +200,11 @@ same broad payload without addressing the failure.
 
 If automatic approval review rejects the metadata transfer because destination
 trust or user authorization is unverified, retain the filtered candidates and
-ask only this question, adapting “both Gmail accounts” to the accounts searched:
+ask only the following question. Count distinct Gmail accounts successfully
+searched in this run. For one, use “your Gmail account”. For two or more,
+use “your N Gmail accounts”, replacing N with the actual count in words.
 
-> Can I share invoice email details from both Gmail accounts with Search Email Invoices to create your checklist?
+> Can I use the invoice details I found in {account phrase} to make the checklist?
 
 Skip the preamble and field list. If asked, explain that details include sender,
 subject, date, message/thread IDs and attachment filenames. Consent covers only
@@ -250,7 +260,7 @@ unless the installed plugin configuration supports that claim.
    `~/.codex/config.toml`, then restart Codex). Then give the rendered
    `index.html` path so the user can open it directly: selection, filtering and
    **Copy save request** still work from the file, only **Choose folder** needs
-   the server, so ask for the destination folder in chat instead. Name the
+   the server. Ask for the destination in chat only if the user requests a save and no folder was supplied. Name the
    blocker; never claim the page opened or the picker was verified.
 5. Finish with only a short clickable report link. No duplicate chat report.
    If browser display fails, provide the local HTML file link and briefly name

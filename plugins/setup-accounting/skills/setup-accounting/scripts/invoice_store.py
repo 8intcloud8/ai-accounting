@@ -291,7 +291,14 @@ def read_invoices(path: Path, business: str | None, status: str | None) -> dict:
             ).fetchone()
             else {}
         )
+        from expense_claims import purchase_details
+
+        has_funding = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='purchase_funding'"
+        ).fetchone()
         for invoice in invoices:
+            if has_funding:
+                invoice.update(purchase_details(db, invoice))
             invoice["role"] = roles.get(invoice["id"], "purchase")
             invoice["issues"] = json.loads(invoice.pop("issues_json"))
             invoice["line_items"] = [

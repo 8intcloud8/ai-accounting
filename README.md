@@ -23,7 +23,7 @@ appearing to succeed. The other 13 plugins are unaffected.
 
 ### Codex Desktop (one click)
 
-Open the Plugins Directory in Codex Desktop and add this repository (`8intcloud8/ai-accounting`) as a marketplace source. All 15 plugins are marked `INSTALLED_BY_DEFAULT`, so adding the marketplace is the only step — no per-plugin install clicks needed. Then ask: **“Set up AI Accounting for my business.”** Gmail connection for `search-email-invoices`/`save-invoices` is requested on first use, not at install time. Python 3.11+ must still be available on your machine; Email plugins also require Node/npm.
+Open the Plugins Directory in Codex Desktop and add this repository (`8intcloud8/ai-accounting`) as a marketplace source. All 17 plugins are marked `INSTALLED_BY_DEFAULT`, so adding the marketplace is the only step — no per-plugin install clicks needed. Then ask: **“Set up AI Accounting for my business.”** Gmail connection for `search-email-invoices`/`save-invoices` is requested on first use, not at install time. Python 3.11+ must still be available on your machine; Email plugins also require Node/npm.
 
 ### Manual / other hosts
 
@@ -42,6 +42,8 @@ Use `--local-only` for local statements and invoices without Gmail plugins. Prof
 | Plugin | Role |
 |---|---|
 | setup-accounting | Workspace and business setup |
+| ato-docs | Research official ATO guidance with citations and year/entity checks |
+| grill-me-tax | Draft BAS and tax-return intake questionnaire; coverage validation pending |
 | setup-xero-mcp | Optional Xero OAuth setup and automatically refreshed MCP connection |
 | manage-accounting | Resume a period and show outstanding work |
 | search-email-invoices | Find Gmail documents |

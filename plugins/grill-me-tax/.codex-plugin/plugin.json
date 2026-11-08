@@ -1,0 +1,17 @@
+{
+  "name": "grill-me-tax",
+  "version": "0.1.3",
+  "description": "Collect missing facts and evidence for Australian BAS and tax-return preparation through a progressive, entity-specific interview.",
+  "interface": {
+    "displayName": "Grill Me Tax",
+    "shortDescription": "Collect missing facts and evidence for Australian BAS and tax-return preparation through a progressive, entity-specific interview.",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Help me get ready for my BAS and tax return."
+    ]
+  }
+}

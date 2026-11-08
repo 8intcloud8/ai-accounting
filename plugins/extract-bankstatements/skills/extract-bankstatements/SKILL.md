@@ -1,15 +1,27 @@
 ---
 name: extract-bankstatements
-description: Process, extract, combine, or consolidate bank statements (CSV, Excel, or PDF) from multiple banks into one standardised CSV for a financial year. Trigger when the user asks to process bank statements, extract transactions from statements, combine or consolidate statements from multiple banks, mentions a "bankstatements folder", a financial year (e.g. FY25, FY25-AU), or asks to run extract-bankstatements.
+description: Process, extract, combine, or consolidate bank statements (CSV, Excel, or PDF) from multiple banks into a standardised CSV and editable Excel review workbook for the requested period. Trigger when the user asks to process bank statements, extract transactions from statements, combine or consolidate statements from multiple banks, mentions a "bankstatements folder", a financial year (e.g. FY25, FY25-AU), or asks to run extract-bankstatements.
 ---
+
+## Shared case memory
+
+When working in a selected accounting workspace, use manage-accounting’s `references/agent-harness.md` memory workflow to recall applicable entity/period facts before asking questions. Persist explicit new facts and corrections through its memory helper, read them back, and return evidence to the coordinator. Resolve conflicts with operational profile/allocation records through their owning skill; memory does not authorize posting or establish tax entitlement. If the coordinator is unavailable, disclose memory persistence as unavailable rather than claiming information was saved.
+
+## Shared ATO research
+
+Inspect available case facts first. Before interpreting Australian tax or GST rules, use the installed `ato-docs` skill: discover and read its `SKILL.md`, then follow its official-source search, page retrieval, entity/year checks and citation workflow. Carry the conclusion, source URLs/sections, access date and unresolved facts into this skill's work. Routine searching, saving, extraction, matching and technical setup require no tax lookup unless tax treatment is being assessed.
+
+If `ato-docs` is unavailable, read references/ato-first.md and follow this skill's bundled official-source guidance and disclose the fallback when giving tax conclusions. Do not block routine work or claim that shared research ran when it did not. Tax research does not approve accounting entries or lodgment.
+
+
 
 # Extract Bank Statement
 
-## Official guidance for tax and regulatory decisions
 
-Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
 
-Combine bank statement files (CSV, Excel, PDF) from multiple banks into one standardised CSV with columns: `date, description, debit, credit, file`.
+Read `references/proactive-tax-review.md` during every transaction-use/classification review. Analyse available facts and apply verified ATO rules proactively; ask only for missing facts that change applicability, never ask the user to decide established GST/tax rules. Keep accounting category, business use, deductibility, GST treatment and missing amount evidence separate. Reuse confirmed facts and applicable prior decisions. Resolve known zero/outside-GST/no-credit treatments without leaving them pending for unrelated missing documents.
+
+Combine bank statement files (CSV, Excel, PDF) into a standardised CSV with columns: `date, description, debit, credit, file`, plus an editable `.xlsx` review workbook. Excel is the default user-facing review; retain CSV and local storage for source integrity.
 
 This skill orchestrates three subagents per file — `bank-mapper`, `bank-extractor`, `bank-validator` — in a review loop so each statement's quirks are handled correctly before being added to the combined output.
 
@@ -19,7 +31,7 @@ This skill orchestrates three subagents per file — `bank-mapper`, `bank-extrac
 
 **1. Establish the input folder before extraction.** Ask the user: "Which folder contains your bank statements?" Wait for their answer before scanning or extracting. If they already supplied a folder for this run, use it without asking again. Do not infer a folder from an attached file or scan all of Downloads. An explicit request to test a specific attached file can run that file alone; it does not establish the folder for future runs.
 
-**2. Ask the user:** "Which financial year? (e.g. FY25-AU)"
+**2. Reuse the requested reporting dates.** Ask for dates only when missing; a BAS quarter does not require a new financial-year question.
 
 **3. Resolve dependencies:** Use the suite's isolated Python environment created by `scripts/install.py --dependencies`. For a standalone installation, create a dedicated virtual environment and install `pdfplumber` and `openpyxl` there. Never change system Python packages or use `--break-system-packages`. Reuse an existing compatible environment when available.
 
@@ -57,16 +69,18 @@ python3 scripts/accounting_store.py export --account "<stable account ID>" --sta
 
 Omit `--account` only when exporting all imported accounts intentionally. Use `summary` for aggregate totals and `transactions` for relevant dated records in later conversations. Those commands are read-only and do not create missing storage. Do not add opening/closing balance claims to database summaries; use separately verified source balances.
 
-**7. Print a summary directly in chat.** This is mandatory, including single-file tests. A file link or subagent JSON alone is not a completed response. The parent agent converts internal JSON into a readable summary:
+**6a. Hand off transaction review.** After faithful import, use classify-transactions to enrich the saved transactions and create or continue the single review workbook. It owns business/private purpose, categories, GST proposals and applying workbook edits. Supply stable transaction IDs, complete source rows and validation results. Preserve every source transaction.
+
+**7. Report extraction and personal/business review results.** Include the following in the Excel workbook; keep chat to the workbook link and necessary questions/blockers. The parent agent converts internal JSON into readable results:
 
 - Folder processed (or filename for an explicitly requested single-file test).
 - Transaction date range and transaction count.
 - Total money out (debits), total money in (credits), and net movement (credits minus debits), formatted to two decimal places.
 - Opening and closing balances when verified from the source; otherwise say unavailable.
 - Reconciliation status and any skipped files, invalid rows, or unresolved issues. Do not claim reconciled without verified balances or source totals.
-- A link to the saved CSV and its actual location.
+- Saved workbook and CSV locations.
 
-For multiple files, also print a compact table with one row per file: filename, transaction count, total debit, total credit, balance status (`reconciled` / `not-available` / `mismatch`), followed by combined totals. Combined totals use the final deduplicated output. Summarise extraction results only; do not equate bank credits with taxable income or debits with deductible expenses.
+For multiple files, also include a compact table in the report with one row per file: filename, transaction count, total debit, total credit, balance status (`reconciled` / `not-available` / `mismatch`), followed by combined totals. Combined totals use the final deduplicated output. Do not equate bank credits with taxable income or debits with deductible expenses.
 
 ## NAB transaction listings
 
@@ -76,32 +90,6 @@ The inspector and extractor automatically recognise text-based NAB Transaction L
 
 Use the Python executable at `<suite>/.venv/bin/python` when installed, otherwise the host Python 3.11+ runtime. Source files are copied into the workspace documents directory and hash verified. Relative evidence paths survive moving the complete workspace. The canonical runtime is maintained once in `accounting_core/` and bundled automatically for standalone plugins.
 
-## Show the review table in Codex
+## Review handoff
 
-Open the saved transaction CSV for the requested account and reporting period after validation/import. Show counts, date range and reconciliation issues beside it.
-
-Save the review artifact under the selected workspace's `output/YYYY-MM-DD/reports/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
-
-Show the CSV through the local table view by default. Start `python3 <helper> --db <selected workspace>/db/accounting.db review-table --csv <absolute CSV path> --title "<stage> review"` in a persistent command session. Read the initial JSON review_url, then call `open_in_codex` with `target: { type: "browser", url: "<returned review_url>" }` and `placement: "right"`. Reuse a current tab/server for the same unchanged CSV; stop stale servers when replacing them. The table provides search, sorting, issue filtering, formatted amounts/dates, managed-source document links and check/correction request buttons. Keep the underlying CSV as the versioned export. Do not open raw CSV text unless requested or the table cannot run; report a fallback honestly. If the tool returns queued, describe opening as queued rather than displayed.
-
-The table saves requests under output/YYYY-MM-DD/review-request-*.json. It does not approve matches/classifications or update accounting records. When the user asks to process requests, read those for the current CSV, verify csv_sha256, row identity, original values and source evidence, then apply supported changes through the existing audited correction/import commands. Treat proposed values as user input, not verified facts. Ask only about unresolved evidence; preserve existing confirmation requirements for new accounting entries. Report applied versus pending requests explicitly and regenerate the affected CSV/table after corrections. An unchanged or stale CSV must never silently approve a request.
-
-Opening or editing a review CSV does not confirm matches, approve classifications or update SQLite. Preserve the skill's existing confirmation requirements. If the user requests applying CSV edits, validate the changes against source evidence and use the existing audited correction/import commands; never silently replace database records from an edited export.
-
-## Fixed HTML report contract
-
-Use the bundled `review-table` renderer for every CSV review. Its fixed HTML
-and controls live in `scripts/review_table.py` (canonical package source:
-`accounting_core/review_table.py`). Do not generate a replacement HTML page,
-invent a dashboard, rewrite CSS, or change layout between runs. Preserve the
-renderer’s column order from the exported CSV, controls, labels, formatting,
-source links and correction-request behaviour. Data, title, period, row counts,
-issue messages and schema-required columns may change; presentation must not.
-A different export schema may have different columns without a new design.
-
-Open and verify the returned browser URL. Keep detailed results in that report;
-chat should provide its link and any necessary action/blocker, not a duplicate
-table. If the renderer fails, report the failure and link the saved CSV as an
-explicit fallback; do not improvise another HTML design. Template changes require
-an explicit implementation request and belong in the canonical source, followed
-by release generation to synchronise bundled copies, never in per-run output.
+Use classify-transactions for the single versioned Excel review workbook and applying edits. Pass source counts, amounts, identities, exclusions and source-balance limitations. If unavailable, save the validated CSV and report classification/workbook creation as pending.

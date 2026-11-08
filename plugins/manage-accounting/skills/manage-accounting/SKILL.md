@@ -3,15 +3,25 @@ name: manage-accounting
 description: Continue a local accounting period, show saved progress and route to the next accounting plugin.
 ---
 
+## Persistent accounting agent
+
+For BAS/tax preparation, continuing a case or remembering user information, read `references/agent-harness.md` and use its saved case/memory workflow. This skill coordinates the other skills and owns case checkpoints.
+
+## Shared ATO research
+
+Inspect available case facts first. Before interpreting Australian tax or GST rules, use the installed `ato-docs` skill: discover and read its `SKILL.md`, then follow its official-source search, page retrieval, entity/year checks and citation workflow. Carry the conclusion, source URLs/sections, access date and unresolved facts into this skill's work. Routine searching, saving, extraction, matching and technical setup require no tax lookup unless tax treatment is being assessed.
+
+If `ato-docs` is unavailable, read references/ato-first.md and follow this skill's bundled official-source guidance and disclose the fallback when giving tax conclusions. Do not block routine work or claim that shared research ran when it did not. Tax research does not approve accounting entries or lodgment.
+
+
+
 # Manage Accounting
 
-## Official guidance for tax and regulatory decisions
 
-Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
 
 Resolve the saved workspace and reporting dates. Run `scripts/accounting_store.py workflow-status --start YYYY-MM-DD --end YYYY-MM-DD` with `AI_ACCOUNTING_DB` pointing to the workspace database. Read the returned blockers; do not derive completion from chat history alone.
 
-Route using the document-first workflow below: setup-accounting; search-email-invoices/save-invoices when wanted; extract-invoices and extract-bankstatements; classify-transactions and allocate-running-costs; match-payments and settlement classification; reconcile-accounts; prepare-bas; prepare-tax-report. Each is a separate plugin. Use available plugins; explain any missing installation.
+Guide the user through one saved workflow: setup-accounting only when configuration is missing; grill-me-tax for missing intake; search-email-invoices and save-invoices for requested collection; review-invoices for source housekeeping before imports when needed; extract-invoices and extract-bankstatements; allocate-running-costs and classify-transactions; match-payments and settlement classification; reconcile-accounts; prepare-bas and/or prepare-tax-report according to the requested goal. Continue supported work and reuse saved answers/artifacts. Route mutations to the owning skill.
 
 Show a short completed/pending list and the next concrete action. Missing GST does not mean zero. Never count invoice plus its bank payment as two expenses. Bank transfers, director loans and repayments need explicit treatment.
 
@@ -21,7 +31,7 @@ For corrections run `correct-record --request <JSON>` with kind invoice/payment/
 
 ## Show the review table in Codex
 
-Open the current stage’s review CSV before asking the user to decide. Route to the producing skill to create it if needed. Show one current review file at a time; do not open every historical export or unrelated period.
+Open the current stage's existing review artifact before asking the user to decide. Preserve the producing skill's Excel or HTML format; never replace its workbook with a CSV/HTML review. Route to the producing skill to create it if needed. Show one current review file at a time; do not open every historical export or unrelated period.
 
 Save the review artifact under the selected workspace's `output/YYYY-MM-DD/reports/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
 
@@ -41,7 +51,7 @@ Route: setup and source inventory; import purchases, sales/RCTIs and all bank/ca
 
 ## Identify the BAS work required
 
-For BAS preparation, read `references/bas-applicability.md`. Run `bas-applicability --start YYYY-MM-DD --end YYYY-MM-DD` against the selected workspace, show its saved CSV through the review table, then save confirmed answers using `save-bas-applicability --request <JSON>`. This is a period-specific assessment, separate from generic review checkpoints. Missing/stale answers and applicable follow-ups remain blockers. Ask only relevant missing questions in small groups; a saved yes does not complete the required calculation. The current engine still produces GST-only drafts.
+Reuse saved period applicability. Route missing or stale applicability facts to `grill-me-tax`; it owns the period interview and persistence. Validate its saved results before reporting readiness; do not repeat the interview here.
 
 ## Fixed HTML report contract
 

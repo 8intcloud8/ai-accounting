@@ -3,11 +3,21 @@ name: allocate-running-costs
 description: Calculate the business portion of electricity, internet and phone costs; assess ATO actual-cost and fixed-rate methods using bills, usage and hours evidence. Use for home-office running costs, utility allocations and method comparisons.
 ---
 
+## Shared case memory
+
+When working in a selected accounting workspace, use manage-accounting’s `references/agent-harness.md` memory workflow to recall applicable entity/period facts before asking questions. Persist explicit new facts and corrections through its memory helper, read them back, and return evidence to the coordinator. Resolve conflicts with operational profile/allocation records through their owning skill; memory does not authorize posting or establish tax entitlement. If the coordinator is unavailable, disclose memory persistence as unavailable rather than claiming information was saved.
+
+## Shared ATO research
+
+Inspect available case facts first. Before interpreting Australian tax or GST rules, use the installed `ato-docs` skill: discover and read its `SKILL.md`, then follow its official-source search, page retrieval, entity/year checks and citation workflow. Carry the conclusion, source URLs/sections, access date and unresolved facts into this skill's work. Routine searching, saving, extraction, matching and technical setup require no tax lookup unless tax treatment is being assessed.
+
+If `ato-docs` is unavailable, read references/ato-first.md and follow this skill's bundled official-source guidance and disclose the fallback when giving tax conclusions. Do not block routine work or claim that shared research ran when it did not. Tax research does not approve accounting entries or lodgment.
+
+
+
 # Allocate running costs
 
-## Official guidance for tax and regulatory decisions
 
-Read `references/official-sources.md` when this task requires tax or regulatory interpretation. Use live official guidance, cite exact sources and access dates, and report access failures explicitly. Routine extraction/matching does not establish GST or deduction eligibility.
 
 Help calculate the business portion of running costs, considering both actual costs and the applicable ATO fixed-rate method. Produce a traceable calculation from bills, hours and usage evidence. Keep payment matching independent: a full bill can match a full payment even when only part relates to business. Read `references/user-workflow.md` for the user journey and expected report, `references/fixed-rate-request.md` when saving a fixed-rate calculation, and `references/ato-guidance.md` for the relevant rules and refresh linked ATO guidance for the applicable period before final tax treatment.
 
@@ -111,7 +121,7 @@ For `electricity_actual`, save an electricity rule with that method and submit `
 5. Read `allocations --business <ID>` for results. Export with `allocations --business <ID> --output <workspace>/output/<local-date>/reports/running-costs.csv`, creating the dated folder first. The CSV stores integer cents with explicit column names; present dollars in chat. Existing files are not overwritten. The output includes rule IDs, calculation inputs, business/private amounts, candidate/eligible GST, status and issues. SQLite retains immutable request/result snapshots and rule versions.
 
 
-Print in chat: bill amount, supported business allocation, method, GST status, remaining questions and saved file locations. Do not submit BAS or change tax returns as part of this skill.
+Include in the report: bill amount, supported business allocation, method, GST status, remaining questions and saved file locations. Do not submit BAS or change tax returns as part of this skill.
 
 ## Shared runtime
 
@@ -119,7 +129,7 @@ Use the Python executable at `<suite>/.venv/bin/python` when installed, otherwis
 
 ## Show the review table in Codex
 
-Open the exported running-costs CSV before asking the user to review business amounts and GST status. When a fixed-rate comparison exists, open its workpaper CSV at that step, clearly distinguishing it from invoice allocations. Explain cents columns in dollars in the chat summary.
+Open the exported running-costs CSV before asking the user to review business amounts and GST status. When a fixed-rate comparison exists, open its workpaper CSV at that step, clearly distinguishing it from invoice allocations. Display cents columns as clearly labelled dollar amounts in the report.
 
 Save the review artifact under the selected workspace's `output/YYYY-MM-DD/reports/` using the user's local date, choosing a new filename rather than overwriting an existing result. Use the helper's exported file where available. For a derived review CSV, use a CSV writer and faithfully preserve the returned records, stable IDs, null/unknown values, period, currency and amount units; do not invent data or change the accounting result to produce a table.
 

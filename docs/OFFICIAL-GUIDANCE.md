@@ -1,6 +1,8 @@
 # Official-source lookup in the accounting suite
 
-Each of the 12 skills includes `references/official-sources.md` and a direct instruction to read it before tax or regulatory interpretation. References are packaged inside each skill so separately installed plugins do not depend on a sibling plugin or a developer's local directory.
+Each of the 15 skills includes `references/official-sources.md` and a direct instruction to read it before tax or regulatory interpretation. References are packaged inside each skill so separately installed plugins do not depend on a sibling plugin or a developer's local directory.
+
+All 15 skills bundle `references/ato-first.md` and `references/proactive-tax-review.md`. The maintained policy is [ATO-FIRST.md](ATO-FIRST.md); standalone plugin users receive local copies without relying on project AGENTS.md or personal memory. Pure logistics/authentication tasks retain their scope and do not trigger ritual tax lookups.
 
 ## Behaviour
 

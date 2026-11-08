@@ -31,6 +31,7 @@ from allocation_store import (
     export_allocations,
 )
 from running_cost_workpapers import WORKPAPER_SCHEMA, save_fixed, list_fixed
+import expense_claims
 from payment_store import PAYMENT_SCHEMA, propose, confirm
 from invoice_store import INVOICE_SCHEMA, import_invoices, read_invoices
 
@@ -121,6 +122,7 @@ def connect(path: Path) -> sqlite3.Connection:
             + ALLOCATION_SCHEMA
             + PRODUCT_SCHEMA
             + WORKPAPER_SCHEMA
+            + expense_claims.SCHEMA
             + "\nPRAGMA user_version=5;\nCOMMIT;"
         )
         path.chmod(0o600)
@@ -264,6 +266,8 @@ def main() -> None:
     review.add_argument("--csv", type=Path, required=True)
     review.add_argument("--title")
     review.add_argument("--port", type=int, default=0)
+    claims = sub.add_parser("record-purchase")
+    claims.add_argument("--request", type=Path, required=True)
     add_commands(sub)
     args = parser.parse_args()
     try:
@@ -272,7 +276,11 @@ def main() -> None:
 
             serve(args.csv, args.db.resolve().parent.parent, args.title, args.port)
             return
-        if args.command in COMMANDS:
+        if args.command == "record-purchase":
+            result = expense_claims.record(
+                args.db, json.loads(args.request.read_text()), connect
+            )
+        elif args.command in COMMANDS:
             result = dispatch(args, connect)
         elif args.command == "calculate-fixed-running-costs":
             result = save_fixed(args.db, json.loads(args.request.read_text()), connect)

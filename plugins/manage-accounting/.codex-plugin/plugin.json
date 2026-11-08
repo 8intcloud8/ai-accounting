@@ -1,6 +1,6 @@
 {
   "name": "manage-accounting",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "Continue a local accounting period, show saved progress and route to the next accounting plugin.",
   "interface": {
     "displayName": "Manage Accounting",

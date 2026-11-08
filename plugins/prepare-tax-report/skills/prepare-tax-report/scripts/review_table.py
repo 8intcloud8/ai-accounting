@@ -4,6 +4,8 @@ import csv
 import hashlib
 import json
 import mimetypes
+import os
+import tempfile
 import re
 import secrets
 from datetime import datetime
@@ -149,18 +151,42 @@ def save_request(table, request):
     return {"saved_request": str(path), "status": "requested_not_applied"}
 
 
-def create_server(table, port=0):
-    """Expose only this snapshot and its allowlisted sources on loopback."""
-    token = secrets.token_urlsafe(32)
+def render_page(table, offline=False):
     public = {k: v for k, v in table.items() if k not in ("links", "workspace")}
     public["links"] = list(table["links"])
+    if offline:
+        public["offlineSources"] = {key: path.as_uri() for key, path in table["links"].items()}
     data = (
         json.dumps(public, ensure_ascii=True)
         .replace("<", "\\u003c")
         .replace(">", "\\u003e")
         .replace("&", "\\u0026")
     )
-    page = HTML.replace("__TABLE_DATA__", data).encode()
+    toolbar_class = "hidden" if "invoice_number" in table["columns"] else "toolbar"
+    return HTML.replace("__TOOLBAR_CLASS__", toolbar_class).replace("__TABLE_DATA__", data).encode()
+
+
+def save_invoice_html(table):
+    source = Path(table["csv"])
+    page = render_page(table, offline=True)
+    with tempfile.NamedTemporaryFile(dir=source.parent) as staged:
+        staged.write(page)
+        staged.flush()
+        target = source.with_suffix(".html")
+        while True:
+            try:
+                os.link(staged.name, target)
+                return target
+            except FileExistsError:
+                if not target.is_symlink() and target.is_file() and target.read_bytes() == page:
+                    return target
+                target = source.with_name(f"{source.stem}-{secrets.token_hex(4)}.html")
+
+
+def create_server(table, port=0):
+    """Expose only this snapshot and its allowlisted sources on loopback."""
+    token = secrets.token_urlsafe(32)
+    page = render_page(table)
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *_args):
@@ -263,6 +289,9 @@ def create_server(table, port=0):
 
 def serve(csv_path, workspace, title=None, port=0):
     table = load_table(csv_path, workspace, title)
+    saved = {}
+    if "invoice_id" in table["columns"] and "invoice_number" in table["columns"]:
+        saved["saved_html"] = str(save_invoice_html(table))
     server = create_server(table, port)
     print(
         json.dumps(
@@ -270,6 +299,7 @@ def serve(csv_path, workspace, title=None, port=0):
                 "review_url": server.review_url,
                 "rows": len(table["rows"]),
                 "csv": str(csv_path),
+                **saved,
             }
         ),
         flush=True,
@@ -288,7 +318,7 @@ HTML = r"""<!doctype html>
 :root{color-scheme:light dark;--bg:#f7f8fa;--panel:#fff;--text:#17212f;--muted:#566174;--line:#d8dfe8;--brand:#175b51;--soft:#e8f5ee;--warn:#fff3d2;--warntext:#714c00;--focus:#276add}*{box-sizing:border-box}body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}header,main{padding:24px;max-width:1600px;margin:auto}header{padding-bottom:16px}.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);font-weight:650}h1{margin:5px 0;font-size:25px;line-height:1.25;font-weight:650}.subtitle,.hint{color:var(--muted)}.summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.chip{background:var(--panel);padding:6px 12px;border:1px solid var(--line);border-radius:999px}.chip.warn,.badge.warn{background:var(--warn);color:var(--warntext)}main{padding-top:0}.toolbar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:8px 0 14px}label{display:block;font-weight:600;font-size:12px}input,select,textarea,button{font:inherit;color:inherit}input,select,textarea{border:1px solid var(--line);border-radius:7px;padding:9px 11px;background:var(--panel)}input[type=search]{min-width:260px}button,.source{border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--panel);cursor:pointer;white-space:nowrap}button:hover,.source:hover{background:var(--soft)}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}.primary{background:var(--brand);color:#fff;border-color:var(--brand)}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);max-height:68vh}table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}th{position:sticky;top:0;background:var(--panel);z-index:1;border-bottom:1px solid var(--line);text-align:left;padding:0}th button{border:0;border-radius:0;text-align:left;width:100%;padding:13px 12px;background:transparent}td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top;max-width:330px;min-width:115px;overflow-wrap:anywhere}tr:last-child td{border-bottom:0}tr:hover td{background:color-mix(in srgb,var(--soft) 35%,var(--panel))}.money{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.badge{display:inline-block;padding:3px 8px;border-radius:5px;background:var(--soft);white-space:normal}.unknown{color:var(--warntext);font-style:italic}.issue{color:var(--warntext);background:var(--warn);padding:4px 7px;border-radius:4px}.actions{min-width:180px;white-space:nowrap;position:sticky;right:0;background:var(--panel);box-shadow:-1px 0 var(--line)}.issue-cell{min-width:230px;max-width:320px}summary{cursor:pointer;color:var(--warntext)}details[open] summary{margin-bottom:8px}th:last-child{position:sticky;right:0;z-index:2;padding:12px;background:var(--panel)}footer{overflow-wrap:anywhere}.actions button{margin-right:5px}.source{color:var(--brand);text-decoration:none;display:inline-block}footer{margin-top:12px;color:var(--muted);font-size:12px}.status{margin-top:12px;padding:12px;border-radius:7px;background:var(--soft);overflow-wrap:anywhere}.status.error{background:var(--warn);color:var(--warntext)}dialog{width:min(540px,94vw);border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:24px}dialog::backdrop{background:#0007}dialog h2{margin-top:0;font-size:20px}dialog label{margin:14px 0 5px}dialog input,dialog textarea,dialog select{width:100%}dialog textarea{min-height:100px}.dialog-actions{display:flex;justify-content:end;gap:8px;margin-top:18px}.detail{max-height:130px;overflow:auto;padding:8px;background:var(--bg);border-radius:5px;white-space:pre-wrap}.pagination{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-top:12px}.pagebuttons{display:flex;gap:8px}.hidden{display:none!important}@media(prefers-color-scheme:dark){:root{--bg:#11171d;--panel:#1a222c;--text:#e9edf2;--muted:#a9b5c6;--line:#384555;--brand:#80d4bc;--soft:#203c35;--warn:#3d321b;--warntext:#f1cf85;--focus:#8bb5ff}.primary{background:#24735e;color:#fff;border-color:#24735e}}@media(max-width:600px){header,main{padding:16px}main{padding-top:0}input[type=search]{min-width:0;width:100%}.toolbar label{flex:1}.table-wrap{max-height:65vh}}
 </style></head><body>
 <header><div class="eyebrow">Accounting · review</div><h1 id="title"></h1><div class="subtitle">Check documents, inspect issues and request corrections.</div><div class="summary"><span class="chip" id="count"></span><span class="chip warn" id="issues"></span><span class="chip" id="requests">0 requests saved this session</span></div></header>
-<main><div class="toolbar"><label>Search<input id="search" type="search" placeholder="Supplier, description, invoice…"></label><label>Show<select id="filter" aria-label="Show"><option value="all">All rows</option><option value="issues">Rows with issues</option><option value="requested">Requests saved this session</option></select></label><label>Columns<select id="columns" aria-label="Columns"><option value="summary">Review columns</option><option value="all">All source columns</option></select></label></div>
+<main><div class="__TOOLBAR_CLASS__"><label>Search<input id="search" type="search" placeholder="Supplier, description, invoice…"></label><label>Show<select id="filter" aria-label="Show"><option value="all">All rows</option><option value="issues">Rows with issues</option><option value="requested">Requests saved this session</option></select></label><label>Columns<select id="columns" aria-label="Columns"><option value="summary">Review columns</option><option value="all">All source columns</option></select></label></div>
 <div class="table-wrap"><table aria-label="Accounting review records"><thead id="head"></thead><tbody id="body"></tbody></table></div><div class="pagination"><span id="visible" aria-live="polite"></span><div class="pagebuttons"><button id="prev">Previous</button><button id="next">Next</button></div></div><div id="notice" role="status" aria-live="polite" class="status hidden"></div><footer>Amounts are displayed in the row’s currency. Unknown currency stays unknown. Saving a request does not change accounting records.<br>CSV export: <span id="filename"></span></footer></main>
 <dialog id="dialog" aria-labelledby="dialog-title"><form id="form"><h2 id="dialog-title"></h2><div id="record" class="detail"></div><div id="correction"><label for="field">Field to correct</label><select id="field"></select><label for="current" id="current-label">Current value</label><input id="current" readonly><label for="proposed" id="proposed-label">Proposed value</label><input id="proposed"></div><label for="reason">What should Codex check?</label><textarea id="reason" required maxlength="4000" placeholder="Describe the issue or evidence supporting your correction"></textarea><div id="form-error" role="alert"></div><div class="dialog-actions"><button type="button" id="cancel">Cancel</button><button type="submit" class="primary" id="save">Save request</button></div></form></dialog>
 <script id="table-data" type="application/json">__TABLE_DATA__</script>
@@ -296,23 +326,56 @@ HTML = r"""<!doctype html>
 'use strict';
 const table=JSON.parse(document.getElementById('table-data').textContent);
 const $=id=>document.getElementById(id), token=new URL(location.href).searchParams.get('token');
+const offline=Boolean(table.offlineSources);
 const state={search:'',filter:'all',all:false,sort:null,descending:false,page:0,selected:null,action:null,requested:new Set(),saved:0};
 const hidden=new Set(['invoice_id','transaction_id','allocation_id','business_id','record_sha256','imported_at','request_json','result_json','inputs_json','rule_json','email_message_id']);
 const allAud=table.rows.length>0&&table.rows.every(row=>row.values.currency==='AUD');
 if(allAud)hidden.add('currency');
+if(table.columns.includes('invoice_number')){
+  for(const field of ['review_status','purchase_workflow','claimant','business_purpose','claim_approval',
+                      'reimbursement_status','recorded_reimbursement_cents','claim_balance_cents']){
+    hidden.add(field);
+  }
+}
 const sourceFields=new Set(['source','source_path','file','document_path','statement']);
 const label=key=>key==='issues'||key==='__review_task'?'What needs review':sourceFields.has(key)?'Document':key.replace(/_cents$/,'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())+(key.endsWith('_cents')?' (amount)':'');
-function reviewTasks(row){const tasks=[];for(const key of ['issues','blockers']){const raw=row.values[key];if(!raw||raw==='[]')continue;try{const parsed=JSON.parse(raw);if(Array.isArray(parsed))tasks.push(...parsed.map(String));else tasks.push(raw)}catch{tasks.push(raw)}}if(!row.values.currency&&table.columns.includes('currency'))tasks.push('Confirm the invoice currency.');for(const [key,value] of Object.entries(row.values)){if(key.endsWith('_cents')&&!value)tasks.push('Check '+label(key).replace(' (amount)','').toLowerCase()+' against the original document.');}if(!tasks.length){if(/needs_review|unresolved/.test(row.values.review_status||row.values.status||''))tasks.push('Codex must identify the unresolved fields before asking you to approve.');if(row.values.gst_status==='pending')tasks.push('Resolve business-use evidence and GST entitlement before claiming a credit.');if(/provisional|user_stated/.test(row.values.allocation_status||''))tasks.push('Provide usage evidence supporting the business-use percentage.');if(row.values.automatically_confirmed==='False'||row.values.automatically_confirmed==='false')tasks.push('Confirm that this invoice and bank payment belong together.');if(row.values.status==='draft'&&!tasks.length)tasks.push('Draft result: resolve the supporting review tasks before approval.');}return [...new Set(tasks)]}
+function reviewTasks(row){const tasks=[];for(const key of ['issues','blockers']){const raw=row.values[key];if(!raw||raw==='[]')continue;try{const parsed=JSON.parse(raw);if(Array.isArray(parsed))tasks.push(...parsed.map(String));else tasks.push(raw)}catch{tasks.push(raw)}}if(!row.values.currency&&table.columns.includes('currency'))tasks.push('Confirm the invoice currency.');for(const [key,value] of Object.entries(row.values)){if(key.endsWith('_cents')&&!['claim_balance_cents','recorded_reimbursement_cents'].includes(key)&&!value)tasks.push('Check '+label(key).replace(' (amount)','').toLowerCase()+' against the original document.');}if(!tasks.length){if(/needs_review|unresolved/.test(row.values.review_status||row.values.status||''))tasks.push('Codex must identify the unresolved fields before asking you to approve.');if(row.values.gst_status==='pending')tasks.push('Resolve business-use evidence and GST entitlement before claiming a credit.');if(/provisional|user_stated/.test(row.values.allocation_status||''))tasks.push('Provide usage evidence supporting the business-use percentage.');if(row.values.automatically_confirmed==='False'||row.values.automatically_confirmed==='false')tasks.push('Confirm that this invoice and bank payment belong together.');if(row.values.status==='draft'&&!tasks.length)tasks.push('Draft result: resolve the supporting review tasks before approval.');}return [...new Set(tasks)]}
 const warn=row=>reviewTasks(row).length>0;
 const clearMessage=row=>table.columns.includes('review_status')?'No extraction issues flagged':'No issues listed';
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
-$('title').textContent=table.title;document.title=table.title+' · Accounting review';$('count').textContent=table.rows.length+' rows';$('issues').textContent=table.rows.filter(warn).length+' rows need attention';$('filename').textContent=table.csv;document.querySelector('.subtitle').textContent=(allAud?'All amounts in AUD. ':'')+'Review only the tasks listed below. Questions and corrections are optional when no issues are flagged.';
-function cell(row,key){const td=node('td');if(key==='issues'||key==='__review_task'){const tasks=reviewTasks(row);td.className='issue-cell';td.textContent=tasks.length?tasks.join(' · '):clearMessage(row);if(tasks.length)td.classList.add('issue');return td}const value=row.values[key];if(key.endsWith('_cents'))td.className='money';if(sourceFields.has(key)){if(table.links.includes(row.index+':'+key)){const a=node('a','Open document','source');a.href='/source?token='+encodeURIComponent(token)+'&id='+encodeURIComponent(row.index+':'+key);a.target='_blank';a.rel='noopener noreferrer';td.append(a)}else td.append(node('span',value?'Source unavailable':'Unknown','unknown'));return td}
+$('title').textContent=table.title;document.title=table.title+' · Accounting review';$('count').textContent=table.rows.length+' rows';$('issues').textContent=table.rows.filter(warn).length+' rows need attention';$('filename').textContent=table.csv;document.querySelector('.subtitle').textContent=(allAud?'All amounts in AUD. ':'')+'Open the document for any flagged row. If you need help or know a corrected value, use Optional follow-up.';
+if(offline){
+  document.querySelector('.subtitle').textContent='Saved invoice review. Expand Details for the evidence behind each flagged item.';
+  $('requests').hidden=true;
+  $('filter').querySelector('[value="requested"]').remove();
+}
+function invoiceAction(row, tasks) {
+  if (!tasks.length) return 'No action needed';
+  if (row.values.review_action) return row.values.review_action;
+  const issue = tasks[0].split(/[.;\n]/)[0].trim();
+  return issue.length <= 65 ? issue : issue.slice(0, 62).replace(/\s+\S*$/, '') + '…';
+}
+function cell(row,key){const td=node('td');if(key==='issues'||key==='__review_task'){const tasks=reviewTasks(row);td.className='issue-cell';td.textContent=table.columns.includes('invoice_number')?invoiceAction(row,tasks):(tasks.length?tasks.join(' · '):clearMessage(row));if(tasks.length)td.classList.add('issue');if(offline&&!tasks.length)return td;const options=node('details');options.append(node('summary',offline?'Details':state.requested.has(row.index)?'Request saved · options':'Optional follow-up'));if(tasks.length&&table.columns.includes('invoice_number'))options.append(node('p',tasks.join(' · ')));if(!offline)for(const [action,title] of [['check','Ask for a check'],['correct','Suggest a corrected value']]){const button=node('button',title);button.onclick=()=>openRequest(row,action);options.append(button)}td.append(options);return td}const value=row.values[key];if(key.endsWith('_cents'))td.className='money';if(sourceFields.has(key)){if(table.links.includes(row.index+':'+key)){const a=node('a','Open document','source');a.href=offline?table.offlineSources[row.index+':'+key]:'/source?token='+encodeURIComponent(token)+'&id='+encodeURIComponent(row.index+':'+key);a.target='_blank';a.rel='noopener noreferrer';td.append(a)}else td.append(node('span',value?'Source unavailable':'Unknown','unknown'));return td}
+if(key==='reimbursement_status'&&row.values.purchase_workflow==='Expense claim'){
+  td.append(node('span',value||'Unknown'));
+  if(!offline&&value!=='Reimbursed'){
+    const button=node('button','Record reimbursement');
+    button.onclick=()=>{openRequest(row,'check');$('dialog-title').textContent='Request reimbursement update';$('reason').value='Reimbursement date, amount and payment reference: ';};
+    td.append(button);
+  }
+  return td;
+}
 if(!value){td.append(node('span','Unknown','unknown'));return td}
 let text=row.display[key];if(key.endsWith('_cents')&&row.values.currency==='AUD')text='$'+text;
 if(kStatus(key)){td.append(node('span',text.replace(/_/g,' '),'badge'+(/pending|unresolved|provisional|needs_review|draft/.test(value)?' warn':'')))}else if((key==='issues'||key==='blockers')&&value!=='[]'){try{const list=JSON.parse(value);text=Array.isArray(list)?list.join(' · '):value}catch{}const detail=node('details');const summary=node('summary',text.length>75?text.slice(0,75)+'…':text);detail.append(summary,node('div',text,'issue'));td.classList.add('issue-cell');td.append(detail)}else td.textContent=(key==='issues'&&text==='[]')?'—':text;return td}
 function kStatus(key){return key.includes('status')}
-function render(){let rows=table.rows.filter(r=>(state.filter!=='issues'||warn(r))&&(state.filter!=='requested'||state.requested.has(r.index))&&Object.values(r.values).join(' ').toLowerCase().includes(state.search));if(state.sort){const key=state.sort;rows.sort((a,b)=>{let aVal=a.values[key],bVal=b.values[key];let n=key.endsWith('_cents')&&aVal&&bVal?(BigInt(aVal)<BigInt(bVal)?-1:BigInt(aVal)>BigInt(bVal)?1:0):aVal.localeCompare(bVal,undefined,{numeric:true});return state.descending?-n:n})}const columns=table.columns.filter(c=>state.all||!hidden.has(c));if(!columns.includes('issues'))columns.push('__review_task');$('head').replaceChildren();const tr=node('tr');for(const key of columns){const th=node('th');th.scope='col';th.setAttribute('aria-sort',state.sort===key?(state.descending?'descending':'ascending'):'none');const b=node('button',label(key)+(state.sort===key?(state.descending?' ↓':' ↑'):''));b.onclick=()=>{state.descending=state.sort===key?!state.descending:false;state.sort=key;render()};th.append(b);tr.append(th)}tr.append(node('th','Actions'));$('head').append(tr);$('body').replaceChildren();const pageRows=rows.slice(state.page*50,(state.page+1)*50);for(const row of pageRows){const tr=node('tr');for(const key of columns)tr.append(cell(row,key));const actions=node('td',undefined,'actions');const check=node('button',state.requested.has(row.index)?'Request saved':warn(row)?'Review issue':'Ask a question');check.onclick=()=>openRequest(row,'check');const correct=node('button','Propose correction');correct.onclick=()=>openRequest(row,'correct');actions.append(check,correct);tr.append(actions);$('body').append(tr)}if(!pageRows.length){const td=node('td','No rows match these filters.');td.colSpan=columns.length+1;const tr=node('tr');tr.append(td);$('body').append(tr)}$('visible').textContent=rows.length?`${state.page*50+1}–${Math.min((state.page+1)*50,rows.length)} of ${rows.length} rows`:'0 rows';$('prev').disabled=state.page===0;$('next').disabled=(state.page+1)*50>=rows.length}
+function render(){let rows=table.rows.filter(r=>(state.filter!=='issues'||warn(r))&&(state.filter!=='requested'||state.requested.has(r.index))&&Object.values(r.values).join(' ').toLowerCase().includes(state.search));if(state.sort){const key=state.sort;rows.sort((a,b)=>{let aVal=a.values[key],bVal=b.values[key];let n=key.endsWith('_cents')&&aVal&&bVal?(BigInt(aVal)<BigInt(bVal)?-1:BigInt(aVal)>BigInt(bVal)?1:0):aVal.localeCompare(bVal,undefined,{numeric:true});return state.descending?-n:n})}const columns=table.columns.filter(c=>c!=='review_action'&&(state.all||!hidden.has(c)));if(!columns.includes('issues'))columns.push('__review_task');
+if(table.columns.includes('invoice_number')){
+  const documents=columns.filter(key=>sourceFields.has(key));
+  for(const key of documents)columns.splice(columns.indexOf(key),1);
+  columns.push(...documents);
+}
+$('head').replaceChildren();const tr=node('tr');for(const key of columns){const th=node('th');th.scope='col';th.setAttribute('aria-sort',state.sort===key?(state.descending?'descending':'ascending'):'none');const b=node('button',label(key)+(state.sort===key?(state.descending?' ↓':' ↑'):''));b.onclick=()=>{state.descending=state.sort===key?!state.descending:false;state.sort=key;render()};th.append(b);tr.append(th)}$('head').append(tr);$('body').replaceChildren();const pageRows=rows.slice(state.page*50,(state.page+1)*50);for(const row of pageRows){const tr=node('tr');for(const key of columns)tr.append(cell(row,key));$('body').append(tr)}if(!pageRows.length){const td=node('td','No rows match these filters.');td.colSpan=columns.length;const tr=node('tr');tr.append(td);$('body').append(tr)}$('visible').textContent=rows.length?`${state.page*50+1}–${Math.min((state.page+1)*50,rows.length)} of ${rows.length} rows`:'0 rows';$('prev').disabled=state.page===0;$('next').disabled=(state.page+1)*50>=rows.length}
 function updateCurrent(){const key=$('field').value,money=key.endsWith('_cents');$('current-label').textContent=money?'Current amount ('+(state.selected.values.currency||'currency unknown')+')':'Current value';$('proposed-label').textContent=money?'Proposed amount ('+(state.selected.values.currency||'currency unknown')+')':'Proposed value';$('current').value=money?(state.selected.values[key]?state.selected.display[key]:''):state.selected.values[key]||'';$('proposed').value=$('current').value.replace(money?/,/g:/$^/g,'');$('proposed').inputMode=money?'decimal':'text'}
 function proposedValue(){const key=$('field').value,value=$('proposed').value.trim();if(!key.endsWith('_cents')||value==='')return value;if(!/^-?[0-9]+(?:\.[0-9]{1,2})?$/.test(value))throw new Error('Enter an amount with at most two decimal places.');const negative=value.startsWith('-'),parts=value.replace(/^-/,'').split('.'),cents=BigInt(parts[0])*100n+BigInt((parts[1]||'').padEnd(2,'0'));return (negative?-cents:cents).toString()}
 function openRequest(row,action){state.selected=row;state.action=action;$('dialog-title').textContent=action==='check'?(warn(row)?'Review the listed issue':'Ask an optional question'):'Propose a correction';$('record').textContent=['Row '+(row.index+1),...Object.entries(row.values).filter(([k])=>['invoice_id','id','supplier','contact','description','invoice_number','date'].includes(k)).map(([k,v])=>label(k)+': '+v)].join('\n')+'\n\n'+(reviewTasks(row).length?'What needs review:\n'+reviewTasks(row).join('\n'):clearMessage(row)+'. No action is required unless you spotted something.');$('correction').classList.toggle('hidden',action!=='correct');$('field').replaceChildren();for(const key of table.columns.filter(c=>c!=='id'&&!c.endsWith('_id')&&!sourceFields.has(c))){const o=node('option',label(key));o.value=key;$('field').append(o)}$('reason').value=action==='check'&&warn(row)?'Please check: '+reviewTasks(row).join(' '):'';$('form-error').textContent='';updateCurrent();$('dialog').showModal();$('reason').focus()}

@@ -3,6 +3,18 @@ name: upload-invoices-drive
 description: Upload one or multiple user-provided invoices and receipts to one Google Drive invoices folder, organised into YYYY-MM subfolders. Use when asked to store or upload an invoice to the user's Google Drive invoice space.
 ---
 
+## Shared case memory
+
+When working in a selected accounting workspace, use manage-accounting’s `references/agent-harness.md` memory workflow to recall applicable entity/period facts before asking questions. Persist explicit new facts and corrections through its memory helper, read them back, and return evidence to the coordinator. Resolve conflicts with operational profile/allocation records through their owning skill; memory does not authorize posting or establish tax entitlement. If the coordinator is unavailable, disclose memory persistence as unavailable rather than claiming information was saved.
+
+## Shared ATO research
+
+Inspect available case facts first. Before interpreting Australian tax or GST rules, use the installed `ato-docs` skill: discover and read its `SKILL.md`, then follow its official-source search, page retrieval, entity/year checks and citation workflow. Carry the conclusion, source URLs/sections, access date and unresolved facts into this skill's work. Routine searching, saving, extraction, matching and technical setup require no tax lookup unless tax treatment is being assessed.
+
+If `ato-docs` is unavailable, read references/ato-first.md and follow this skill's bundled official-source guidance and disclose the fallback when giving tax conclusions. Do not block routine work or claim that shared research ran when it did not. Tax research does not approve accounting entries or lodgment.
+
+
+
 # Upload invoices to Google Drive
 
 Store original invoice files only in one dedicated Google Drive folder named `invoices`, with direct month subfolders named `YYYY-MM` (example: `invoices/2026-05/`). This skill stores documents; it does not extract accounting records, classify expenses, approve GST or post entries.
