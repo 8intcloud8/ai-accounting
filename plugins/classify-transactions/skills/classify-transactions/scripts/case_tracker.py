@@ -145,7 +145,7 @@ def main():
         else: result = status(args.workspace, args.case)
         print(json.dumps(result))
     except (ValueError, OSError, sqlite3.Error) as exc:
-        parser.exit(1, f'Harness failed: {exc}\n')
+        parser.exit(1, f'Case tracker failed: {exc}\n')
 
 
 if __name__ == '__main__': main()

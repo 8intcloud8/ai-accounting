@@ -6,6 +6,9 @@ import unittest
 from pathlib import Path
 from contextlib import closing
 import sqlite3
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "accounting_core"))
 
 from accounting_store import connect, import_approved
 from product_store import setup, audit, report

@@ -1,4 +1,4 @@
-# Accounting agent harness
+# Accounting case workflow
 
 Codex is the agent executing tools; these Python helpers persist state and return next steps. They do not run an independent background worker. Use this workflow for a request to prepare or continue BAS/tax work.
 
@@ -6,7 +6,7 @@ Codex is the agent executing tools; these Python helpers persist state and retur
 
 Reuse the explicitly selected workspace, business and dates. Resolve dates from confirmed reporting frequency. If no workspace is selected, setup-accounting owns its selection. Never treat a test database as production. Use the user's requested goal; BAS and tax are separate cases sharing evidence.
 
-Run `python3 <skill>/scripts/agent_harness.py --workspace <folder> start --request <json>` with entity (stable business ID), goal (`bas` or `tax`), start/end (inclusive ISO dates). This is idempotent for the same entity/goal/dates. Save the returned case ID in the handoff. Resume with `... resume --case <id>`; read the saved case and relevant facts before asking anything. Memory lives at `<folder>/db/memory.db`; ledger remains `<folder>/db/accounting.db`.
+Run `python3 <skill>/scripts/case_tracker.py --workspace <folder> start --request <json>` with entity (stable business ID), goal (`bas` or `tax`), start/end (inclusive ISO dates). This is idempotent for the same entity/goal/dates. Save the returned case ID in the handoff. Resume with `... resume --case <id>`; read the saved case and relevant facts before asking anything. Memory lives at `<folder>/db/memory.db`; ledger remains `<folder>/db/accounting.db`.
 
 ## Learn from the user
 
@@ -24,7 +24,7 @@ Use `resume`'s ready steps to choose the next installed skill. Intake owns missi
 
 After a real result, run `record --case <id> --request <json>` with step, status (`done`, `blocked`, `pending`), note, expected_revision (the revision object returned by resume before starting the work), and evidence (list of existing workspace files). Done requires supporting artifacts and completed dependencies. A not-applicable step needs a saved reason supported by intake. Blocked notes state exactly what is needed; set pending when resolved. Do not write a placeholder merely to pass a gate. Source hash changes or changed prerequisite checkpoints invalidate dependent completion. Changed memory invalidates affected review stages conservatively.
 
-The harness verifies saved evidence hashes and dependency order, not whether an invoice is correct or a BAS is ready. Validate results using the producing skill and accounting workflow-status. Never use a harness done marker to bypass ledger readiness gates. A draft may contain disclosed blockers; completion means the requested draft was produced, never that it is lodgment-ready. Do not lodge or post inferred entries without required approval.
+The case tracker verifies saved evidence hashes and dependency order, not whether an invoice is correct or a BAS is ready. Validate results using the producing skill and accounting workflow-status. Never use a case-tracker done marker to bypass ledger readiness gates. A draft may contain disclosed blockers; completion means the requested draft was produced, never that it is lodgment-ready. Do not lodge or post inferred entries without required approval.
 
 ## Handoff
 

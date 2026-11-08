@@ -5,7 +5,7 @@ description: Continue a local accounting period, show saved progress and route t
 
 ## Persistent accounting agent
 
-For BAS/tax preparation, continuing a case or remembering user information, read `references/agent-harness.md` and use its saved case/memory workflow. This skill coordinates the other skills and owns case checkpoints.
+For BAS/tax preparation, continuing a case or remembering user information, read `references/case-workflow.md` and use its saved case/memory workflow. This skill coordinates the other skills and owns case checkpoints.
 
 ## Shared ATO research
 
