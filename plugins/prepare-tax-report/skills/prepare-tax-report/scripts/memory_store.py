@@ -40,11 +40,17 @@ def location(workspace):
     return path
 
 
+# Progress lives in the ledger and saved reports; memory is for facts about the business.
+PROGRESS_TOPICS = ('worker', 'case', 'runner', 'progress', 'status')
+
+
 def save(workspace, data):
     path = location(workspace)
     entity, topic = required(data, 'entity'), required(data, 'topic')
     source, reason = required(data, 'source'), required(data, 'reason')
     status = required(data, 'status')
+    if topic.split('.')[0] in PROGRESS_TOPICS:
+        raise ValueError('Memory holds user facts only; save work progress through the owning skill and reports')
     if status not in ('user_confirmed', 'provisional', 'withdrawn'):
         raise ValueError('Invalid status')
     start = iso(data.get('effective_from'))

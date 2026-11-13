@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import subprocess
 import sys
 from collections import Counter
 from contextlib import closing
@@ -16,6 +17,7 @@ from pathlib import Path
 from product_store import (
     PRODUCT_SCHEMA,
     default_db,
+    known_workspaces,
     preserve_source,
     source_path,
     add_commands,
@@ -34,6 +36,9 @@ from running_cost_workpapers import WORKPAPER_SCHEMA, save_fixed, list_fixed
 import expense_claims
 from payment_store import PAYMENT_SCHEMA, propose, confirm
 from invoice_store import INVOICE_SCHEMA, import_invoices, read_invoices
+from proposal_store import PROPOSAL_SCHEMA
+from bas_labels import BAS_LABELS_SCHEMA
+import ato_library
 
 DEFAULT_DB = default_db()
 SCHEMA = """
@@ -123,6 +128,8 @@ def connect(path: Path) -> sqlite3.Connection:
             + PRODUCT_SCHEMA
             + WORKPAPER_SCHEMA
             + expense_claims.SCHEMA
+            + PROPOSAL_SCHEMA
+            + BAS_LABELS_SCHEMA
             + "\nPRAGMA user_version=5;\nCOMMIT;"
         )
         path.chmod(0o600)
@@ -224,9 +231,11 @@ def main() -> None:
     parser.add_argument(
         "--db",
         type=Path,
-        default=Path(os.environ.get("AI_ACCOUNTING_DB", str(DEFAULT_DB))),
+        default=Path(os.environ["AI_ACCOUNTING_DB"]) if os.environ.get("AI_ACCOUNTING_DB") else None,
+        help="The workspace database the user chose for this chat",
     )
     sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("workspaces", help="List workspaces the user can choose from")
     imp = sub.add_parser("import")
     imp.add_argument("--source", type=Path, required=True)
     imp.add_argument("--approved", type=Path, required=True)
@@ -269,7 +278,25 @@ def main() -> None:
     claims = sub.add_parser("record-purchase")
     claims.add_argument("--request", type=Path, required=True)
     add_commands(sub)
+    ato_library.add_commands(sub)
     args = parser.parse_args()
+    if args.command == "workspaces":
+        print(json.dumps(known_workspaces(), indent=2))
+        return
+    if args.command in ato_library.LIBRARY_COMMANDS:
+        # The ATO library ships with the code, so it needs no workspace.
+        try:
+            print(json.dumps(ato_library.dispatch(args), indent=2))
+        except (ValueError, OSError, subprocess.CalledProcessError) as exc:
+            print(json.dumps({"error": str(exc)}), file=sys.stderr)
+            sys.exit(1)
+        return
+    if args.db is None:
+        # Never fall back to a machine-wide default: the user picks the workspace per chat.
+        print(json.dumps({"error": "No workspace chosen for this chat. Ask the user which workspace to use "
+                          "(see the workspaces command), then pass --db <workspace>/db/accounting.db",
+                          **known_workspaces()}), file=sys.stderr)
+        sys.exit(2)
     try:
         if args.command == "review-table":
             from review_table import serve
@@ -364,7 +391,7 @@ def main() -> None:
                             )
                     result["csv"] = str(args.output)
         print(json.dumps(result, indent=2))
-    except (ValueError, KeyError, TypeError, OSError, sqlite3.Error) as exc:
+    except (ValueError, KeyError, TypeError, OSError, sqlite3.Error, subprocess.CalledProcessError) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)
         sys.exit(1)
 

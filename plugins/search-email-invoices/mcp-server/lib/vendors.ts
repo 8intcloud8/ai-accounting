@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { BillSender } from "./types.js";
@@ -6,9 +7,18 @@ import type { BillSender } from "./types.js";
 // Each installation starts with no personal-vendor assumptions.
 const DEFAULT_PERSONAL_VENDORS: string[] = [];
 
-/** Plugin-local overrides, shared by source and bundled server execution.
+/** Entries shorter than this would match almost every sender (e.g. "au"). */
+export const MIN_ENTRY_LENGTH = 3;
+
+/** The user's exclusions live outside the plugin so reinstalling or upgrading keeps them. */
+export const USER_VENDORS_PATH = path.join(
+  process.env.CODEX_HOME ?? path.join(os.homedir(), ".codex"),
+  "accounting-personal-vendors.json",
+);
+
+/** Older installs kept the file inside the plugin; read it until the user's file exists.
  * Both lib/vendors.ts and dist/server.mjs sit two levels below the plugin root. */
-export const USER_VENDORS_PATH = path.resolve(
+const LEGACY_VENDORS_PATH = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
   "..",
@@ -37,8 +47,9 @@ function readShippedVendors(): string[] {
 }
 
 function readUserFile(): UserVendorFile {
+  const file = fs.existsSync(USER_VENDORS_PATH) ? USER_VENDORS_PATH : LEGACY_VENDORS_PATH;
   try {
-    const raw = JSON.parse(fs.readFileSync(USER_VENDORS_PATH, "utf-8"));
+    const raw = JSON.parse(fs.readFileSync(file, "utf-8"));
     return {
       personalVendors: Array.isArray(raw.personalVendors) ? raw.personalVendors : [],
       suppressed: Array.isArray(raw.suppressed) ? raw.suppressed : [],
@@ -55,7 +66,7 @@ function writeUserFile(data: UserVendorFile): void {
     JSON.stringify(
       {
         _comment:
-          "Your personal-vendor exclusions for BUSINESS bill searches. personalVendors adds entries; suppressed turns off entries shipped with the plugin. Case-insensitive substring match against sender name AND email. Stored inside the plugin data directory.",
+          "Your personal-vendor exclusions for BUSINESS bill searches. personalVendors adds entries; suppressed turns off entries shipped with the plugin. Case-insensitive substring match against sender name AND email. Kept outside the plugin so upgrades keep it.",
         personalVendors: data.personalVendors,
         suppressed: data.suppressed,
       },
@@ -66,7 +77,7 @@ function writeUserFile(data: UserVendorFile): void {
 }
 
 function normalizeEntries(entries: readonly string[]): string[] {
-  return (entries ?? []).map((e) => String(e).trim()).filter((e) => e.length > 0);
+  return (entries ?? []).map((e) => String(e).trim()).filter((e) => e.length >= MIN_ENTRY_LENGTH);
 }
 
 /** Shipped list plus user additions, minus anything the user suppressed. */
@@ -77,7 +88,7 @@ export function loadPersonalVendors(): string[] {
   const out: string[] = [];
   for (const v of [...readShippedVendors(), ...user.personalVendors]) {
     const entry = String(v).trim();
-    if (!entry) continue;
+    if (entry.length < MIN_ENTRY_LENGTH) continue;
     const key = entry.toLowerCase();
     if (off.has(key) || seen.has(key)) continue;
     seen.add(key);

@@ -1,6 +1,6 @@
 {
   "name": "setup-accounting",
-  "version": "0.1.4",
+  "version": "0.1.15",
   "description": "Configure the local accounting workspace and business profile once, then show next steps.",
   "interface": {
     "displayName": "Setup Accounting",

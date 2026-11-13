@@ -43,6 +43,14 @@ def build(root, output):
             dest.mkdir(exist_ok=True)
             for module in modules:
                 shutil.copy2(module, dest / module.name)
+            # The ATO library's extracted text ships with the code; originals stay in the repo.
+            library = root / "ato-library/library.json"
+            bundled = skills[0].parent / "ato-library"
+            if library.is_file():
+                bundled.mkdir(exist_ok=True)
+                shutil.copy2(library, bundled / library.name)
+            elif bundled.exists():
+                shutil.rmtree(bundled)
             (plugin / "accounting-runtime.json").write_text(
                 json.dumps(
                     {
@@ -98,6 +106,7 @@ def build(root, output):
                 "docs",
                 "tests",
                 "ui",
+                "ato-library",
             }
             for f in root.rglob("*"):
                 rel = f.relative_to(root)

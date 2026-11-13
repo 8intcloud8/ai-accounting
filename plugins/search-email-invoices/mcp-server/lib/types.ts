@@ -9,7 +9,10 @@ export interface BillSender {
 
 export interface BillResult {
   threadId: string;
+  /** The message to save: latest with attachments, else latest */
   messageId: string;
+  /** Every message of this thread seen by the search */
+  messageIds: string[];
   /** YYYY-MM-DD */
   date: string;
   sender: BillSender;
@@ -58,6 +61,8 @@ export interface SearchBillsCounts {
   inline: number;
   vendorsCount: number;
   excludedCount: number;
+  /** Candidate messages dated outside the requested period, dropped */
+  outOfRange: number;
 }
 
 export interface SearchBillsStructured {

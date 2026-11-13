@@ -1,10 +1,10 @@
 {
   "name": "manage-accounting",
-  "version": "0.1.4",
-  "description": "Continue a local accounting period, show saved progress and route to the next accounting plugin.",
+  "version": "0.2.15",
+  "description": "Walk through a BAS or tax period step by step, reviewing each stage with you.",
   "interface": {
     "displayName": "Manage Accounting",
-    "shortDescription": "Continue a local accounting period, show saved progress and route to the next accounting plugin.",
+    "shortDescription": "Guide a BAS or tax period end to end, running each step in order and stopping only when you must answer or approve.",
     "longDescription": "Shows what's done and what's outstanding for the current accounting period, and routes you to the right plugin to continue.",
     "developerName": "AI Accounting contributors",
     "category": "Productivity",

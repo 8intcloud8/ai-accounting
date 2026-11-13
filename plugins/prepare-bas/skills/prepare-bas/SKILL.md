@@ -21,11 +21,11 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 If direct web-fetch fails, follow that reference's browser fallback before declaring official guidance unavailable. For an advice-only or read-only assessment, do not run reporting or save commands that write accounting records; use supplied facts as assumptions and identify any unverified client facts.
 
-Resolve workspace, entity and reporting period. Read references/ato-guidance.md and refresh official guidance before tax treatment. Confirm registration and cash/accrual basis from the stored profile. The initial implementation covers Simpler BAS GST subtotals G1, 1A and 1B; PAYG and other labels need separate review.
+Resolve workspace, entity and reporting period. Read references/ato-guidance.md and refresh official guidance before tax treatment. Confirm registration and cash/accrual basis from the stored profile. It covers Simpler BAS GST (G1, 1A, 1B), PAYG withholding (W1, W2, W3, W4, W5 from pay runs saved with `save-payg-withholding`) and the summary labels 4, 8A, 8B and 9. PAYG instalments, FBT, fuel tax credits, WET and LCT are not calculated and block readiness when they apply.
 
 Run `scripts/accounting_store.py prepare-bas --start YYYY-MM-DD --end YYYY-MM-DD`. The engine selects reviewed GST items by explicit attribution date, excludes reversed journals, subtracts refund adjustments, and saves immutable report snapshots plus dated JSON/CSV exports. Unknown/unreviewed items are blockers, not zero GST.
 
-Present reviewed subtotals in dollars, pending items, reconciliation status and source references. Always identify output as a draft workpaper. `ready_for_review` means internal checks passed, not that a return has been lodged or professionally certified. Full BAS completion, special GST schemes and electronic lodgement are outside this version. Never turn partial subtotals into a final amount payable.
+Present `bas_labels` (whole dollars with cents dropped, as the ATO requires; G1 includes GST), `lodgment_due` (standard self-lodger date; registered tax/BAS agents may have later dates), `warnings`, pending items, reconciliation status and source references. Purchase GST over $82.50 is only counted with a valid tax invoice; GST errors from earlier periods are not corrected here. Always identify output as a draft workpaper. `ready_for_review` means internal checks passed, not that a return has been lodged or professionally certified. Full BAS completion, special GST schemes and electronic lodgement are outside this version. Never turn partial subtotals into a final amount payable.
 
 ## Show the review table in Codex
 

@@ -106,6 +106,140 @@ class ProductTests(unittest.TestCase):
                 0,
             )
 
+    def test_proposals_wait_for_approval_then_post(self):
+        import proposal_store
+        from product_store import status_report
+
+        def problems():
+            with closing(connect(self.db)) as db:
+                db.row_factory = sqlite3.Row
+                return {p["code"]: p for p in status_report(db, "2026-07-01", "2026-09-30")["problems"]}
+
+        self.assertEqual(2, problems()["transactions_unclassified"]["count"])
+        cited = self.cited(self.sale())
+        saved = proposal_store.save(self.db, {"proposals": [{"journal": cited, "reason": "Customer receipt"}]}, connect)
+        codes = problems()
+        self.assertEqual(1, codes["transactions_unclassified"]["count"])
+        self.assertEqual(("user", 1), (codes["proposals_awaiting_approval"]["who"], codes["proposals_awaiting_approval"]["count"]))
+        proposal_store.decide(self.db, {"approve": saved["saved"]}, connect, post_journal)
+        self.assertNotIn("proposals_awaiting_approval", problems())
+        with self.assertRaises(ValueError):
+            proposal_store.save(self.db, {"proposals": [{"journal": cited, "reason": "again"}]}, connect)
+        evidence = report(self.db, "bas", "2026-07-01", "2026-09-30", connect)["gst_evidence"][0]
+        self.assertEqual(cited["gst"]["source"]["url"], evidence["source_url"])
+        self.assertEqual("2026-11-12", evidence["source_accessed"])
+
+    def cited(self, journal, **source):
+        return dict(journal, gst=dict(journal["gst"], source=source or {"url": "https://www.ato.gov.au/businesses-and-organisations/gst-excise-and-indirect-taxes/gst", "section": "Taxable sales", "accessed": "2026-11-12"}))
+
+    def test_proposal_gst_needs_official_source(self):
+        import proposal_store
+
+        def save(journal):
+            proposal_store.save(self.db, {"proposals": [{"journal": journal, "reason": "x"}]}, connect)
+
+        for bad in (self.sale(),
+                    self.cited(self.sale(), url="https://example.com/gst", accessed="2026-11-12"),
+                    self.cited(self.sale(), url="https://www.ato.gov.au.evil.com/x", accessed="2026-11-12"),
+                    self.cited(self.sale(), url="https://www.ato.gov.au/x"),
+                    self.cited(self.sale(), verified=False)):
+            with self.assertRaises(ValueError):
+                save(bad)
+        save(self.cited(self.sale(), url="https://www.legislation.gov.au/C2004A05188", accessed="2026-11-12"))
+        saved = proposal_store.save(self.db, {"proposals": [{"journal": self.cited(
+            self.sale(), verified=False, note="ATO site unreachable from sandbox"), "reason": "x"}]}, connect)
+        proposal_store.decide(self.db, {"approve": saved["saved"]}, connect, post_journal)
+        blockers = report(self.db, "bas", "2026-07-01", "2026-09-30", connect)["blockers"]
+        self.assertTrue(any("ATO guidance not verified for 1 GST item(s): sale-1" in b for b in blockers))
+
+
+    def test_proposal_gst_can_cite_local_ato_library(self):
+        import ato_library
+        import proposal_store
+
+        guide = self.root / "gst.md"
+        guide.write_text("# Taxable sales\n\nYou must pay GST on taxable sales you make in Australia.\n")
+        added = ato_library.add(guide, title="GST basics", url="https://www.ato.gov.au/gst")
+
+        def library(quote):
+            return self.cited(self.sale(), library={"sha256": added["sha256"], "page": 1, "quote": quote})
+
+        with self.assertRaises(ValueError):
+            proposal_store.save(self.db, {"proposals": [{"journal": library(
+                "You never pay GST on taxable sales in Australia"), "reason": "x"}]}, connect)
+        saved = proposal_store.save(self.db, {"proposals": [{"journal": library(
+            "you must pay GST on taxable sales"), "reason": "x"}]}, connect)
+        proposal_store.decide(self.db, {"approve": saved["saved"]}, connect, post_journal)
+        r = report(self.db, "bas", "2026-07-01", "2026-09-30", connect)
+        evidence = r["gst_evidence"][0]
+        self.assertEqual(f"ato-library:{added['sha256']}#page=1", evidence["source_url"])
+        self.assertIn("GST basics, p.1", evidence["source_section"])
+        self.assertFalse(any("not verified" in b for b in r["blockers"]))
+
+    def test_grouped_review_and_workbook_round_trip(self):
+        import proposal_store
+        from openpyxl import load_workbook
+
+        purchase = {
+            "date": "2026-07-02", "reference": "supplier-1", "description": "Supplier",
+            "transaction_id": 2,
+            "lines": [{"account": "5000", "debit_cents": 5500}, {"account": "1000", "credit_cents": 5500}],
+            "gst": {"label": "excluded", "gross_cents": 0, "gst_cents": 0, "status": "reviewed",
+                    "attribution_date": "2026-07-02", "evidence": "No tax invoice"},
+        }
+        proposal_store.save(self.db, {"proposals": [
+            {"journal": self.cited(self.sale()), "reason": "=HYPERLINK(\"http://x\")"},
+            {"journal": self.cited(purchase, verified=False, note="Not checked"), "reason": "Supplier payment"}]}, connect)
+        groups = proposal_store.groups(self.db, "2026-07-01", "2026-09-30", connect)
+        self.assertEqual({1}, {g["count"] for g in groups})
+        self.assertIn("5000", [g for g in groups if g["money_out"]][0]["treatment"])
+        out = self.root / "review.xlsx"
+        proposal_store.export_workbook(self.db, "2026-07-01", "2026-09-30", out, connect)
+        book = load_workbook(out)
+        sheet = book["Review"]
+        header = [c.value for c in sheet[1]]
+        sources = {r[header.index("ATO source")] for r in sheet.iter_rows(min_row=2, values_only=True)}
+        self.assertIn("Not verified: Not checked", sources)
+        self.assertTrue(any(s.startswith("https://www.ato.gov.au/") for s in sources))
+        decision, new_account = header.index("Decision"), header.index("New account")
+        self.assertFalse(any(isinstance(c.value, str) and c.value.startswith("=")
+                             for row in sheet.iter_rows() for c in row))
+        for row in sheet.iter_rows(min_row=2):
+            if row[2].value == "Customer":
+                row[decision].value = "Approve"
+            else:
+                row[decision].value, row[new_account].value = "Change", "5100"
+        book.save(out)
+        result = proposal_store.apply_workbook(self.db, out, connect, post_journal)
+        self.assertEqual(2, len(result["posted"]))
+        with closing(sqlite3.connect(self.db)) as db:
+            self.assertEqual(1, db.execute("SELECT count(*) FROM journal_lines WHERE account_code='5100'").fetchone()[0])
+        # Applying the same workbook again changes nothing: rows are no longer open.
+        self.assertEqual(2, len(proposal_store.apply_workbook(self.db, out, connect, post_journal)["skipped_stale"]))
+
+    def test_unread_invoice_files_are_a_worker_problem(self):
+        from product_store import status_report
+
+        root = self.db.parent.parent
+        for name, data in (("invoices", b"example bill"), ("bankstatements", b"example statement")):
+            (root / name).mkdir(parents=True, exist_ok=True)
+            (root / name / "file.pdf").write_bytes(data)
+        # Email saves: invoices/<Category>/<range>/ with a manifest that is not an invoice.
+        saved = root / "invoices/Business/2026-07-01_2026-09-30"
+        saved.mkdir(parents=True)
+        (saved / "aws-invoice.pdf").write_bytes(b"emailed bill")
+        (saved / "manifest.csv").write_text("date,vendor\n")
+        (saved / ".DS_Store").write_bytes(b"x")
+        with closing(connect(self.db)) as db:
+            db.row_factory = sqlite3.Row
+            codes = {p["code"]: p for p in status_report(db, "2026-07-01", "2026-09-30")["problems"]}
+        self.assertEqual(3, codes["invoices_unread"]["step"])
+        self.assertEqual((2, "extract-bankstatements"),
+                         (codes["statements_unread"]["step"], codes["statements_unread"]["skill"]))
+        self.assertEqual(4, codes["transactions_unclassified"]["step"])
+        self.assertEqual(("worker", "extract-invoices", 2),
+                         (codes["invoices_unread"]["who"], codes["invoices_unread"]["skill"], codes["invoices_unread"]["count"]))
+
     def test_reject_unbalanced_and_repeated(self):
         p = self.sale()
         p["lines"][0]["debit_cents"] = 10999
@@ -299,7 +433,7 @@ class ProductTests(unittest.TestCase):
         self.assertEqual(result["reviewed_subtotals_cents"]["1A"], -100)
         self.assertEqual(result["reviewed_subtotals_cents"]["G1"], -1100)
 
-    def supplier_invoice(self, total="55", gst="5"):
+    def supplier_invoice(self, total="55", gst="5", tax=True):
         source = self.root / "supplier.txt"
         source.write_text("Supplier tax invoice")
         import_invoices(
@@ -316,6 +450,9 @@ class ProductTests(unittest.TestCase):
                         "gst": gst,
                         "currency": "AUD",
                         "review_status": "verified",
+                        **({"tax_invoice": tax if isinstance(tax, dict) else {
+                            "supplier_abn": "51 824 753 556", "shows_gst": True,
+                            "buyer_identified": False}} if tax else {}),
                     }
                 ]
             },
@@ -371,6 +508,7 @@ class ProductTests(unittest.TestCase):
             {
                 "method": "simpler",
                 "expected_accounts": ["bank"],
+                "gst_turnover_under_10m": True,
                 "evidence": "Fixture supported scope",
             },
             connect,
@@ -389,7 +527,7 @@ class ProductTests(unittest.TestCase):
                 "closing_cents": 5500,
                 "statement": str(self.source),
                 "boundary_kind": "statement",
-                "boundary_evidence": "Fixture independent statement opening and closing",
+                "boundary_evidence": "Statement page 1: opening balance 0.00, closing balance 55.00",
             },
             connect,
         )
@@ -479,6 +617,102 @@ class ProductTests(unittest.TestCase):
         post_journal(self.db, self.purchase("purchase-2", 3), connect)
         result = report(self.db, "bas", "2026-07-01", "2026-09-30", connect)
         self.assertEqual(result["reviewed_subtotals_cents"]["1B"], 1000)
+
+    def test_gst_claim_follows_tax_invoice_rules(self):
+        # Over $82.50 with no tax invoice details: no GST credit.
+        self.supplier_invoice("110", "10", tax=False)
+        self.match(2)
+        with self.assertRaisesRegex(ValueError, "valid tax invoice is needed"):
+            post_journal(self.db, self.purchase(), connect)
+        with self.assertRaisesRegex(ValueError, "ABN check digit"):
+            self.supplier_invoice("110", "10", tax={"supplier_abn": "12 345 678 901",
+                                                    "shows_gst": True, "buyer_identified": False})
+        # Recording valid details on re-import makes the claim allowed.
+        self.supplier_invoice("110", "10")
+        post_journal(self.db, self.purchase(), connect)
+
+    def test_large_tax_invoice_needs_buyer_identity(self):
+        self.supplier_invoice("1100", "100", tax={"supplier_abn": "51824753556",
+                                                  "shows_gst": True, "buyer_identified": False})
+        self.match(2)
+        with self.assertRaisesRegex(ValueError, "buyer's name or ABN"):
+            post_journal(self.db, self.purchase(), connect)
+
+    def test_small_purchase_without_tax_invoice(self):
+        small = self.purchase()
+        small.pop("invoice_ids")
+        post_journal(self.db, small, connect)  # $55 with a receipt: allowed
+        too_much = self.purchase("p2", 2)
+        too_much.pop("invoice_ids")
+        too_much["gst"]["gst_cents"] = 600
+        too_much["lines"] = [{"account": "1000", "credit_cents": 5500},
+                             {"account": "5000", "debit_cents": 4900},
+                             {"account": "1200", "debit_cents": 600}]
+        reverse_journal(self.db, {"id": 1, "reason": "test"}, connect)
+        with self.assertRaisesRegex(ValueError, "1/11"):
+            post_journal(self.db, too_much, connect)
+
+    def test_reconciliation_quotes_statement_and_continues_from_last_period(self):
+        base = {"start": "2026-07-01", "end": "2026-09-30", "account": "bank", "opening_cents": 100000,
+                "closing_cents": 105500, "statement": str(self.source), "boundary_kind": "statement"}
+        with self.assertRaisesRegex(ValueError, "quote the opening balance"):
+            reconcile(self.db, dict(base, boundary_evidence="Balances per statement"), connect)
+        reconcile(self.db, dict(base, boundary_evidence="Opening 1,000.00; closing 1,055.00"), connect)
+        source = self.root / "q2.csv"
+        source.write_text("next quarter")
+        import_approved(self.db, source, "bank", {"decision": "approved", "rows": [
+            {"date": "01/10/2026", "description": "Customer", "credit": "10.00"}]})
+        with self.assertRaisesRegex(ValueError, "does not match the closing balance"):
+            reconcile(self.db, dict(base, start="2026-10-01", end="2026-12-31", opening_cents=0,
+                                    closing_cents=1000, boundary_kind="derived"), connect)
+
+    def test_bas_labels_whole_dollars_due_date_and_payg(self):
+        import bas_labels
+        from product_store import audit, configure_reporting, status_report
+
+        def codes():
+            with closing(connect(self.db)) as db:
+                db.row_factory = sqlite3.Row
+                return [p["text"] for p in status_report(db, "2026-07-01", "2026-09-30")["problems"]]
+
+        self.assertTrue(any("under $10 million" in t for t in codes()))
+        configure_reporting(self.db, {"method": "simpler", "expected_accounts": ["bank"],
+                                      "gst_turnover_under_10m": False, "evidence": "ATO turnover"}, connect)
+        self.assertTrue(any("cash basis is not available" in t for t in codes()))
+        sale = self.sale()
+        sale["lines"] = [{"account": "1000", "debit_cents": 11000},
+                         {"account": "4000", "credit_cents": 10001},
+                         {"account": "2100", "credit_cents": 999}]
+        sale["gst"]["gst_cents"] = 999
+        post_journal(self.db, sale, connect)
+        self.assertEqual("2026-10-28", bas_labels.due_date("2026-07-01", "2026-09-30"))
+        self.assertEqual("2027-03-01", bas_labels.due_date("2026-10-01", "2026-12-31"))  # 28 Feb is a Sunday
+        self.assertEqual("2026-08-21", bas_labels.due_date("2026-07-01", "2026-07-31"))
+        with self.assertRaisesRegex(ValueError, "do not match net pay"):
+            bas_labels.save_payg(self.db, {"start": "2026-07-01", "end": "2026-09-30", "evidence": "x", "runs": [
+                {"pay_date": "2026-07-02", "gross_cents": 7000, "withheld_cents": 1500, "net_cents": 5000,
+                 "transaction_ids": [2], "evidence": "payslip"}]}, connect, audit)
+        bas_labels.save_payg(self.db, {"start": "2026-07-01", "end": "2026-09-30", "evidence": "Payroll report",
+            "w4_cents": 4799,
+            "stp": {"w1_cents": 700099, "w2_cents": 150000, "source": "ATO STP pre-fill"},
+            "runs": [{"pay_date": "2026-07-02", "gross_cents": 7099, "withheld_cents": 1500, "net_cents": 5500,
+                      "transaction_ids": [2], "evidence": "Payslip July"}]}, connect, audit)
+        result = report(self.db, "bas", "2026-07-01", "2026-09-30", connect)
+        labels = result["bas_labels"]
+        self.assertEqual((110, 9, 0), (labels["G1"], labels["1A"], labels["1B"]))  # cents dropped
+        self.assertEqual((70, 15, 47, 62), (labels["W1"], labels["W2"], labels["W4"], labels["W5"]))
+        self.assertEqual((71, 0, 71), (labels["8A"], labels["8B"], labels["9"]))
+        self.assertEqual("2026-10-28", result["lodgment_due"])
+        self.assertTrue(any("differs from STP" in b for b in result["blockers"]))
+        from bas_applicability import checklist, save_answers
+
+        save_answers(self.db, {"business_id": "example", "start": "2026-07-01", "end": "2026-09-30",
+            "answers": [{"topic": "payg_withholding", "answer": "yes", "evidence": "Employer",
+                         "provenance": "user_confirmed"}]}, connect, audit)
+        with closing(connect(self.db)) as db:
+            db.row_factory = sqlite3.Row
+            row = [r for r in checklist(db, "2026-07-01", "2026-09-30")["rows"] if r["topic_id"] == "payg_withholding"][0]
+        self.assertEqual("review_completed", row["status"])
 
     def test_excluded_cannot_hide_gst(self):
         p = self.sale()

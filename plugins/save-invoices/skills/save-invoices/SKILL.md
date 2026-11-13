@@ -22,11 +22,15 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 
 Save only the bills selected by the user. Use `save_invoices` in batches of at
-most five threads.
+most five threads. A checklist request lists `message ids` aligned with its thread ids: save
+that message's documents (the thread's latest message with attachments). Fetch each batch's
+download links just before its call, because they expire.
 
-When fulfilling an email checklist save request, persist its rendered HTML at
-`<user-selected-root>/reports/email-invoices-<run-id>/index.html`. Use the
-submitted root and the current run's preview. Create missing directories,
+Save into the accounting workspace chosen in this chat: `root_folder` is the request's folder,
+normally `<workspace>/invoices`, so files land in `<workspace>/invoices/<Category>/<date range>/`
+with `manifest.csv`, where invoice extraction reads them. When fulfilling an email checklist save
+request, persist its rendered HTML at `<workspace>/output/<YYYY-MM-DD>/reports/email-invoices-<run-id>/index.html`
+(for a folder outside a workspace: `<folder>/reports/email-invoices-<run-id>/index.html`). Use the current run's preview. Create missing directories,
 verify the copy, and include its path with the save result. Reuse the same
 report on retries. If the preview is unavailable, report that separately.
 

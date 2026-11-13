@@ -11,7 +11,17 @@ When working in a selected accounting workspace, use manage-accounting’s `refe
 
 Provide current, cited ATO guidance applicable to the taxpayer and reporting period.
 
-**First substantive action:** Search the exact requested ATO topic using a concise query of 2–6 essential terms. Use an available official ATO documentation search and page-retrieval capability first; otherwise search the web restricted to `ato.gov.au`. Actually open or fetch the relevant official page before answering. Search snippets, unopened links and prior answers do not establish the rule.
+## ATO library first
+
+ATO guides chosen by the plugin maintainers ship with the plugins (`ato-library/library.json` next to `scripts/`); the same library serves every workspace and needs no `--db`. Search it before the web: `scripts/accounting_store.py ato-search "<2-6 essential terms>" --period-end YYYY-MM-DD`. Plain words must all match; use `"exact phrase"` or `OR` for synonyms (e.g. `car OR "motor vehicle"`) and retry with other ATO wording before giving up. Results give guide, page, heading, a passage and warnings. Read the whole page with `ato-page --guide <sha256> --page <n>` before relying on it; `ato-guides` lists the library. Never run `ato-add` or `ato-sync`: they are maintainer commands for the codebase.
+
+Cite a library guide as `{"library":{"sha256":"<guide sha256>","page":<n>,"quote":"<exact sentence from that page>"}}`. The code rejects a quote that is not on that page word for word, so copy it from `ato-page`. Treat a warning (older than 12 months, outside the guide's stated years, no ATO address) as a reason to check ato.gov.au for a current version; say so when you still rely on it.
+
+If the library has nothing applicable, or the guide is stale, research the web as below and mention the page as a candidate for the library in your report.
+
+## Web research
+
+**First substantive action (when the library has no answer):** Search the exact requested ATO topic using a concise query of 2–6 essential terms. Use an available official ATO documentation search and page-retrieval capability first; otherwise search the web restricted to `ato.gov.au`. Actually open or fetch the relevant official page before answering. Search snippets, unopened links and prior answers do not establish the rule.
 
 ## Establish applicability
 
@@ -26,11 +36,11 @@ Read the page's eligibility, exclusions, evidence requirements and applicable da
 - If statutory wording is needed, read the relevant version on `legislation.gov.au` and identify it as legislation. Report unresolved conflicts or interpretation rather than silently choosing a favourable result.
 - Use general tax topics in searches; keep client identifiers, private documents and account details out of search queries.
 - Separate income-tax deductions, GST credits, timing and business-use allocation. Check who incurred or reimbursed the expense. Do not transfer employee or sole-trader methods automatically to company claims, infer GST from an invoice total, or turn a deduction into a GST credit without evidence.
-- Local notes and saved summaries can help navigation; verify the official source before relying on them. This skill requires no local database, embeddings or API key.
+- Informal notes and summaries are not sources. The bundled ATO library holds the official guides themselves; anything else must be verified on the official site. No embeddings or API key are needed.
 
 ## Answer with evidence
 
-Answer the actual question first. Cite the fetched page supporting each material tax conclusion, using its exact URL and useful heading or ruling paragraph. Identify the applicable year/period and distinguish sourced rules from their application to the supplied facts. For calculations show inputs, units, rate source, business portion and result; keep unsupported inputs provisional.
+Answer the actual question first. Cite the library page (guide, page, exact quote) or the fetched web page (exact URL, heading or ruling paragraph) supporting each material tax conclusion. Identify the applicable year/period and distinguish sourced rules from their application to the supplied facts. For calculations show inputs, units, rate source, business portion and result; keep unsupported inputs provisional.
 
 State the specific missing fact or unavailable source when it prevents a conclusion. If a page is blocked, try another official page or official printable/PDF version. If still unavailable, disclose that verification failed; do not treat a snippet as verified guidance or guess a rate.
 

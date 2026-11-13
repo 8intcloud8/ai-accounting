@@ -19,11 +19,11 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 
 
-SQLite is internal assistant memory. Users provide documents, not database setup. This skill uses the same automatically managed `the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`)` as bank imports; respect the `AI_ACCOUNTING_DB` override consistently.
+SQLite is internal assistant memory. Users provide documents, not database setup. This skill uses the same automatically managed `the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`)` as bank imports; pass `--db` for the workspace chosen in this chat on every command.
 
 ## Workflow
 
-1. Ask which folder contains bills/invoices, unless supplied. For a requested individual document use that file alone. Ask which business these documents belong to if not already known; reuse a stable business identifier. Do not scan unrelated folders.
+1. Use the selected workspace's `invoices/` folder, including subfolders (email saves land in `invoices/<Category>/<date range>/`; their `manifest.csv` gives vendor, date and subject for each file and is not an invoice). Ask only for the workspace root folder, and only when none is selected yet (setup-accounting); never ask for a separate invoices folder. If the user names a different folder for this run, use it. For a requested individual document use that file alone. Ask which business these documents belong to if not already known; reuse a stable business identifier. Do not scan unrelated folders.
 2. Use saved local documents from Save Invoices when available. Search Bills returns candidates, not downloaded invoices. Save Invoices stores files and a manifest; neither proves invoice contents. Extract only after reading the actual file. Preserve originals.
 3. Read PDFs using text extraction (pdfplumber) and images using visual inspection. Read CSV invoice records directly; give each record a stable `source_record` such as its invoice identifier or source row number. For scanned PDFs, report unavailable OCR rather than guessing. Invoice dates are ISO `YYYY-MM-DD`.
 4. Extract supplier (not bill-to recipient), invoice number, invoice/due dates, total payable including tax, currency, GST explicitly printed on the invoice, and any available line items. Unknown fields stay null. Do not infer currency from `$` alone, or calculate GST as one-eleventh without source evidence. Treat receipts and credit notes explicitly; credit notes store positive amounts with `kind: credit_note`.
@@ -48,10 +48,13 @@ SQLite is internal assistant memory. Users provide documents, not database setup
   "issues": [],
   "lines_complete": true,
   "line_items": [{"description": "Service", "amount": "110.00", "gst": "10.00"}],
+  "tax_invoice": {"supplier_abn": "51 824 753 556", "shows_gst": true, "buyer_identified": true},
   "email_account": null,
   "email_message_id": null
 }
 ```
+
+For every purchase, record `tax_invoice` exactly as read from the document (ATO tax invoice rules): `supplier_abn` as printed (null if none; a wrong check digit is refused), `shows_gst` true if it shows the GST amount or states the total includes GST, `buyer_identified` true if it shows this business's name or ABN. GST can only be claimed on a purchase over $82.50 with a supplier ABN and GST shown, and at $1,000 or more the buyer must be identified. List what is missing as an issue so the user can ask the supplier for a proper tax invoice (suppliers must provide one within 28 days of a request). Re-importing the same document with `tax_invoice` added updates these details.
 
 For a document with one invoice use `source_record: single`. Include email identity only from actual Save Invoices metadata; never invent it.
 

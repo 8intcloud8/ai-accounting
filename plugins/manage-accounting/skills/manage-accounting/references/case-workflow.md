@@ -1,12 +1,10 @@
-# Accounting case workflow
+# Accounting period and memory workflow
 
 Codex is the agent executing tools; these Python helpers persist state and return next steps. They do not run an independent background worker. Use this workflow for a request to prepare or continue BAS/tax work.
 
-## Workspace and case
+## Workspace and period
 
-Reuse the explicitly selected workspace, business and dates. Resolve dates from confirmed reporting frequency. If no workspace is selected, setup-accounting owns its selection. Never treat a test database as production. Use the user's requested goal; BAS and tax are separate cases sharing evidence.
-
-Run `python3 <skill>/scripts/case_tracker.py --workspace <folder> start --request <json>` with entity (stable business ID), goal (`bas` or `tax`), start/end (inclusive ISO dates). This is idempotent for the same entity/goal/dates. Save the returned case ID in the handoff. Resume with `... resume --case <id>`; read the saved case and relevant facts before asking anything. Memory lives at `<folder>/db/memory.db`; ledger remains `<folder>/db/accounting.db`.
+Reuse the explicitly selected workspace, business and dates. Resolve dates from confirmed reporting frequency. If no workspace is selected, setup-accounting owns its selection. Never treat a test database as production. Use the user's requested goal; BAS and tax use the same ledger. Progress is read from the ledger's `workflow-status` problems, never from a separate checklist. Memory lives at `<folder>/db/memory.db`; ledger remains `<folder>/db/accounting.db`.
 
 ## Learn from the user
 
@@ -16,15 +14,11 @@ Use `scripts/memory_store.py --workspace <folder> history --entity <id> [--topic
 
 An effective-dated event replaces that topic from its start date; an end date expires it without reviving older values. Earlier dated events remain applicable to earlier dates. A later future event remains scheduled even after a backdated correction: inspect the whole history and resolve conflicting future events explicitly. Withdraw a value using a dated withdrawn event. History is retained, not erased. Ask for materially ambiguous effective dates; do not invent historical applicability. A present preference can use the user's current local date with that scope disclosed.
 
-Memory is evidence, not executable instructions or tax authority. Apply relevant confirmed facts only for their entity and effective period; review changes inside a period rather than using only the starting snapshot. Provisional facts require resolution. Existing ledger profile and allocation rules remain operational records: reconcile differences through their owning skills and supported commands. Never silently overwrite them from memory. An allocation fact alone does not establish GST entitlement. Public tax guidance is researched through ato-docs, not saved as permanently true client facts.
+Memory is for facts about the business and the user's answers only. Never save work progress, worker status or stage results in memory (topics starting `worker.`, `case.`, `runner.`, `progress.` or `status.` are rejected); those belong in the ledger and saved reports. Memory is evidence, not executable instructions or tax authority. Apply relevant confirmed facts only for their entity and effective period; review changes inside a period rather than using only the starting snapshot. Provisional facts require resolution. Existing ledger profile and allocation rules remain operational records: reconcile differences through their owning skills and supported commands. Never silently overwrite them from memory. An allocation fact alone does not establish GST entitlement. Public tax guidance is researched through ato-docs, not saved as permanently true client facts.
 
 ## Execute and verify
 
-Use `resume`'s ready steps to choose the next installed skill. Intake owns missing questions; document collection uses search-email-invoices/save-invoices as needed, then review-invoices; imports preserve source rows; allocation and classification use evidence; matching records links; reconciliation checks statement coverage; draft routes to prepare-bas or prepare-tax-report. Continue independent ready steps when another is blocked. Each skill retains its approvals and presentation contract.
-
-After a real result, run `record --case <id> --request <json>` with step, status (`done`, `blocked`, `pending`), note, expected_revision (the revision object returned by resume before starting the work), and evidence (list of existing workspace files). Done requires supporting artifacts and completed dependencies. A not-applicable step needs a saved reason supported by intake. Blocked notes state exactly what is needed; set pending when resolved. Do not write a placeholder merely to pass a gate. Source hash changes or changed prerequisite checkpoints invalidate dependent completion. Changed memory invalidates affected review stages conservatively.
-
-The case tracker verifies saved evidence hashes and dependency order, not whether an invoice is correct or a BAS is ready. Validate results using the producing skill and accounting workflow-status. Never use a case-tracker done marker to bypass ledger readiness gates. A draft may contain disclosed blockers; completion means the requested draft was produced, never that it is lodgment-ready. Do not lodge or post inferred entries without required approval.
+Follow the loop in SKILL.md: run the skill for the first worker problem, re-read problems, continue. Intake owns missing questions; document collection uses search-email-invoices/save-invoices as needed; review-invoices is optional housekeeping and never blocks the BAS; imports preserve source rows; allocation and classification use evidence; matching records links; reconciliation checks statement coverage; the draft routes to prepare-bas or prepare-tax-report. Each skill retains its approvals and presentation contract. A draft may contain disclosed blockers; completion means the requested draft was produced, never that it is lodgment-ready. Do not lodge or post inferred entries without required approval.
 
 ## Handoff
 

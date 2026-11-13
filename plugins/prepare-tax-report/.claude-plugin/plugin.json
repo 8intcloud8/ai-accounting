@@ -1,5 +1,5 @@
 {
   "name": "prepare-tax-report",
-  "version": "0.1.3",
+  "version": "0.1.14",
   "description": "Produce a local bookkeeping trial balance and income/expense workpaper for annual tax review."
 }

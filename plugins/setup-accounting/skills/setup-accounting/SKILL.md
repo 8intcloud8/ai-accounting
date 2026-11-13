@@ -21,11 +21,11 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 Ask for the accounting folder, legal business name, entity type and stable business ID. Reuse known details. Ask whether GST registered and cash/accrual basis; unknown stays null/unknown. One business per workspace. Support AUD initially.
 
-Create the workspace at the user's chosen folder with `db/`, `documents/`, `output/YYYY-MM-DD/reports/`, and `backups/`. Use `scripts/accounting_store.py --db <folder>/db/accounting.db setup-accounting --request <profile.json>`; paths are relative to this skill. Profile example:
+Ask once for the root folder (the workspace); never ask for separate input or output folders. Setup creates inside it `bankstatements/` (user drops statements here), `invoices/` (bills, invoices, receipts), `output/` (all reports and exports, under `output/YYYY-MM-DD/reports/`), plus internal `db/`, `documents/` (verified copies) and `backups/`. Tell the user the three folder paths. Use `scripts/accounting_store.py --db <folder>/db/accounting.db setup-accounting --request <profile.json>`; paths are relative to this skill. Profile example:
 ```json
 {"business_id":"example-business","legal_name":"Example Business","entity_type":"sole_trader","gst_registered":null,"gst_basis":"unknown"}
 ```
-Never assign a guessed GST basis. Existing populated workspaces must retain their existing business ID. A second business needs another workspace. Set `AI_ACCOUNTING_DB` to the selected workspace for every subsequent command, or use the installed workspace selector. Show the folder and next input needed; users do not administer SQLite.
+Never assign a guessed GST basis. Existing populated workspaces must retain their existing business ID. A second business needs another workspace. Pass `--db <workspace>/db/accounting.db` on every subsequent command in this chat; there is no machine-wide default, and setup registers the folder so later chats can offer it. Show the folder and next input needed; users do not administer SQLite.
 
 For first-time package installation, use the suite's `scripts/install.py` with the selected workspace and profile. It can build dependencies in an isolated environment with `--dependencies`; `--local-only` skips email plugins. Use a Python 3.11+ runtime available from the host. Explain a missing runtime/build prerequisite precisely. Never claim installation until command succeeds and plugin paths resolve.
 
@@ -33,7 +33,7 @@ If GST settings were initially unknown, use `update-profile --request <JSON>` wi
 
 ## Confirm reporting scope
 
-Run `configure-reporting --request <JSON>` after verifying the BAS reporting method and all relevant bank/card account names. Example: `{"method":"simpler","expected_accounts":["CBA business","Credit card"],"evidence":"User confirmed reporting method and full account inventory"}`. Supported methods are simpler/full/instalments/unknown; only confirmed simpler can pass this version's BAS scope gate. Do not invent eligibility from GST registration. Missing expected account-period evidence blocks readiness. The package reports G1 GST-inclusive; communicate that convention. PAYG and other labels remain separate checks.
+Run `configure-reporting --request <JSON>` after verifying the BAS reporting method and all relevant bank/card account names. Example: `{"method":"simpler","expected_accounts":["CBA business","Credit card"],"gst_turnover_under_10m":true,"evidence":"User confirmed reporting method and full account inventory"}`. Always record `gst_turnover_under_10m` (work it out from the last 12 months of sales and the ATO-registered method, then confirm): Simpler BAS and cash basis are only available under $10 million. Supported methods are simpler/full/instalments/unknown; only confirmed simpler can pass this version's BAS scope gate. Do not invent eligibility from GST registration. Missing expected account-period evidence blocks readiness. The package reports G1 GST-inclusive; communicate that convention. PAYG and other labels remain separate checks.
 
 ## Identify the BAS work required
 

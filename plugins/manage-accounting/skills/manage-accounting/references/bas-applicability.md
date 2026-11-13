@@ -10,6 +10,12 @@ Use this when preparing a BAS period. It identifies required work; it does not c
 6. Imported period evidence/profile/scope changes make existing answers stale. Recheck the saved answers against new evidence; reuse their context and ask only unresolved questions. Another reporting period starts with unanswered scope questions. Answers are append-only and corrections retain history.
 7. Regenerate/export after saving answers and show the updated table plus a short pending list. Assessment complete means all answers known/current; follow-up tasks may still block BAS preparation. Never equate it to ready for lodgement.
 
+## Work it out before asking
+
+Never ask the user for a figure the saved records can produce. First compute it from bank transactions, invoices and documents in the workspace, then show the result with its workings and ask the user to confirm or correct it. Ask an open question only when nothing in the records supports a figure, and then name the exact document needed.
+
+Payroll (W1/W2): find wage payments by bank description, payee and pattern, and look for payslips, payroll or STP reports under `documents/`. If they exist, total gross wages (W1) and tax withheld (W2) from them. Save them with `save-payg-withholding --request <JSON>`: `{"start","end","evidence","runs":[{"pay_date","employee","gross_cents","withheld_cents","net_cents","transaction_ids":[bank ids paying the net],"evidence":"payslip file"}],"w3_cents":0,"w4_cents":0,"stp":{"w1_cents","w2_cents","source"}}`. Net pay must equal the linked bank payments. W4 is tax withheld (47%) from suppliers who gave no ABN. Add `stp` from the ATO pre-fill or STP report when available; a mismatch blocks the BAS. Saving pay runs completes the payg_withholding review. With bank payments only, use gross = net, withheld 0 and say so. If only net bank payments exist, total them per pay run and propose: "Net wages paid $X across N payments. No withholding records found, so W1 cannot be confirmed above $X and W2 is $0 on the evidence." Flag that a company paying wages without withholding needs review (PAYG withholding, STP, super guarantee). The user confirms or supplies the payroll report; never ask for the totals blank.
+
 Example for a user-confirmed fact only:
 
 ```json

@@ -29,7 +29,7 @@ This skill orchestrates three subagents per file — `bank-mapper`, `bank-extrac
 
 **0. Read `instructions.md` first.** It contains saved facts and preferences (e.g. known counterparties, categorisation rules) from previous runs. Apply them silently — don't re-ask the user things already answered there.
 
-**1. Establish the input folder before extraction.** Ask the user: "Which folder contains your bank statements?" Wait for their answer before scanning or extracting. If they already supplied a folder for this run, use it without asking again. Do not infer a folder from an attached file or scan all of Downloads. An explicit request to test a specific attached file can run that file alone; it does not establish the folder for future runs.
+**1. Establish the input folder before extraction.** Use the selected workspace's `bankstatements/` folder. Ask only for the workspace root folder, and only when none is selected yet (setup-accounting); never ask for a separate statements folder. If the user names a different folder for this run, use it. Do not infer a folder from an attached file or scan all of Downloads. An explicit request to test a specific attached file can run that file alone; it does not establish the folder for future runs.
 
 **2. Reuse the requested reporting dates.** Ask for dates only when missing; a BAS quarter does not require a new financial-year question.
 
@@ -47,7 +47,7 @@ This skill orchestrates three subagents per file — `bank-mapper`, `bank-extrac
 - If `approved`: keep the rows for the combined output.
 - **Cap at 3 rounds total per file.** If still not approved after 3 rounds, skip the file and warn the user which file failed and why.
 
-**6. Save approved records automatically.** SQLite is internal assistant memory; never ask the user to install, create, or manage a database. `scripts/accounting_store.py` creates the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`) on the first approved import. All runs reuse that location; `AI_ACCOUNTING_DB` is an internal override for separate workspaces.
+**6. Save approved records automatically.** SQLite is internal assistant memory; never ask the user to install, create, or manage a database. `scripts/accounting_store.py` creates the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`) on the first approved import. Pass `--db <chosen workspace>/db/accounting.db` on every command; the user picks the workspace at the start of each chat.
 
 - Identify the bank account from verified source information. Reuse the same stable identifier across files and runs. If absent, ask which account the statement belongs to; never invent one or use the filename as account identity. Only AUD imports are currently supported; stop for other currencies.
 - After the validator approves a file, save its rows as an internal JSON file with `decision: "approved"`, `rows: [...]`, and `issues: []`. Never label unvalidated rows approved.
@@ -64,7 +64,7 @@ python3 scripts/accounting_store.py import --source "<original statement>" --app
 - Retrieve the deduplicated records for the requested financial-year dates and create a fresh CSV export. If the destination exists, choose a new filename; the exporter refuses to overwrite files:
 
 ```sh
-python3 scripts/accounting_store.py export --account "<stable account ID>" --start "<YYYY-MM-DD>" --end "<YYYY-MM-DD>" --output "<folder>/<FY>.csv"
+python3 scripts/accounting_store.py export --account "<stable account ID>" --start "<YYYY-MM-DD>" --end "<YYYY-MM-DD>" --output "<workspace>/output/<YYYY-MM-DD>/reports/<FY>.csv"
 ```
 
 Omit `--account` only when exporting all imported accounts intentionally. Use `summary` for aggregate totals and `transactions` for relevant dated records in later conversations. Those commands are read-only and do not create missing storage. Do not add opening/closing balance claims to database summaries; use separately verified source balances.

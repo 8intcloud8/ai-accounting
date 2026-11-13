@@ -162,9 +162,19 @@ class ReleaseTests(unittest.TestCase):
                     "2026-09-30",
                 ],
                 env=env,
-                check=True,
                 capture_output=True,
                 text=True,
+            )
+            # No workspace chosen for this chat: refuse rather than guess.
+            self.assertEqual(2, result.returncode)
+            refused = json.loads(result.stderr)
+            self.assertIn("No workspace chosen", refused["error"])
+            self.assertIn(str(workspace.resolve()), [w["workspace"] for w in refused["workspaces"]])
+            result = subprocess.run(
+                [sys.executable, str(suite / "accounting_core/accounting_store.py"),
+                 "--db", str(workspace / "db/accounting.db"),
+                 "workflow-status", "--start", "2026-07-01", "--end", "2026-09-30"],
+                env=env, check=True, capture_output=True, text=True,
             )
             self.assertIn(
                 "GST profile incomplete", json.loads(result.stdout)["blockers"]

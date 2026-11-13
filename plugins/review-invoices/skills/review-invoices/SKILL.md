@@ -219,6 +219,13 @@ documents were reviewed in the browser, moved or cleaned up, and do not fall
 back to approving moves through chat. A saved CSV/Markdown export may be
 offered as read-only evidence while naming the blocker.
 
+Inside an accounting runner worker (`ACCOUNTING_RUNNER_CHILD=1`) nobody is
+watching the browser, so do not wait on the page. The review itself is the
+step result: save the CSV/Markdown export, record the documents step done with
+it as evidence, and list any proposed quarantine as an approval question.
+Moves still happen only through the page later. Extraction may use the
+retained documents meanwhile.
+
 The page passes selected row IDs and the original CSV hash to this bundled
 helper. Clicking **Confirm move** after inspecting that exact selection is the
 user's approval for those moves; no additional chat approval is needed. This is

@@ -93,7 +93,7 @@ Store a JSON allocation record and a readable CSV/report with: business ID, invo
 
 ## Persistent workflow
 
-Use the bundled helper `scripts/accounting_store.py`, resolved relative to this skill directory. Reuse the same database location and business ID as the imported invoices; honour `AI_ACCOUNTING_DB`. Do not create a parallel database for an existing workflow.
+Use the bundled helper `scripts/accounting_store.py`, resolved relative to this skill directory. Reuse the same database location and business ID as the imported invoices; pass `--db` for the workspace chosen in this chat. Do not create a parallel database for an existing workflow.
 
 1. Read saved rules: `python3 <helper> allocation-rules --business "<ID>"`. Prefer stored rules to asking the user again. The store creates schema version 5 automatically on the first write, preserving bank/invoice/payment records.
 2. For a new or changed user instruction, write a rule JSON and run `save-allocation-rule --rule <JSON>`. Rule versions are append-only; retain provenance/evidence and effective dates. Never silently promote `user_stated` or `provisional` to `supported`. Overlapping date changes require separate allocation segments. Example percentage rule:

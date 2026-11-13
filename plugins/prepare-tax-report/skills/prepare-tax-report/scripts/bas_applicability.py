@@ -14,7 +14,7 @@ from pathlib import Path
 OBLIGATIONS = {
     "payg_withholding": (
         "Does this period's activity statement require PAYG withholding?",
-        "Obtain payroll/withholding totals and reconcile W labels and ATO liability.",
+        "Derive W1/W2 from saved wage payments and payroll documents, propose the totals with workings, then reconcile to the ATO liability.",
     ),
     "payg_instalments": (
         "Does this period's activity statement require PAYG instalments?",
@@ -398,6 +398,12 @@ def checklist(db, start, end, digest=None, root=None, ledger=None):
             if definition["group"] == "BAS obligations":
                 action += " This calculation is outside the current GST-only workpaper engine."
         review = None
+        if status == "review_required" and topic == "payg_withholding" and db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='payg_withholding'"
+        ).fetchone() and db.execute(
+            "SELECT 1 FROM payg_withholding WHERE start=? AND end=?", (start, end)
+        ).fetchone():
+            status, action = "review_completed", "W1-W5 worked out from saved pay runs."
         if status == "review_required" and topic in EVENTS:
             if root is None:
                 database = Path(db.execute("PRAGMA database_list").fetchone()[2])

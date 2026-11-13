@@ -22,7 +22,7 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 Use shared local SQLite storage. Users do not configure a database. Retrieve records through the bundled helper at `scripts/accounting_store.py` (resolve relative to this skill directory).
 
 1. Establish the business and bank account from existing user instructions or ask if unknown. Never match unrelated businesses/accounts. Both bank transactions and verified invoices must already be imported; report missing inputs.
-2. Run `python3 <helper> match-payments --business "<ID>" --account "<ID>"`. Respect `AI_ACCOUNTING_DB` consistently. This command is read-only.
+2. Run `python3 <helper> match-payments --business "<ID>" --account "<ID>"`. Pass `--db` for the workspace chosen in this chat. This command is read-only.
 3. Populate the review report with candidates: invoice ID, supplier, invoice total/outstanding amount, transaction ID, bank date/description, proposed allocation, reasons, and ambiguity. Retrieve details using `invoices --business <ID>` and `transactions --account <ID>` if needed. Amounts are stored in cents; display currency and two decimals.
 4. Matching uses currency, outstanding amount, invoice reference/supplier tokens, and dates within seven days before or ninety days after invoice date. These are proposals, not proof. Amount-only matches and candidates sharing invoices/payments must be flagged. Missing invoice dates/GST/currency remain unresolved. Confirmed allocations do not establish GST eligibility, business-use percentage or tax deductibility.
 5. Ask the user to confirm concrete proposed allocations. Never convert a request to find matches into confirmation. Only after explicit user confirmation write an internal JSON payload:

@@ -6,7 +6,9 @@ import re
 import secrets
 from datetime import date
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
+
+EMAIL = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
 def render(result, accounts, destination=""):
@@ -19,11 +21,15 @@ def render(result, accounts, destination=""):
     for bill in result["bills"]:
         url = bill.get("gmailLink", "")
         parsed = urlsplit(url)
+        if (len(accounts) == 1 and parsed.netloc == "mail.google.com" and parsed.fragment
+                and EMAIL.fullmatch(accounts[0])):
+            # Open the searched mailbox, not whichever Google account is signed in first.
+            url = f"https://mail.google.com/mail/?authuser={quote(accounts[0])}#{parsed.fragment}"
         link = (f'<a href="{esc(url)}" target="_blank" rel="noopener">Open in Gmail</a>'
                 if parsed.scheme == "https" and parsed.netloc == "mail.google.com" else "")
         documents = "<br>".join(esc(x) for x in bill["attachments"]) or "Inline receipt"
         label = esc(f'Select {bill["vendor"]} {bill["date"]}')
-        rows.append(f'<tr><td><input class="bill" type="checkbox" checked value="{esc(bill["threadId"])}" aria-label="{label}"></td>'
+        rows.append(f'<tr><td><input class="bill" type="checkbox" checked value="{esc(bill["threadId"])}" data-message="{esc(bill["messageId"])}" aria-label="{label}"></td>'
                     f'<td>{esc(bill["date"])}</td><td><strong>{esc(bill["vendor"])}</strong><br><small>{esc(bill["sender"]["email"])}</small></td>'
                     f'<td>{esc(bill["subject"])}</td><td>{documents}</td><td>{link}</td></tr>')
     attached = sum(bool(b["attachments"]) for b in result["bills"])

@@ -39,7 +39,7 @@ Opening or editing a review CSV does not confirm matches, approve classification
 
 ## Evidence and coverage
 
-Supply boundary_kind=statement only with independently checked statement opening/closing balances and boundary_evidence identifying their source/pages. Otherwise use boundary_kind=derived; arithmetic can pass while BAS readiness remains blocked. Do not relabel reconstructed balances as independent evidence. `configure-reporting` records all expected account names; a missing account-period is a blocker.
+Supply boundary_kind=statement only with independently checked statement opening/closing balances and boundary_evidence identifying their source/pages and quoting both balances as printed (e.g. "Statement p1: opening balance 1,000.00, closing balance 1,055.00"); evidence that does not quote them is refused. The opening balance must equal the previous period's reconciled closing balance for the same account. If the statement shows no balances, ask for another bank document that does (e.g. the previous statement's closing balance or an internet-banking balance export); never present a derived balance as the statement's. Otherwise use boundary_kind=derived; arithmetic can pass while BAS readiness remains blocked. Do not relabel reconstructed balances as independent evidence. `configure-reporting` records all expected account names; a missing account-period is a blocker.
 
 Also inspect all unresolved documents, outstanding matches and ledger receivable/payable/GST control balances before completing source/sales review checkpoints. Arithmetic reconciliation is not a complete ledger audit. Zero-activity accounts currently need manual evidence and remain blocked by the helper; do not manufacture transactions to clear coverage.
 

@@ -1,5 +1,5 @@
 {
   "name": "reconcile-accounts",
-  "version": "0.1.3",
+  "version": "0.1.14",
   "description": "Reconcile imported account movements against source statement opening and closing balances."
 }

@@ -1,0 +1,31 @@
+{
+  "_note": "Fictional example answers for scripts/simulate_user.py. Real test answers live in the private test workspace as simulated_answers.json. Never use for real books.",
+  "intake": {
+    "bas_method": "Simpler BAS",
+    "gst_registered": true,
+    "gst_basis": "cash",
+    "expected_accounts": "Use the account list already saved in the workspace",
+    "bas_scope_default": "No / not applicable for every BAS scope item except finance_agreements and owner_loans, which are Yes (see payees)",
+    "home_office_business_use_percent": 40,
+    "phone_internet_business_use_percent": 60,
+    "finance_agreements": "Yes: company car loan with Example Finance. Repayments are principal only for this test; no interest or fee split available; no GST",
+    "owner_loans": "Yes: director loan account. Money to and from the director goes through account 2200"
+  },
+  "evidence": "No further documents exist. Proceed with saved evidence; claim GST credits only where a valid tax invoice is saved, otherwise treat GST as not claimable.",
+  "approvals": {
+    "classifications": "Approve every open proposal that matches the payees list above using decide-proposals; reject any that contradict it, with the reason",
+    "payment_matches": "Approve all proposed matches with matching amount and date within 14 days; reject others",
+    "invoice_quarantine": "Decline all moves",
+    "lodgment": "Never"
+  },
+  "default": "If a question is not covered, answer the most conservative option (no, not claimable, excluded) and say so.",
+  "payees": {
+    "ACME CONTRACTING": "Contracting income under recipient-created tax invoices: GST is exactly 1/11 of each receipt, rounded to the cent. Treat this answer as the GST evidence and mark the GST reviewed",
+    "Transfer To Director / Fast Transfer From Director": "Director loan account movements; excluded from GST",
+    "Transfer to own savings account": "Transfer between the company's own accounts; excluded",
+    "EXAMPLE FINANCE": "Repayments on a company car loan (finance agreement). Treat as loan principal, excluded from GST; no interest split available",
+    "Example Advisory": "Accounting fees, 100% business; no tax invoice saved so no GST credit",
+    "Debit Excess Interest": "Bank interest expense; input-taxed, no GST",
+    "Transfer To Director ... salary": "Not payroll: the director takes drawings labelled 'salary'. Debit director loan account (2200), credit bank; excluded from GST; no PAYG withholding"
+  }
+}

@@ -135,6 +135,14 @@ def main():
     selector_temp.write_text(json.dumps({"workspace": str(workspace)}) + "\n")
     selector_temp.chmod(0o600)
     selector_temp.replace(selector)
+    # Every workspace set up here is offered when a new chat asks which one to use.
+    registry = args.codex_home / "accounting-workspaces.json"
+    known = json.loads(registry.read_text()) if registry.exists() else {"workspaces": []}
+    if str(workspace) not in known["workspaces"]:
+        known["workspaces"].append(str(workspace))
+        registry_temp = registry.with_suffix(".tmp")
+        registry_temp.write_text(json.dumps(known, indent=2) + "\n")
+        registry_temp.replace(registry)
     if args.register_only:
         temp = config.with_suffix(".accounting.tmp")
         temp.write_text(updated)

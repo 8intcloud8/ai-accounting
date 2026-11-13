@@ -9,6 +9,7 @@ const ISO_DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD");
 const billResultSchema = z.object({
   threadId: z.string(),
   messageId: z.string(),
+  messageIds: z.array(z.string()),
   date: z.string(),
   sender: z.object({ name: z.string(), email: z.string() }),
   vendor: z.string(),
@@ -59,6 +60,7 @@ const searchBillsOutput = {
     inline: z.number(),
     vendorsCount: z.number(),
     excludedCount: z.number(),
+    outOfRange: z.number(),
   }),
   category: CATEGORY,
   dateFrom: z.string(),

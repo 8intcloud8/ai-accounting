@@ -1,6 +1,7 @@
 """Invoice persistence alongside bank transactions; no payment inference."""
 
 from product_store import preserve_source, source_path
+from bas_labels import tax_invoice_evidence, save_tax_invoice_evidence
 import hashlib
 import json
 import sqlite3
@@ -98,6 +99,7 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
             raise ValueError("Invalid review status")
         if status == "verified" and issues:
             raise ValueError("Verified invoice cannot contain unresolved issues")
+        tax_evidence = tax_invoice_evidence(record)
         kind = record.get("kind", "invoice")
         if kind not in ("invoice", "receipt", "credit_note"):
             raise ValueError("Unsupported document kind")
@@ -164,6 +166,7 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
                 email_account,
                 message,
                 role,
+                tax_evidence,
             )
         )
     added = existing = 0
@@ -183,6 +186,7 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
             email_account,
             message,
             role,
+            tax_evidence,
         ) in prepared:
             db.execute(
                 "INSERT OR IGNORE INTO documents(sha256) VALUES (?)", (source_hash,)
@@ -239,9 +243,11 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
                 db.execute(
                     "INSERT OR REPLACE INTO invoice_roles VALUES (?,?)", (old[0], role)
                 )
+                save_tax_invoice_evidence(db, old[0], tax_evidence)
                 added += 1
                 continue
             if old:
+                save_tax_invoice_evidence(db, old[0], tax_evidence)
                 if old[1] != record_hash:
                     raise ValueError(
                         "Changed extraction for existing invoice; correction required"
@@ -266,6 +272,7 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
                 [(invoice_id, index, *line) for index, line in enumerate(lines, 1)],
             )
             db.execute("INSERT INTO invoice_roles VALUES (?,?)", (invoice_id, role))
+            save_tax_invoice_evidence(db, invoice_id, tax_evidence)
             added += 1
     return {
         "new_invoices": added,

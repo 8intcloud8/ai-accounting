@@ -12,6 +12,7 @@ import sqlite3
 from contextlib import closing
 from datetime import date
 from pathlib import Path
+import bas_labels
 from bas_applicability import (
     BAS_APPLICABILITY_SCHEMA,
     checklist,
@@ -134,9 +135,51 @@ def period(start, end):
     return start, end
 
 
+# Workspace layout under the one root folder the user picks: they drop source files in
+# bankstatements/ and invoices/; reports go to output/. db/, documents/ (verified copies)
+# and backups/ are internal.
+INPUT_FOLDERS = {"statements": "bankstatements", "invoices": "invoices"}
+# Save logs written next to downloaded documents, not documents themselves.
+IGNORED_INPUT_FILES = {"manifest.csv"}
+WORKSPACE_FOLDERS = ("bankstatements", "invoices", "output", "documents", "backups")
+
+
 def root_for(db_path):
     p = Path(db_path).resolve()
     return p.parent.parent if p.parent.name == "db" else p.parent
+
+
+def registry_path():
+    return Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))) / "accounting-workspaces.json"
+
+
+def known_workspaces():
+    """Workspace folders set up on this machine, for the user to pick one per chat."""
+    roots = []
+    registry = registry_path()
+    if registry.exists():
+        roots = json.loads(registry.read_text()).get("workspaces", [])
+    legacy = registry.with_name("accounting-workspace.json")
+    if legacy.exists():
+        roots.append(json.loads(legacy.read_text())["workspace"])
+    result = []
+    for root in dict.fromkeys(roots):
+        db = Path(root) / "db" / "accounting.db"
+        result.append({"workspace": root, "db": str(db), "exists": db.exists()})
+    return {"workspaces": result,
+            "next": "Ask the user which workspace to use for this chat, then pass --db <workspace>/db/accounting.db on every command"}
+
+
+def register_workspace(root):
+    registry = registry_path()
+    data = json.loads(registry.read_text()) if registry.exists() else {"workspaces": []}
+    root = str(Path(root).resolve())
+    if root not in data["workspaces"]:
+        data["workspaces"].append(root)
+        registry.parent.mkdir(parents=True, exist_ok=True)
+        temp = registry.with_suffix(".tmp")
+        temp.write_text(json.dumps(data, indent=2) + "\n")
+        temp.replace(registry)
 
 
 def default_db():
@@ -236,8 +279,9 @@ def setup(path, payload, connect):
         )
         db.executemany("INSERT OR IGNORE INTO ledger_accounts VALUES (?,?,?)", CHART)
         audit(db, "setup", "workspace", 1, None, payload, "Initial workspace setup")
-    for folder in ("documents", "output", "backups"):
+    for folder in WORKSPACE_FOLDERS:
         (root_for(path) / folder).mkdir(parents=True, exist_ok=True)
+    register_workspace(root_for(path))
     return {
         "workspace": str(root_for(path)),
         "business_id": business,
@@ -488,11 +532,13 @@ def post_journal(path, payload, connect):
             and gst
             and not evidence_ids
         ):
-            raise ValueError("Reviewed purchase GST requires linked source invoices")
+            if label == "purchase_refund":
+                raise ValueError("Reviewed purchase GST requires linked source invoices")
+            bas_labels.check_unlinked_purchase(gross, gst)
         if len(set(evidence_ids)) != len(evidence_ids):
             raise ValueError("Duplicate invoice evidence IDs")
         tax_allocations = {}
-        if label in ("purchase", "purchase_refund") and status == "reviewed" and gst:
+        if label in ("purchase", "purchase_refund") and status == "reviewed" and gst and evidence_ids:
             if len(evidence_ids) == 1:
                 tax_allocations = {evidence_ids[0]: gst}
             else:
@@ -557,6 +603,8 @@ def post_journal(path, payload, connect):
                 inv["review_status"] != "verified" or inv["currency"] != "AUD"
             ):
                 raise ValueError("Source invoice must be verified AUD")
+            if label == "purchase" and status == "reviewed" and gst:
+                bas_labels.check_tax_invoice(db, inv)
             if label in ("purchase", "sale") and inv["kind"] == "credit_note":
                 raise ValueError("Credit note must use the corresponding refund label")
             if (
@@ -691,7 +739,7 @@ def post_journal(path, payload, connect):
                         "Invoice GST allocation exceeds payment/business/source entitlement"
                     )
             evidence_gst += allowed_gst
-        if label in ("purchase", "purchase_refund") and status == "reviewed" and gst:
+        if label in ("purchase", "purchase_refund") and status == "reviewed" and gst and evidence_ids:
             if gst > evidence_gst:
                 raise ValueError("GST claim exceeds source invoice GST")
         if label == "excluded" and evidence_ids:
@@ -745,6 +793,9 @@ def post_journal(path, payload, connect):
             "INSERT INTO gst_items VALUES (?,?,?,?,?,?,?)",
             (jid, attribution, label, gross, gst, evidence, status),
         )
+        import proposal_store
+
+        proposal_store.store_source(db, jid, tax)
         audit(
             db,
             "post",
@@ -803,6 +854,14 @@ def reconcile(path, payload, connect):
     account = text(payload.get("account"), "Account")
     opening = integer(payload.get("opening_cents"), "Opening")
     closing_balance = integer(payload.get("closing_cents"), "Closing")
+    if boundary_kind == "statement":
+        for name, value in (("opening", opening), ("closing", closing_balance)):
+            shown = (f"{abs(value) / 100:,.2f}", f"{abs(value) / 100:.2f}")
+            if not any(s in boundary_evidence for s in shown):
+                raise ValueError(
+                    f"Statement evidence must quote the {name} balance as printed ({shown[0]}); "
+                    "if the statement does not show it, use another bank document or keep it derived"
+                )
     digest, relative = preserve_source(path, payload["statement"])
     with closing(connect(path)) as db, db:
         db.row_factory = sqlite3.Row
@@ -816,6 +875,15 @@ def reconcile(path, payload, connect):
         ]
         if not rows:
             raise ValueError("No transactions for account/period")
+        previous = db.execute(
+            "SELECT closing_cents,end FROM reconciliations WHERE account_id=? AND end=date(?,'-1 day') ORDER BY id DESC LIMIT 1",
+            (account, start),
+        ).fetchone()
+        if previous and previous["closing_cents"] != opening:
+            raise ValueError(
+                f"Opening balance {opening} cents does not match the closing balance "
+                f"{previous['closing_cents']} cents reconciled to {previous['end']}"
+            )
         movement = sum(r["credit_cents"] - r["debit_cents"] for r in rows)
         if opening + movement != closing_balance:
             raise ValueError(
@@ -900,6 +968,7 @@ def configure_reporting(path, payload, connect):
             "INSERT OR REPLACE INTO reporting_scope VALUES (1,?,?,?)",
             (method, json.dumps(sorted(set(accounts))), reason),
         )
+        bas_labels.set_eligibility(db, payload)
         audit(
             db,
             "configure",
@@ -1027,6 +1096,66 @@ def document_review(db, start, end):
     return results
 
 
+# Each open problem names the skill that clears it and who must act. Order is the
+# pipeline order: earlier problems are fixed first. Users clear "user" problems by
+# answering through the owning skill; nothing else tracks progress.
+PROBLEMS = {
+    "intake_question": ("grill-me-tax", "user"),
+    "bank_missing": ("extract-bankstatements", "worker"),
+    "statements_unread": ("extract-bankstatements", "worker"),
+    "invoices_unread": ("extract-invoices", "worker"),
+    "invoice_review": ("extract-invoices", "worker"),
+    "documents_unresolved": ("classify-transactions", "worker"),
+    "transactions_unclassified": ("classify-transactions", "worker"),
+    "proposals_awaiting_approval": ("classify-transactions", "user"),
+    "gst_pending": ("classify-transactions", "worker"),
+    "reconciliation_required": ("reconcile-accounts", "worker"),
+    "review_required": ("manage-accounting", "worker"),
+}
+PROBLEM_ORDER = list(PROBLEMS)
+
+
+def unread_files(db, kind):
+    """Files dropped in <workspace>/bankstatements or /invoices that no import has read."""
+    main = next((r[2] for r in db.execute("PRAGMA database_list") if r[1] == "main"), "")
+    if not main:
+        return 0
+    folder = root_for(Path(main)) / INPUT_FOLDERS[kind]
+    if not folder.is_dir():
+        return 0
+    known = {r[0] for r in db.execute("SELECT sha256 FROM documents")}
+    known |= {r[0] for r in db.execute("SELECT source_sha256 FROM imports")}
+    # Subfolders count too: email saves land in invoices/<Category>/<date range>/.
+    return sum(
+        1
+        for f in folder.rglob("*")
+        if f.is_file() and not any(p.startswith(".") for p in f.relative_to(folder).parts)
+        and f.name not in IGNORED_INPUT_FILES
+        and hashlib.sha256(f.read_bytes()).hexdigest() not in known
+    )
+
+
+# Guided walkthrough steps: 1 setup, 2 bank statements, 3 invoices, 4 transactions,
+# 5 payroll and BAS items, 6 reconciliation, 7 BAS draft.
+STEPS = {"bank_missing": 2, "statements_unread": 2, "invoices_unread": 3, "invoice_review": 3, "documents_unresolved": 3,
+         "transactions_unclassified": 4, "proposals_awaiting_approval": 4, "gst_pending": 4,
+         "reconciliation_required": 6}
+
+
+def step_of(code, text):
+    if code == "intake_question":
+        return 5 if text.startswith("BAS scope") else 1
+    if code == "review_required":
+        return 5 if text.endswith(("payg_review", "tax_adjustments")) else 7
+    return STEPS[code]
+
+
+def problem(code, text, count=1):
+    skill, who = PROBLEMS[code]
+    return {"code": code, "skill": skill, "who": who, "text": text, "count": count,
+            "step": step_of(code, text)}
+
+
 def status_report(db, start, end):
     p = profile(db)
     unclassified = db.execute(
@@ -1041,27 +1170,45 @@ def status_report(db, start, end):
         "SELECT count(*) FROM gst_items g JOIN journals j ON j.id=g.journal_id WHERE g.attribution_date BETWEEN ? AND ? AND g.status!='reviewed' AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=j.id)",
         (start, end),
     ).fetchone()[0]
+    import proposal_store
+
+    proposed = proposal_store.open_count(db, start, end)
     documents = document_review(db, start, end)
     applicability = checklist(db, start, end)
-    blockers = list(applicability["blockers"])
+    problems = [problem("intake_question", text) for text in applicability["blockers"]]
     unresolved = [d for d in documents if d["status"] in ("unresolved", "pending_gst")]
     if unresolved:
-        blockers.append(
-            f"{len(unresolved)} documents need recognition/disposition or GST review"
-        )
+        problems.append(problem("documents_unresolved",
+            f"{len(unresolved)} documents need recognition/disposition or GST review", len(unresolved)))
     scope = db.execute("SELECT * FROM reporting_scope WHERE id=1").fetchone()
     if not scope:
-        blockers.append("Confirm BAS method and expected account coverage")
+        problems.append(problem("intake_question", "Confirm BAS method and expected account coverage"))
     elif scope["method"] != "simpler":
-        blockers.append("Only confirmed Simpler BAS GST reporting is supported")
+        problems.append(problem("intake_question", "Only confirmed Simpler BAS GST reporting is supported"))
     if p["gst_registered"] is None or p["gst_basis"] == "unknown":
-        blockers.append("GST profile incomplete")
-    if unclassified:
-        blockers.append(f"{unclassified} unclassified bank transactions")
+        problems.append(problem("intake_question", "GST profile incomplete"))
+    elif p["gst_registered"]:
+        eligibility = bas_labels.eligibility_problem(db, scope["method"] if scope else None, p["gst_basis"])
+        if eligibility:
+            problems.append(problem("intake_question", eligibility))
+    if unclassified - proposed:
+        problems.append(problem("transactions_unclassified",
+            f"{unclassified - proposed} unclassified bank transactions", unclassified - proposed))
+    if proposed:
+        problems.append(problem("proposals_awaiting_approval",
+            f"{proposed} classification proposals awaiting approval", proposed))
+    unread = unread_files(db, "statements")
+    if unread:
+        problems.append(problem("statements_unread",
+            f"{unread} files in bankstatements not yet imported", unread))
+    unread = unread_files(db, "invoices")
+    if unread:
+        problems.append(problem("invoices_unread",
+            f"{unread} invoice files in invoices not yet extracted", unread))
     if unreviewed:
-        blockers.append(f"{unreviewed} invoices need review")
+        problems.append(problem("invoice_review", f"{unreviewed} invoices need review", unreviewed))
     if pending:
-        blockers.append(f"{pending} GST treatments pending")
+        problems.append(problem("gst_pending", f"{pending} GST treatments pending", pending))
     accounts = [
         r[0]
         for r in db.execute(
@@ -1072,9 +1219,9 @@ def status_report(db, start, end):
     if scope:
         for expected in json.loads(scope["expected_accounts_json"]):
             if expected not in accounts:
-                blockers.append(f"Missing account-period evidence: {expected}")
+                problems.append(problem("bank_missing", f"Missing account-period evidence: {expected}"))
     if not accounts:
-        blockers.append("No bank evidence for period")
+        problems.append(problem("bank_missing", "No bank evidence for period"))
     for account in accounts:
         rows = [
             dict(r)
@@ -1089,16 +1236,15 @@ def status_report(db, start, end):
             (account, start, end, txhash),
         ).fetchone()
         if not reconciliation:
-            blockers.append(f"Bank reconciliation required: {account}")
+            problems.append(problem("reconciliation_required", f"Bank reconciliation required: {account}"))
         else:
             boundary = db.execute(
                 "SELECT boundary_kind FROM reconciliation_evidence WHERE reconciliation_id=?",
                 (reconciliation[0],),
             ).fetchone()
             if not boundary or boundary[0] != "statement":
-                blockers.append(
-                    f"Independent statement boundary verification required: {account}"
-                )
+                problems.append(problem("reconciliation_required",
+                    f"Independent statement boundary verification required: {account}"))
     digest = state_digest(db)
     steps = {
         r["step"]
@@ -1114,12 +1260,16 @@ def status_report(db, start, end):
         "tax_adjustments",
     ):
         if step not in steps:
-            blockers.append(f"Review required: {step}")
+            problems.append(problem("review_required", f"Review required: {step}"))
+    problems.sort(key=lambda x: PROBLEM_ORDER.index(x["code"]))
+    blockers = [x["text"] for x in problems]
     return {
         "period_start": start,
         "period_end": end,
         "business_id": p["business_id"],
         "blockers": blockers,
+        "problems": problems,
+        "proposals_awaiting_approval": proposed,
         "unclassified_transactions": unclassified,
         "invoices_needing_review": unreviewed,
         "pending_gst": pending,
@@ -1154,7 +1304,7 @@ def report(path, kind, start, end, connect):
             rows = [
                 dict(r)
                 for r in db.execute(
-                    "SELECT g.*,j.reference FROM gst_items g JOIN journals j ON j.id=g.journal_id WHERE g.attribution_date BETWEEN ? AND ? AND g.status='reviewed' AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=j.id)",
+                    "SELECT g.*,j.reference,s.verified AS source_verified,s.url AS source_url,s.section AS source_section,s.accessed AS source_accessed,s.note AS source_note FROM gst_items g JOIN journals j ON j.id=g.journal_id LEFT JOIN gst_sources s ON s.journal_id=j.id WHERE g.attribution_date BETWEEN ? AND ? AND g.status='reviewed' AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=j.id)",
                     (start, end),
                 )
             ]
@@ -1178,9 +1328,32 @@ def report(path, kind, start, end, connect):
                 ),
             }
             result["gst_evidence"] = rows
+            unverified = [r["reference"] for r in rows if r["source_verified"] == 0]
+            if unverified:
+                result["blockers"].append(
+                    f"ATO guidance not verified for {len(unverified)} GST item(s): " + ", ".join(unverified[:10])
+                )
             result["g1_convention"] = "GST-inclusive"
+            subtotal = result["reviewed_subtotals_cents"]
+            labels = {k: bas_labels.whole_dollars(v) for k, v in subtotal.items()}
+            labels["G1_includes_gst"] = True
+            payg = bas_labels.payg_labels(db, start, end)
+            if payg:
+                labels.update(payg["labels"])
+                result["blockers"].extend(payg["blockers"])
+                result["warnings"] = payg["warnings"]
+            labels["4"] = labels.get("W5", 0)
+            labels["8A"] = labels["1A"] + labels["4"]
+            labels["8B"] = labels["1B"]
+            labels["9"] = labels["8A"] - labels["8B"]
+            result["bas_labels"] = labels
+            result["bas_labels_note"] = (
+                "Whole dollars, cents dropped (ATO). 9 is payable if positive, refundable if negative. "
+                "PAYG instalments, FBT, fuel tax credits, WET and LCT are not included."
+            )
+            result["lodgment_due"] = bas_labels.due_date(start, end)
             result["scope"] = (
-                "Simpler BAS GST workpaper only; PAYG and other labels require separate review"
+                "Simpler BAS draft: GST (G1, 1A, 1B), PAYG withholding (W1-W5) when saved, summary 8A/8B/9"
             )
             if not p["gst_registered"]:
                 result["blockers"].append(
@@ -1396,14 +1569,20 @@ def add_commands(sub):
         "review-document",
         "save-bas-applicability",
         "complete-bas-task",
+        "save-proposals",
+        "decide-proposals",
+        "save-payg-withholding",
     ):
         cmd = sub.add_parser(name)
         cmd.add_argument("--request", type=Path, required=True)
-    for name in ("workflow-status", "prepare-bas", "tax-report", "bas-applicability"):
+    cmd = sub.add_parser("apply-proposals-workbook")
+    cmd.add_argument("--workbook", type=Path, required=True)
+    for name in ("workflow-status", "prepare-bas", "tax-report", "bas-applicability", "proposals",
+                 "proposal-groups", "export-proposals"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--start", required=True)
         cmd.add_argument("--end", required=True)
-        if name == "bas-applicability":
+        if name in ("bas-applicability", "export-proposals"):
             cmd.add_argument("--output", type=Path)
 
 
@@ -1426,6 +1605,13 @@ COMMANDS = {
     "workflow-status",
     "prepare-bas",
     "tax-report",
+    "save-proposals",
+    "decide-proposals",
+    "proposals",
+    "proposal-groups",
+    "export-proposals",
+    "apply-proposals-workbook",
+    "save-payg-withholding",
 }
 
 
@@ -1438,8 +1624,29 @@ def dispatch(args, connect):
         return save_answers(
             args.db, json.loads(args.request.read_text()), connect, audit
         )
+    if args.command == "save-payg-withholding":
+        return bas_labels.save_payg(args.db, json.loads(args.request.read_text()), connect, audit)
     if args.command == "bas-applicability":
         return export_checklist(args.db, args.start, args.end, connect, args.output)
+    if args.command in ("save-proposals", "decide-proposals", "proposals", "proposal-groups",
+                        "export-proposals", "apply-proposals-workbook"):
+        import proposal_store
+
+        if args.command == "proposals":
+            return proposal_store.listing(args.db, *period(args.start, args.end), connect)
+        if args.command == "proposal-groups":
+            return proposal_store.groups(args.db, *period(args.start, args.end), connect)
+        if args.command == "export-proposals":
+            start, end = period(args.start, args.end)
+            output = args.output or (root_for(args.db) / "output" / date.today().isoformat() / "reports"
+                                     / f"transaction-review-{start}-{end}-{os.getpid()}.xlsx")
+            return proposal_store.export_workbook(args.db, start, end, Path(output), connect)
+        if args.command == "apply-proposals-workbook":
+            return proposal_store.apply_workbook(args.db, args.workbook, connect, post_journal)
+        payload = json.loads(args.request.read_text())
+        if args.command == "save-proposals":
+            return proposal_store.save(args.db, payload, connect)
+        return proposal_store.decide(args.db, payload, connect, post_journal)
     if args.command == "backup-workspace":
         return backup(args.db, args.output)
     if args.command == "restore-workspace":

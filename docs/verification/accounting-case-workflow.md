@@ -7,3 +7,7 @@ Implementation: memory_store.py and case_tracker.py, orchestrated by installed m
 Eight isolated tests passed: persistence/idempotent case creation, entity isolation, date-effective corrections, stale revision rejection, memory invalidation, source/dependency invalidation, independent ready work during a blocker, malformed input and static symlink rejection, expiry/withdrawal and a concurrent memory change before completion. Build passed; all 17 plugin installs and shipped Python/Markdown files verified against source.
 
 Source review identified missing memory invalidation and result-completion concurrency protection; both addressed with recorded memory revisions and required expected_revision tokens for done events. File hashes establish artifact identity, not substantive tax correctness. Full production BAS processing remains a separate end-to-end acceptance task.
+
+## Live renamed Case Tracker verification — 9 November 2026
+
+17 plugins reinstalled; shipped Python/Markdown matched source. Eight Case Tracker and 19 product tests passed. Fresh installed manage-accounting invocation saved a labelled demo BAS case and 90% Example Telecom fact; separate-process resume returned that fact, preserved the missing-GST-basis blocker and offered independent document/statement steps. No stages completed or ledger created. Demonstration: output/2026-11-09/case-tracker-demo/DEMO.md; persisted state: its db/memory.db. Production BAS processing not evaluated.
