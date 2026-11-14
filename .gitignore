@@ -43,3 +43,55 @@ accounting-workspace.json
 /invoices/
 /outputs/
 /reporting.json
+
+# ---- Private financial data: never commit, in any folder ----
+# Workspace folders (a workspace may sit inside or beside the repo)
+**/bankstatements/
+**/invoices/
+**/documents/
+**/backups/
+**/db/
+**/output/
+**/outputs/
+# Statements, invoices, receipts and exports
+*.xlsx
+*.xls
+*.xlsm
+*.ods
+*.csv
+*.ofx
+*.qif
+*.qbo
+*.qfx
+*.eml
+*.msg
+*.mbox
+*.docx
+*.png
+*.jpg
+*.jpeg
+*.heic
+*.webp
+*.tif
+*.tiff
+# Workspace settings and test answers drawn from real books
+reporting.json
+simulated_answers.json
+!tests/fixtures/simulated_answers.json
+.simulated-user-ok
+accounting-workspaces.json
+accounting-local-server.json
+accounting-personal-vendors.json
+# Credentials and keys
+*.pem
+*.key
+*.p12
+*credentials*.json
+client_secret*.json
+*.sqlite
+*.sqlite3
+# Local tool state
+.claude/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
