@@ -30,3 +30,8 @@ class RenderTest(unittest.TestCase):
     def test_non_gmail_link_is_dropped(self):
         page = render(dict(RESULT, bills=[dict(BILL, gmailLink="https://evil.example/#all/t1")]), ["x@example.com"])
         self.assertNotIn("evil.example", page)
+
+    def test_file_page_hides_folder_picker_and_keeps_workspace_folder(self):
+        page = render(RESULT, ["me@example.com"], "/ws/invoices")
+        self.assertIn('value="/ws/invoices"', page)
+        self.assertIn("hidePicker()", page)

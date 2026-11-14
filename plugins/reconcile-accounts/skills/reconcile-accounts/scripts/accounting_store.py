@@ -14,6 +14,12 @@ from contextlib import closing
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+
+import check_environment
+
+# Packages installed privately by the setup check (pdfplumber, openpyxl).
+check_environment.activate()
+
 from product_store import (
     PRODUCT_SCHEMA,
     default_db,

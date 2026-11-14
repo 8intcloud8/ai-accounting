@@ -4,38 +4,27 @@ A local Codex accounting suite for Australian bookkeeping, BAS preparation and a
 
 ## Install
 
-### Required: allow the local review pages
+### Codex Desktop
 
-`search-email-invoices` and `review-invoices` present their checklists as pages
-served on `127.0.0.1`. Codex sandboxes shell commands and denies **all** network
-access by default — loopback included — so these pages cannot be served or
-opened until you add to `~/.codex/config.toml` and restart Codex:
+1. Open **Plugins** in Codex Desktop and add this repository as a plugin source: `8intcloud8/ai-accounting`. All 17 plugins install together.
+2. Start a new chat and type: **Set up my accounting**.
 
-```toml
-[sandbox_workspace_write]
-network_access = true
-```
+Setup checks the computer and handles the rest in the chat:
 
-Without it, `review-invoices` cannot quarantine or restore anything (its
-confirmation page is the only approval path), and `search-email-invoices` loses
-its **Choose folder** picker. Both report this blocker explicitly rather than
-appearing to succeed. The other 13 plugins are unaffected.
+- **Python 3.11 or newer** is required. If it is missing, setup gives the download link (python.org/downloads).
+- **Two Python packages** (`pdfplumber`, `openpyxl`) are installed for you, after you agree, into a private folder in the Codex home. Nothing else on the computer changes.
+- **Node.js** is only needed for finding and saving invoices from email. Without it, everything else works.
+- **Page buttons** (optional): setup asks once whether to turn on the buttons in the review pages. Saying yes sets `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`, which lets commands Codex runs use the network. Saying no keeps copy and paste.
 
-### Codex Desktop (one click)
+Gmail is connected the first time you search for invoices in email, not at install time.
 
-Open the Plugins Directory in Codex Desktop and add this repository (`8intcloud8/ai-accounting`) as a marketplace source. All 17 plugins are marked `INSTALLED_BY_DEFAULT`, so adding the marketplace is the only step — no per-plugin install clicks needed. Then ask: **“Set up AI Accounting for my business.”** Gmail connection for `search-email-invoices`/`save-invoices` is requested on first use, not at install time. Python 3.11+ must still be available on your machine; Email plugins also require Node/npm.
-
-### Manual / other hosts
-
-Download and extract a release into a permanent folder. Open it in Codex and ask: **“Set up AI Accounting for my business.”** Codex uses the setup-accounting skill to gather your workspace and business details, install dependencies, and register separate plugins. Python 3.11+ must be available from your computer or assistant host. Email plugins also require Node/npm and a connected Gmail account. The installer creates a private Python environment; SQLite needs no server or separate installation.
-
-For an operator running setup directly:
+### From a local checkout (maintainers)
 
 ```sh
 python3 scripts/install.py --workspace "/path/to/Accounting" --profile profile.json --dependencies
 ```
 
-Use `--local-only` for local statements and invoices without Gmail plugins. Profile fields: business_id, legal_name, entity_type (company/sole_trader/trust/partnership), gst_registered (true/false/null), gst_basis (cash/accrual/unknown). Unknown facts remain unknown. Open a new chat after installing.
+Requires the `codex` command on `PATH` (in Codex Desktop it is inside the app: `/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin`). Use `--local-only` to skip the Gmail plugins and `--local-server yes|no` to answer the page-buttons question. Profile fields: business_id, legal_name, entity_type (company/sole_trader/trust/partnership), gst_registered (true/false/null), gst_basis (cash/accrual/unknown). Open a new chat after installing.
 
 ## Separate plugins
 

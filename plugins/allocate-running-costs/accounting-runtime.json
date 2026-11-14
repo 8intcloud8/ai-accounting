@@ -3,18 +3,21 @@
   "schema": 5,
   "sha256": {
     "accounting_runner.py": "b03a4502c51caeabfb24154f7fe942ece405285d4d939f242b932983a9512b72",
-    "accounting_store.py": "2763cb0ed095c4d8db4cdf24595d0d814dd86a3bfbfe99ae678886217b8014a4",
+    "accounting_store.py": "00aa1f8ca305182e9057a9a3831332d210e71fe9af5bdd3198eecaf2097df04f",
     "allocation_store.py": "cb0332a677391e0b800ea7484664f8ae1c4254aed545360a44bde268cd1a11a1",
-    "ato_library.py": "18ccdd3730c4d5fb5fd19915bd03314e59a6a7249d52beede2f3f11b889f614e",
+    "ato_library.py": "fe258e3a1b9a2b40222e0c0eba788044981239ca75406a23096a1f3b26bae75f",
     "bas_applicability.py": "f5dd29c41d32058c85c4bb42b9f88b930afeee75a653485c777687683c798e76",
     "bas_labels.py": "ba49a6b1f94b8dca706e714bfa2d1fbbb4447f9620567491b86048843d1dfdd5",
+    "check_environment.py": "b59dc0aac6b789d4040031615bbf775b1bb9e2e6a70b40e2c3bc495b2ef50bec",
+    "enable_local_server.py": "38ebb43a749a2921fc894d42e7f1260f1ba0f4556f61fe4310d08e35cf336a6f",
     "expense_claims.py": "7cac7734543a496f872c6645a7b03c35ce0fd0a1535d03784b77479543f0a6e4",
     "invoice_store.py": "2ccaab2f0b4831ba42573fd15f400d02f824f9a97e7f652d5e7e6bdd803b4b68",
+    "local_server.py": "94e917d92b51e2b041d256da555fbabafbf6b54d301a0c7626fff1b0fa7c20cc",
     "memory_store.py": "a452c8135b86ccd2d19c7be144ce4aabf3541cb751b29c21588218a77e79b590",
     "payment_store.py": "6e0611d45e3363e6c199716cd8781f59ee2177821521393aad7083bb6d8e7d53",
     "product_store.py": "c803772f564b60fc57dca2aa61071c0368a24d565df2d00c7df797a1a2107fd0",
     "proposal_store.py": "7889f5720c4246b3593e27a80edaf5ca3e39cc5f362afa6e4e2d620800fa8402",
-    "review_table.py": "fd1091e60dedc8a21d47fbe33e8b46f0dfa2393f3b058076d0eeae64f8f644b2",
+    "review_table.py": "d9c2117e73bdeea5025feebf18b3df8e1dc9374606855b31c05b893ba557c798",
     "running_cost_workpapers.py": "5d29ddd481a01531c30d5154c5024ec002343b99179b18d3ab4900f6f28e98ca"
   }
 }

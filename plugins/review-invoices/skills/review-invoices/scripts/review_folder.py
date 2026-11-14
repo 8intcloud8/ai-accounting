@@ -2,9 +2,7 @@
 
 import argparse
 import csv
-import errno
 import hashlib
-import hmac
 import json
 import os
 from pathlib import Path
@@ -12,8 +10,9 @@ import secrets
 import stat
 import threading
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlsplit
+
+import local_server
+from local_server import LocalHandler
 
 
 # Must match the outcome table and document_kind list in SKILL.md, and the
@@ -27,30 +26,15 @@ DOCUMENT_KINDS = frozenset({
     "invoice", "receipt", "credit_note", "sale", "supporting", "control",
 })
 
-SANDBOX_BLOCKED = (
-    "Cannot start the local review page: this host blocked the loopback port.\n"
-    "Codex sandboxes shell commands and denies all network access by default, "
-    "including 127.0.0.1, so the review page cannot be served or opened.\n"
-    "To enable it, add to ~/.codex/config.toml and restart Codex:\n"
-    "\n"
-    "    [sandbox_workspace_write]\n"
-    "    network_access = true\n"
-    "\n"
+SANDBOX_BLOCKED = local_server.sandbox_blocked(
+    "the local review page",
     "Quarantine and restore need this page; there is no chat-only equivalent. "
-    "Report this blocker instead of describing the review as opened or applied."
+    "Report this blocker instead of describing the review as opened or applied.",
 )
 
 
 def bind_loopback(handler, port):
-    """Bind loopback, or fail with the sandbox remedy instead of a bare EPERM."""
-    try:
-        return ThreadingHTTPServer(("127.0.0.1", port), handler)
-    except PermissionError as error:
-        raise SystemExit(SANDBOX_BLOCKED) from error
-    except OSError as error:
-        if error.errno in (errno.EPERM, errno.EACCES, errno.EAFNOSUPPORT):
-            raise SystemExit(SANDBOX_BLOCKED) from error
-        raise
+    return local_server.bind_loopback(handler, port, SANDBOX_BLOCKED)
 
 
 def sha256(path):
@@ -282,33 +266,18 @@ def create_server(review, port=0):
         "CHECKLIST_STYLE", (assets / "checklist.css").read_text()
     )
 
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *_args):
-            pass
-
+    class Handler(LocalHandler):
         def send(self, body, mime="application/json", status=200):
-            self.send_response(status)
-            self.send_header("Content-Type", mime)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
-            self.end_headers()
-            self.wfile.write(body)
+            self.reply(status, body, mime)
 
         def authenticated(self):
-            host = f"127.0.0.1:{self.server.server_port}"
-            if self.headers.get("Host") != host:
-                return False
-            supplied = parse_qs(urlsplit(self.path).query).get("token", [""])[0]
-            return hmac.compare_digest(supplied, review.token)
+            return self.local_host() and self.token_matches(self.query("token"), review.token)
 
         def do_GET(self):
             if not self.authenticated():
                 self.send_error(403)
                 return
-            route = urlsplit(self.path).path
+            route = self.route()
             try:
                 if route == "/":
                     data = json.dumps({"rows": review.rows, "token": review.token,
@@ -332,20 +301,14 @@ def create_server(review, port=0):
                 self.send(str(error).encode(), "text/plain; charset=utf-8", 400)
 
         def do_POST(self):
-            origin = f"http://127.0.0.1:{self.server.server_port}"
-            if (not self.authenticated() or self.headers.get("Origin") != origin
-                    or not hmac.compare_digest(self.headers.get("X-Review-Token", ""), review.token)
+            if (not self.authenticated() or not self.same_origin()
+                    or not self.token_matches(self.headers.get("X-Review-Token"), review.token)
                     or self.headers.get("Content-Type") != "application/json"):
                 self.send_error(403)
                 return
             try:
-                length = int(self.headers.get("Content-Length", "0"))
-                if not 0 < length <= 16384:
-                    raise ValueError("Invalid request size")
-                request = json.loads(self.rfile.read(length))
-                if not isinstance(request, dict):
-                    raise ValueError("Invalid request")
-                route = urlsplit(self.path).path
+                request = self.read_json(16384)
+                route = self.route()
                 if route == "/quarantine":
                     result = review.move(request)
                 elif route == "/restore":
@@ -357,8 +320,7 @@ def create_server(review, port=0):
                 self.send(json.dumps({"error": str(error)}).encode(), status=400)
 
     server = bind_loopback(Handler, port)
-    server.daemon_threads = True
-    server.review_url = f"http://127.0.0.1:{server.server_port}/?token={review.token}"
+    server.review_url = local_server.url(server, review.token)
     return server
 
 

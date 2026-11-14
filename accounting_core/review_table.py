@@ -10,13 +10,19 @@ import re
 import secrets
 from datetime import datetime
 from decimal import Decimal
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
+
+import local_server
+from local_server import LocalHandler
 
 MAX_BYTES = 12 * 1024 * 1024
 MAX_ROWS = 10000
 SOURCE_FIELDS = {"source", "source_path", "file", "document_path", "statement"}
+SANDBOX_BLOCKED = local_server.sandbox_blocked(
+    "the review table",
+    "Until then use the saved review workbook or CSV in the workspace output folder. "
+    "Report this blocker instead of describing the table as opened.",
+)
 
 
 def load_table(csv_path, workspace, title=None):
@@ -188,44 +194,24 @@ def create_server(table, port=0):
     token = secrets.token_urlsafe(32)
     page = render_page(table)
 
-    class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *_args):
-            pass  # Never log URL capabilities or financial records.
-
-        def send(self, status, body, mime="application/json", extra=None):
-            if isinstance(body, str):
-                body = body.encode()
-            self.send_response(status)
-            self.send_header("Content-Type", mime)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header(
-                "Content-Security-Policy",
-                "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self'; form-action 'none'; base-uri 'none'; frame-ancestors 'self'",
-            )
-            for key, value in (extra or {}).items():
-                self.send_header(key, value)
-            self.end_headers()
-            self.wfile.write(body)
-
-        def authorized(self):
-            expected = f"127.0.0.1:{self.server.server_port}"
-            return self.headers.get("Host") == expected
+    class Handler(LocalHandler):
+        # Source PDFs and images open inside the page.
+        csp = (
+            "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+            "connect-src 'self'; img-src 'self'; form-action 'none'; base-uri 'none'; "
+            "frame-ancestors 'self'"
+        )
+        send = LocalHandler.reply
 
         def do_GET(self):
-            url = urlsplit(self.path)
-            args = parse_qs(url.query)
-            if not self.authorized() or not secrets.compare_digest(
-                args.get("token", [""])[0].encode(), token.encode()
-            ):
+            route = self.route()
+            if not self.local_host() or not self.token_matches(self.query("token"), token):
                 self.send(403, '{"error":"Open the review link supplied by Codex"}')
                 return
-            if url.path == "/":
+            if route == "/":
                 self.send(200, page, "text/html; charset=utf-8")
-            elif url.path == "/source":
-                target = table["links"].get(args.get("id", [""])[0])
+            elif route == "/source":
+                target = table["links"].get(self.query("id"))
                 if (
                     not target
                     or not target.exists()
@@ -256,13 +242,10 @@ def create_server(table, port=0):
                 self.send(404, '{"error":"Not found"}')
 
         def do_POST(self):
-            origin = f"http://127.0.0.1:{self.server.server_port}"
             if (
-                not self.authorized()
-                or self.headers.get("Origin") != origin
-                or not secrets.compare_digest(
-                    self.headers.get("X-Review-Token", "").encode(), token.encode()
-                )
+                not self.local_host()
+                or not self.same_origin()
+                or not self.token_matches(self.headers.get("X-Review-Token"), token)
             ):
                 self.send(403, '{"error":"Request origin rejected"}')
                 return
@@ -270,20 +253,13 @@ def create_server(table, port=0):
                 self.send(404, '{"error":"Not found"}')
                 return
             try:
-                length = int(self.headers.get("Content-Length", "0"))
-                if (
-                    not 0 < length <= 32000
-                    or self.headers.get("Content-Type") != "application/json"
-                ):
-                    raise ValueError("Invalid request size or content type")
-                result = save_request(table, json.loads(self.rfile.read(length)))
+                result = save_request(table, self.read_json(32000))
                 self.send(201, json.dumps(result))
             except (ValueError, TypeError, OSError) as exc:
                 self.send(400, json.dumps({"error": str(exc)}))
 
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    server.daemon_threads = True
-    server.review_url = f"http://127.0.0.1:{server.server_port}/?token={token}"
+    server = local_server.bind_loopback(Handler, port, SANDBOX_BLOCKED)
+    server.review_url = local_server.url(server, token)
     return server
 
 

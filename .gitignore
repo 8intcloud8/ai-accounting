@@ -6,6 +6,9 @@ dist/
 .DS_Store
 *.log
 *.pdf
+# ATO guides ship with the code.
+!ato-library/*.pdf
+!plugins/ato-docs/skills/ato-docs/ato-library/*.pdf
 manifest.csv
 Bills/
 *token*.json
@@ -34,3 +37,9 @@ accounting-workspace.json
 # Local preview/scratch artifacts; rendered from real runs so they carry
 # personal addresses and picker tokens
 /.scratch/
+
+# Workspace state left when the repo folder itself was used as a workspace:
+# saved invoices, review workbooks and account details. Never source.
+/invoices/
+/outputs/
+/reporting.json

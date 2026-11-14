@@ -255,11 +255,22 @@ def search(terms, limit=5, period_end=None):
         db.close()
     results = [{"guide": guides[r["sha256"]]["title"], "sha256": r["sha256"], "page": r["page"],
                 "heading": r["heading"], "passage": r["snippet"], "url": guides[r["sha256"]].get("url"),
+                "link": link(guides[r["sha256"]], r["page"]),
                 "warnings": _warnings(guides[r["sha256"]], period_end)} for r in rows]
     out = {"query": query, "results": results}
     if not results:
         out["note"] = "Nothing in the ATO library. Research ato.gov.au."
     return out
+
+
+def link(guide, page=None):
+    """file:// link to the original guide, opening at the page for a PDF; None when only
+    the extracted text is bundled (plugins other than ato-docs)."""
+    path = library_dir() / guide["file"]
+    if not path.is_file():
+        return None
+    uri = path.resolve().as_uri()
+    return f"{uri}#page={page}" if page and path.suffix.lower() == ".pdf" else uri
 
 
 def _guide(sha256):
@@ -275,7 +286,8 @@ def read_page(sha256, page):
     g = _guide(sha256)
     if not 1 <= int(page) <= len(g["pages"]):
         raise ValueError(f"'{g['title']}' has pages 1-{len(g['pages'])}")
-    return {"title": g["title"], "url": g.get("url"), "page": int(page), "text": g["pages"][int(page) - 1]}
+    return {"title": g["title"], "url": g.get("url"), "page": int(page), "link": link(g, int(page)),
+            "text": g["pages"][int(page) - 1]}
 
 
 def guides():
@@ -301,7 +313,7 @@ def verify_quote(citation):
     if normalise(quote) not in normalise(g["pages"][page - 1]):
         raise ValueError(f"Quote not found on page {page} of '{g['title']}': cite the exact wording")
     return {"sha256": g["sha256"], "title": g["title"], "page": page, "url": g.get("url"),
-            "quote": quote.strip(), "warnings": _warnings(g)}
+            "link": link(g, page), "quote": quote.strip(), "warnings": _warnings(g)}
 
 
 def add_commands(sub):

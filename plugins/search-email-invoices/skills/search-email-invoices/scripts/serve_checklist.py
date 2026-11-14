@@ -1,49 +1,36 @@
-"""Serve one invoice checklist and its authenticated, read-only folder picker."""
+"""Serve one invoice checklist: its folder picker and its Save selection button."""
 import argparse
-import errno
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import re
-import secrets
-from urllib.parse import parse_qs, urlsplit
 
-SANDBOX_BLOCKED = (
-    "Cannot serve the checklist: this host blocked the loopback port.\n"
-    "Codex sandboxes shell commands and denies all network access by default, "
-    "including 127.0.0.1.\n"
-    "To enable it, add to ~/.codex/config.toml and restart Codex:\n"
-    "\n"
-    "    [sandbox_workspace_write]\n"
-    "    network_access = true\n"
-    "\n"
+import local_server
+from local_server import LocalHandler
+
+SANDBOX_BLOCKED = local_server.sandbox_blocked(
+    "the checklist server",
     "Until then the rendered index.html still opens directly in a browser, with "
-    "selection, filtering and Copy save request working; only Choose folder needs "
-    "this server. Report the blocker and give the file path; do not claim the "
-    "picker was verified."
+    "selection, filtering and Copy save request working; only Choose folder and "
+    "Save selection need this server. Open the file instead; do not claim the "
+    "server-only controls were verified.",
 )
+PORT_BUSY = (
+    "Port {port} is already in use, most likely by a checklist server left running "
+    "by an earlier run. Omit --port to take any free port; never reuse the old "
+    "server's URL, because it may serve a previous run's invoices."
+)
+SELECTION_FILE = "selection.json"
+MAX_SELECTION_BYTES = 256 * 1024
+TOKEN_PATTERN = re.compile(rb'"pickerToken":\s*"([A-Za-z0-9_-]+)"')
+BILL_PATTERN = re.compile(r'class="bill"[^>]*? value="([^"]+)" data-message="([^"]*)"')
+CONFIG_MARKER = "const config="
 
 
 def bind_loopback(handler, port):
-    """Bind loopback, or fail with the sandbox remedy instead of a bare EPERM."""
-    try:
-        return ThreadingHTTPServer(("127.0.0.1", port), handler)
-    except PermissionError as error:
-        raise SystemExit(SANDBOX_BLOCKED) from error
-    except OSError as error:
-        if error.errno in (errno.EPERM, errno.EACCES, errno.EAFNOSUPPORT):
-            raise SystemExit(SANDBOX_BLOCKED) from error
-        if error.errno == errno.EADDRINUSE:
-            raise SystemExit(
-                f"Port {port} is already in use, most likely by a checklist server "
-                "left running by an earlier run. Omit --port to take any free port; "
-                "never reuse the old server's URL, because it may serve a previous "
-                "run's invoices."
-            ) from error
-        raise
-
-
-TOKEN_PATTERN = re.compile(rb'"pickerToken":\s*"([A-Za-z0-9_-]+)"')
+    return local_server.bind_loopback(
+        handler, port, SANDBOX_BLOCKED, PORT_BUSY.format(port=port)
+    )
 
 
 def read_report(report):
@@ -57,50 +44,87 @@ def read_report(report):
     return page, token[1].decode()
 
 
+def selection(page, request):
+    """Validate a Save selection request against the page it came from."""
+    text = page.decode()
+    bills = dict(BILL_PATTERN.findall(text))
+    config, _end = json.JSONDecoder().raw_decode(text, text.index(CONFIG_MARKER) + len(CONFIG_MARKER))
+    root = request.get("root")
+    chosen = request.get("threadIds")
+    if not isinstance(root, str) or not root.strip() or len(root) > 4096 or not Path(root).expanduser().is_absolute():
+        raise ValueError("Enter the full folder path to save into")
+    if not isinstance(chosen, list) or not chosen or len(set(chosen)) != len(chosen):
+        raise ValueError("Select at least one invoice")
+    if any(not isinstance(x, str) or x not in bills for x in chosen):
+        raise ValueError("Selection does not match this checklist; reload the page")
+    return {
+        "root_folder": str(Path(root).expanduser()),
+        "category": config["category"],
+        "date_from": config["from"],
+        "date_to": config["to"],
+        "threads": [{"threadId": x, "messageId": bills[x]} for x in chosen],
+        "saved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+
 def make_handler(report_dir):
-    report = Path(report_dir).resolve() / 'index.html'
+    report_dir = Path(report_dir).resolve()
+    report = report_dir / 'index.html'
     read_report(report)  # Fail fast on an unrendered report.
 
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            url = urlsplit(self.path)
-            if self.headers.get('Host') != f'127.0.0.1:{self.server.server_port}':
+    class Handler(LocalHandler):
+        csp = local_server.DEFAULT_CSP.replace("frame-ancestors 'none'", "frame-ancestors 'self'")
+
+        def current(self):
+            """The page and its token, or None after answering with the reason."""
+            if not self.local_host():
                 self.send_error(403)
-                return
+                return None
             try:
-                page, token = read_report(report)
+                return read_report(report)
             except (OSError, ValueError):
                 self.send_error(503, 'Checklist report is unavailable; re-render it')
+                return None
+
+        def do_GET(self):
+            loaded = self.current()
+            if not loaded:
                 return
-            if url.path in ('/', '/index.html'):
-                payload, kind = page, 'text/html; charset=utf-8'
-            elif url.path == '/api/folders':
-                if not secrets.compare_digest(self.headers.get('X-Folder-Picker', ''), token):
+            page, token = loaded
+            route = self.route()
+            if route in ('/', '/index.html'):
+                self.reply(200, page, 'text/html; charset=utf-8')
+            elif route == '/api/folders':
+                if not self.token_matches(self.headers.get('X-Folder-Picker'), token):
                     self.send_error(403)
                     return
                 try:
-                    folder = Path(parse_qs(url.query).get('path', [str(Path.home())])[0]).expanduser().resolve(strict=True)
-                    if not folder.is_dir():
-                        raise ValueError('Not a directory')
-                    entries = sorted((x for x in folder.iterdir() if not x.name.startswith('.') and x.is_dir()), key=lambda x: x.name.lower())
-                    payload = json.dumps({'path': str(folder), 'parent': str(folder.parent) if folder.parent != folder else '', 'directories': [{'name': x.name, 'path': str(x)} for x in entries]}).encode()
-                    kind = 'application/json'
+                    folders = local_server.list_folders(self.query('path', str(Path.home())))
                 except (OSError, ValueError):
                     self.send_error(400, 'Cannot open folder')
                     return
+                self.reply(200, json.dumps(folders))
             else:
                 self.send_error(404)
-                return
-            self.send_response(200)
-            self.send_header('Content-Type', kind)
-            self.send_header('Content-Length', str(len(payload)))
-            self.send_header('Cache-Control', 'no-store')
-            self.send_header('X-Content-Type-Options', 'nosniff')
-            self.end_headers()
-            self.wfile.write(payload)
 
-        def log_message(self, *_args):
-            pass
+        def do_POST(self):
+            loaded = self.current()
+            if not loaded:
+                return
+            page, token = loaded
+            if not self.same_origin() or not self.token_matches(self.headers.get('X-Folder-Picker'), token):
+                self.send_error(403)
+                return
+            if self.route() != '/api/selection':
+                self.send_error(404)
+                return
+            try:
+                chosen = selection(page, self.read_json(MAX_SELECTION_BYTES))
+                local_server.write_private_json(report_dir / SELECTION_FILE, chosen)
+            except (ValueError, KeyError, TypeError, OSError) as error:
+                self.reply(400, json.dumps({'error': str(error)}))
+                return
+            self.reply(201, json.dumps({'saved': len(chosen['threads'])}))
 
     return Handler
 
@@ -113,5 +137,8 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, default=0)
     args = parser.parse_args()
     server = bind_loopback(make_handler(args.report_dir), args.port)
-    print(json.dumps({'checklist_url': f'http://127.0.0.1:{server.server_port}/'}), flush=True)
+    print(json.dumps({
+        'checklist_url': local_server.url(server),
+        'selection_file': str(Path(args.report_dir).resolve() / SELECTION_FILE),
+    }), flush=True)
     server.serve_forever()

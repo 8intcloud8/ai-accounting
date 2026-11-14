@@ -125,7 +125,7 @@ Include in the report: bill amount, supported business allocation, method, GST s
 
 ## Shared runtime
 
-Use the Python executable at `<suite>/.venv/bin/python` when installed, otherwise the host Python 3.11+ runtime. Source files are copied into the workspace documents directory and hash verified. Relative evidence paths survive moving the complete workspace. The canonical runtime is maintained once in `accounting_core/` and bundled automatically for standalone plugins.
+Use the host Python 3.11+ runtime; packages installed by the setup check are found automatically. Source files are copied into the workspace documents directory and hash verified. Relative evidence paths survive moving the complete workspace. The canonical runtime is maintained once in `accounting_core/` and bundled automatically for standalone plugins.
 
 ## Show the review table in Codex
 

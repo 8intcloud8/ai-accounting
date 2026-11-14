@@ -107,7 +107,7 @@ class ServeChecklistTests(unittest.TestCase):
 
     def test_busy_port_names_the_stale_server_and_warns_against_reuse(self):
         with mock.patch.object(
-            serve_checklist,
+            serve_checklist.local_server,
             "ThreadingHTTPServer",
             side_effect=OSError(errno.EADDRINUSE, "Address already in use"),
         ):
@@ -120,7 +120,7 @@ class ServeChecklistTests(unittest.TestCase):
 
     def test_blocked_loopback_reports_the_sandbox_remedy(self):
         with mock.patch.object(
-            serve_checklist,
+            serve_checklist.local_server,
             "ThreadingHTTPServer",
             side_effect=PermissionError(errno.EPERM, "Operation not permitted"),
         ):
@@ -141,3 +141,70 @@ class ServeChecklistTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SaveSelectionTests(unittest.TestCase):
+    """Save selection writes the ticked invoices to a file Codex reads on "save"."""
+
+    def setUp(self):
+        from render_checklist import render
+
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.report_dir = Path(self.temp.name) / "report"
+        self.report_dir.mkdir()
+        bill = {"threadId": "1a0b", "messageId": "9f9f", "date": "2026-09-03", "vendor": "Acme",
+                "sender": {"name": "Acme", "email": "billing@acme.example"}, "subject": "Invoice",
+                "attachments": ["inv.pdf"], "gmailLink": "https://mail.google.com/mail/u/0/#all/1a0b"}
+        result = {"category": "business", "dateFrom": "2026-09-01", "dateTo": "2026-09-30",
+                  "bills": [bill, dict(bill, threadId="2c2c", messageId="8e8e")]}
+        page = render(result, ["me@example.com"], "/ws/invoices")
+        (self.report_dir / "index.html").write_text(page)
+        self.token = serve_checklist.TOKEN_PATTERN.search(page.encode())[1].decode()
+        server = bind_loopback(make_handler(self.report_dir), 0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(thread.join)
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.base = f"http://127.0.0.1:{server.server_port}"
+
+    def _post(self, body, token=None, origin=None):
+        request = Request(
+            self.base + "/api/selection", data=json.dumps(body).encode(), method="POST",
+            headers={"Content-Type": "application/json", "Origin": origin or self.base,
+                     "X-Folder-Picker": self.token if token is None else token})
+        with urlopen(request) as result:
+            return json.loads(result.read())
+
+    def test_selection_is_saved_with_message_ids_and_period_from_the_page(self):
+        self.assertEqual(self._post({"root": "/ws/invoices", "threadIds": ["2c2c"]}), {"saved": 1})
+        path = self.report_dir / "selection.json"
+        saved = json.loads(path.read_text())
+        self.assertEqual(saved["threads"], [{"threadId": "2c2c", "messageId": "8e8e"}])
+        self.assertEqual((saved["root_folder"], saved["category"], saved["date_from"], saved["date_to"]),
+                         ("/ws/invoices", "business", "2026-09-01", "2026-09-30"))
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_unknown_invoice_relative_folder_or_empty_selection_is_refused(self):
+        for body in ({"root": "/ws/invoices", "threadIds": ["ffff"]},
+                     {"root": "invoices", "threadIds": ["1a0b"]},
+                     {"root": "/ws/invoices", "threadIds": []}):
+            with self.assertRaises(HTTPError) as error:
+                self._post(body)
+            self.assertEqual(error.exception.code, 400)
+        self.assertFalse((self.report_dir / "selection.json").exists())
+
+    def test_wrong_token_or_foreign_origin_is_refused(self):
+        body = {"root": "/ws/invoices", "threadIds": ["1a0b"]}
+        for kwargs in ({"token": "nope"}, {"origin": "http://evil.example"}):
+            with self.assertRaises(HTTPError) as error:
+                self._post(body, **kwargs)
+            self.assertEqual(error.exception.code, 403)
+
+    def test_selection_file_is_not_served(self):
+        self._post({"root": "/ws/invoices", "threadIds": ["1a0b"]})
+        with self.assertRaises(HTTPError) as error:
+            urlopen(self.base + "/selection.json")
+        self.assertEqual(error.exception.code, 404)
+

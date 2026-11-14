@@ -12,6 +12,11 @@ import json
 import os
 import re
 import sys
+
+import check_environment
+
+# Packages installed privately by the setup check (pdfplumber, openpyxl).
+check_environment.activate()
 from datetime import datetime
 
 DATE_FORMATS = [

@@ -33,7 +33,7 @@ This skill orchestrates three subagents per file — `bank-mapper`, `bank-extrac
 
 **2. Reuse the requested reporting dates.** Ask for dates only when missing; a BAS quarter does not require a new financial-year question.
 
-**3. Resolve dependencies:** Use the suite's isolated Python environment created by `scripts/install.py --dependencies`. For a standalone installation, create a dedicated virtual environment and install `pdfplumber` and `openpyxl` there. Never change system Python packages or use `--break-system-packages`. Reuse an existing compatible environment when available.
+**3. Check dependencies:** Run `scripts/check_environment.py status`. If `missing_packages` is not empty, tell the user its message and, on a yes, run `scripts/check_environment.py install` (it installs into a private folder in the Codex home; request approval for network and that folder). The scripts find those packages by themselves afterwards. Never change system Python packages or use `--break-system-packages`.
 
 **4. List and identify files.** List all CSV/Excel/PDF files in the folder. Identify which are actual bank statements — skip anything that's clearly an invoice, bill, or receipt (those aren't statements and belong to a different workflow).
 
@@ -88,7 +88,7 @@ The inspector and extractor automatically recognise text-based NAB Transaction L
 
 ## Shared runtime
 
-Use the Python executable at `<suite>/.venv/bin/python` when installed, otherwise the host Python 3.11+ runtime. Source files are copied into the workspace documents directory and hash verified. Relative evidence paths survive moving the complete workspace. The canonical runtime is maintained once in `accounting_core/` and bundled automatically for standalone plugins.
+Use the host Python 3.11+ runtime; packages installed by the setup check are found automatically. Source files are copied into the workspace documents directory and hash verified. Relative evidence paths survive moving the complete workspace. The canonical runtime is maintained once in `accounting_core/` and bundled automatically for standalone plugins.
 
 ## Review handoff
 

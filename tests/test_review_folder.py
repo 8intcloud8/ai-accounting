@@ -253,7 +253,7 @@ class ReviewFolderTests(unittest.TestCase):
         for raised in (PermissionError(errno.EPERM, "Operation not permitted"),
                        OSError(errno.EACCES, "Permission denied")):
             with mock.patch.object(
-                review_folder, "ThreadingHTTPServer", side_effect=raised
+                review_folder.local_server, "ThreadingHTTPServer", side_effect=raised
             ):
                 with self.assertRaises(SystemExit) as exit_error:
                     bind_loopback(object(), 0)
@@ -266,7 +266,7 @@ class ReviewFolderTests(unittest.TestCase):
         """Only sandbox denials are translated; a port clash must not claim a
         sandbox problem."""
         with mock.patch.object(
-            review_folder,
+            review_folder.local_server,
             "ThreadingHTTPServer",
             side_effect=OSError(errno.EADDRINUSE, "Address already in use"),
         ):

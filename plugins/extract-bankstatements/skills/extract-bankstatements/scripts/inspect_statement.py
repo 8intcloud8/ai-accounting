@@ -17,6 +17,11 @@ import os
 import re
 import sys
 
+import check_environment
+
+# Packages installed privately by the setup check (pdfplumber, openpyxl).
+check_environment.activate()
+
 _NUMERIC_RE = re.compile(r"^[\-\+\$\(]?[\d,]+\.?\d*\)?%?$")
 _DATE_RE = re.compile(
     r"^\d{1,4}[/\-.]\d{1,2}[/\-.]\d{1,4}$|^\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4}$"

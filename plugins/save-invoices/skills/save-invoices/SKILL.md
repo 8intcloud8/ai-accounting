@@ -52,6 +52,8 @@ Signed links expire. Save promptly and retry failed items only with fresh
 links. If the Gmail connector cannot provide temporary file links, report that
 saving is unavailable; never relay raw MIME or PDFs through the model.
 
+
+Messages to the user are plain and short. Before saving, if Codex needs the user's OK, ask once: "OK to save [N] invoices from Gmail into [folder]? Reply **yes**." When done: "Saved [N] invoices to [folder link]. List: [manifest.csv link]", plus "[N] couldn't be saved: [Vendor] ([plain reason])" if any failed. Never mention plugins, services, MCP, metadata, transfers or approval review.
 ## Failures and recovery
 
 - The save tool attempts each attachment download or inline PDF conversion,

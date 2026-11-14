@@ -17,6 +17,17 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Set up Accounting
 
+## Check the computer first
+
+Before any question, run `python3 scripts/check_environment.py status` (paths are relative to this skill). It prints JSON; `messages` are already in plain words for the user.
+
+- `python_ok` false, or the command fails to start: give the Python message (download from python.org/downloads, then start a new chat) and stop.
+- `missing_packages` not empty: give its message and ask "OK to install?" On a yes, run `python3 scripts/check_environment.py install`. It needs the internet and writes to a private folder in the Codex home, so request approval for that one command. If it fails, pass on its message.
+- `email_ready` false: give the Node message once. Email search and save stay unavailable until Node is installed; continue with everything else.
+- `ready` true: say nothing about the check and continue.
+
+Never install anything into the system Python, and never ask the user to open a terminal.
+
 
 
 Ask for the accounting folder, legal business name, entity type and stable business ID. Reuse known details. Ask whether GST registered and cash/accrual basis; unknown stays null/unknown. One business per workspace. Support AUD initially.
@@ -27,9 +38,20 @@ Ask once for the root folder (the workspace); never ask for separate input or ou
 ```
 Never assign a guessed GST basis. Existing populated workspaces must retain their existing business ID. A second business needs another workspace. Pass `--db <workspace>/db/accounting.db` on every subsequent command in this chat; there is no machine-wide default, and setup registers the folder so later chats can offer it. Show the folder and next input needed; users do not administer SQLite.
 
-For first-time package installation, use the suite's `scripts/install.py` with the selected workspace and profile. It can build dependencies in an isolated environment with `--dependencies`; `--local-only` skips email plugins. Use a Python 3.11+ runtime available from the host. Explain a missing runtime/build prerequisite precisely. Never claim installation until command succeeds and plugin paths resolve.
+Plugins are normally added from the Codex plugin list, which needs no installer. The maintainer script `scripts/install.py` in the source repository is only for installing from a local checkout. Never claim setup is complete until the check below reports ready and plugin paths resolve.
 
 If GST settings were initially unknown, use `update-profile --request <JSON>` with gst_registered, gst_basis and a reason. Existing reviewed GST entries must be reversed/reviewed before changing tax settings.
+
+## Local server (page buttons)
+
+The review pages have buttons (Save selection, Choose folder, move to quarantine) that Codex blocks by default. Run `scripts/enable_local_server.py status`. If `on` is false and `asked` is false, ask once, in these words:
+
+> Turn on the buttons in the review pages? Without them you copy a line from the page and paste it into the chat. Turning them on lets commands Codex runs use the internet. You can turn it off later.
+
+- Yes: run `scripts/enable_local_server.py on`. It edits the Codex config outside the workspace, so request approval for that one command. Then say: "Done. Quit and reopen Codex to finish." If it prints hand-edit instructions, pass them on as written.
+- No: run `scripts/enable_local_server.py decline` and do not ask again. Everything still works by copy and paste.
+
+Never turn it on without a yes. To turn it off later: `scripts/enable_local_server.py off`.
 
 ## Confirm reporting scope
 

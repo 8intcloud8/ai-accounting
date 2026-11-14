@@ -58,6 +58,13 @@ export function createServer(): McpServer {
         "deduplicates filenames, and appends manifest.csv. Maximum five threads per call.",
       inputSchema: saveBillsInput,
       outputSchema: saveBillsOutput,
+      // Writes new files only (never overwrites); fetches Gmail download links.
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
     },
     async ({ items, category, date_range, root_folder }): Promise<CallToolResult> => {
       const result = await runSaveBillsFromMcp(items, category, date_range, root_folder);

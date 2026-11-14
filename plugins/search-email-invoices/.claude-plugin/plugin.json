@@ -1,5 +1,5 @@
 {
   "name": "search-email-invoices",
-  "version": "0.6.9",
+  "version": "0.6.14",
   "description": "Find Gmail bills, invoices, and receipts and show an interactive checklist. Saving is provided by the separate save-invoices plugin."
 }

@@ -86,6 +86,13 @@ export function createServer(): McpServer {
         "personal vendors.",
       inputSchema: searchBillsInput,
       outputSchema: searchBillsOutput,
+      // Runs on this machine only: no network, no writes, no data leaves the host.
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
     },
     async ({ category, date_from, date_to, candidates }): Promise<CallToolResult> => {
       const result = consolidateBills(candidates, category, date_from, date_to);

@@ -118,6 +118,7 @@ class LibraryTest(unittest.TestCase):
         self.assertEqual(2, added["pages"])
         hit = ato_library.search("GST purchases claim")["results"][0]
         self.assertEqual(("BAS guide", 2), (hit["guide"], hit["page"]))
+        self.assertTrue(hit["link"].startswith("file://") and hit["link"].endswith("bas_guide.pdf#page=2"))
         ato_library.verify_quote({"sha256": added["sha256"], "page": 2,
                                   "quote": "Label 1B is GST on purchases you can claim"})
 
@@ -133,7 +134,8 @@ class LibraryTest(unittest.TestCase):
         for f in self.lib.iterdir():
             if f.name != "library.json":
                 f.unlink()
-        self.assertEqual("Tax invoices", ato_library.search("tax invoice")["results"][0]["heading"])
+        hit = ato_library.search("tax invoice")["results"][0]
+        self.assertEqual(("Tax invoices", None), (hit["heading"], hit["link"]))
         ato_library.verify_quote({"sha256": self.added["sha256"], "page": 1,
                                   "quote": "You need a tax invoice to claim a GST credit"})
         self.assertEqual([], ato_library.sync()["added"])

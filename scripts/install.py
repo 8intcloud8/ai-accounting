@@ -16,6 +16,30 @@ import venv
 from pathlib import Path
 
 
+LOCAL_SERVER_QUESTION = (
+    "\nTurn on the buttons in the review pages (Save selection, Choose folder)?\n"
+    "Without them you copy a line from the page and paste it into the chat.\n"
+    "Turning them on lets commands Codex runs use the internet. You can turn it off later.\n"
+    "Turn on? [y/N] "
+)
+
+
+def local_server_choice(choice, codex_home):
+    """Apply the user's answer. Never turn the setting on without a yes."""
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "accounting_core"))
+    import enable_local_server
+
+    current = enable_local_server.status(codex_home)
+    if choice == "ask":
+        if current["on"] or current["asked"] or not sys.stdin.isatty():
+            return current
+        choice = "yes" if input(LOCAL_SERVER_QUESTION).strip().lower() in ("y", "yes") else "no"
+    if choice == "yes":
+        return enable_local_server.apply(codex_home, True)
+    enable_local_server.record_asked(codex_home)
+    return enable_local_server.status(codex_home)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", type=Path, required=True)
@@ -35,6 +59,12 @@ def main():
         "--register-only",
         action="store_true",
         help="Write configuration only for packaging checks; does not install plugins",
+    )
+    parser.add_argument(
+        "--local-server",
+        choices=("ask", "yes", "no"),
+        default="ask",
+        help="Turn on buttons in the local review pages (lets Codex commands use the network)",
     )
     args = parser.parse_args()
     args.codex_home = args.codex_home.expanduser().resolve()
@@ -180,9 +210,11 @@ def main():
             raise RuntimeError(
                 f"Plugins not enabled after installation: {sorted(missing)}"
             )
+    buttons = local_server_choice(args.local_server, args.codex_home)
     print(
         json.dumps(
             {
+                "local_server": buttons["on"],
                 (
                     "registered_plugins" if args.register_only else "installed_plugins"
                 ): plugins,
@@ -190,7 +222,8 @@ def main():
                 "next": (
                     "Configuration written only; rerun without --register-only to install."
                     if args.register_only
-                    else "Open a new Codex chat. Ask: prepare my accounting period."
+                    else ("Quit and reopen Codex. " if buttons.get("restart_codex") else "")
+                    + "Open a new Codex chat. Ask: prepare my accounting period."
                 ),
             },
             indent=2,

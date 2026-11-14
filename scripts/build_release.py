@@ -20,6 +20,12 @@ def build(root, output):
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(checklist_css, destination)
     core = root / "accounting_core"
+    # Page servers outside the accounting runtime share one hardened loopback module.
+    for skill in ("review-invoices", "search-email-invoices"):
+        shutil.copy2(
+            core / "local_server.py",
+            root / f"plugins/{skill}/skills/{skill}/scripts/local_server.py",
+        )
     modules = sorted(core.glob("*.py"))
     if not modules:
         raise ValueError("Canonical runtime missing")
@@ -47,8 +53,15 @@ def build(root, output):
             library = root / "ato-library/library.json"
             bundled = skills[0].parent / "ato-library"
             if library.is_file():
-                bundled.mkdir(exist_ok=True)
+                if bundled.exists():
+                    shutil.rmtree(bundled)
+                bundled.mkdir()
                 shutil.copy2(library, bundled / library.name)
+                # ato-docs answers tax questions, so it also ships the original guides
+                # for links that open the PDF at the cited page.
+                if plugin.name == "ato-docs":
+                    for guide in json.loads(library.read_text())["guides"]:
+                        shutil.copy2(root / "ato-library" / guide["file"], bundled / guide["file"])
             elif bundled.exists():
                 shutil.rmtree(bundled)
             (plugin / "accounting-runtime.json").write_text(
@@ -117,7 +130,8 @@ def build(root, output):
                     for part in rel.parts
                 ):
                     continue
-                if f.suffix in (
+                is_guide = f.suffix == ".pdf" and "ato-library" in rel.parts
+                if not is_guide and f.suffix in (
                     ".db",
                     ".pdf",
                     ".log",
