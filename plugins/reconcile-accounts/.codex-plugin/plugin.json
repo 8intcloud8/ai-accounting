@@ -1,6 +1,6 @@
 {
   "name": "reconcile-accounts",
-  "version": "0.1.19",
+  "version": "0.1.20",
   "description": "Reconcile imported account movements against source statement opening and closing balances.",
   "interface": {
     "displayName": "Reconcile Accounts",
