@@ -1,7 +1,7 @@
 {
   "name": "allocate-running-costs",
   "displayName": "Allocate Running Costs",
-  "version": "1.2.20",
+  "version": "1.2.21",
   "description": "Calculate business and personal shares of utility and running costs with evidence and GST status.",
   "interface": {
     "displayName": "Allocate Running Costs",

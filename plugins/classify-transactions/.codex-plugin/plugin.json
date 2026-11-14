@@ -1,6 +1,6 @@
 {
   "name": "classify-transactions",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "Review income, expense, transfer and loan classifications and post balanced accounting entries with GST evidence.",
   "interface": {
     "displayName": "Classify Transactions",
