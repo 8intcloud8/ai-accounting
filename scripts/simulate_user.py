@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "accounting_core"))
 import accounting_runner as runner  # noqa: E402
 
 MARKER = ".simulated-user-ok"
+WORKSPACE_ANSWERS = "simulated_answers.json"
 DEFAULT_ANSWERS = Path(__file__).resolve().parents[1] / "tests/fixtures/simulated_answers.json"
 DONE = ("finished",)
 FATAL = ("error", "no_progress", "turn_limit")
@@ -85,13 +86,21 @@ def simulate(workspace, request, answers, codex, rounds=8, turns=20, timeout=900
     return report
 
 
+def answers_file(args):
+    """Real test answers stay in the private workspace, never in the repository."""
+    if args.answers:
+        return args.answers
+    private = Path(args.workspace).expanduser() / WORKSPACE_ANSWERS
+    return private if private.is_file() else DEFAULT_ANSWERS
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", required=True)
     parser.add_argument("--start", required=True)
     parser.add_argument("--end", required=True)
     parser.add_argument("--goal", choices=("bas", "tax"), default="bas")
-    parser.add_argument("--answers", type=Path, default=DEFAULT_ANSWERS)
+    parser.add_argument("--answers", type=Path, help="default: <workspace>/simulated_answers.json, else the fictional example")
     parser.add_argument("--rounds", type=int, default=8)
     parser.add_argument("--turns", type=int, default=20, help="runner turns per round")
     args = parser.parse_args()
@@ -100,7 +109,7 @@ def main():
         parser.error("Codex CLI is required")
     request = {"start": args.start, "end": args.end, "goal": args.goal, "entity": None}
     try:
-        report = simulate(args.workspace, request, json.loads(args.answers.read_text()), codex,
+        report = simulate(args.workspace, request, json.loads(answers_file(args).read_text()), codex,
                           args.rounds, args.turns)
     except (ValueError, RuntimeError, OSError) as exc:
         parser.exit(1, f"Simulation failed: {exc}\n")
