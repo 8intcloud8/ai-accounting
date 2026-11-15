@@ -1279,6 +1279,27 @@ def status_report(db, start, end):
     }
 
 
+def gst_subtotals(db, start, end):
+    """Reviewed GST items for the period and their G1, 1A and 1B totals in cents."""
+    rows = [
+        dict(r)
+        for r in db.execute(
+            "SELECT g.*,j.reference,s.verified AS source_verified,s.url AS source_url,s.section AS source_section,s.accessed AS source_accessed,s.note AS source_note FROM gst_items g JOIN journals j ON j.id=g.journal_id LEFT JOIN gst_sources s ON s.journal_id=j.id WHERE g.attribution_date BETWEEN ? AND ? AND g.status='reviewed' AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=j.id)",
+            (start, end),
+        )
+    ]
+
+    def total(field, labels):
+        return sum((r[field] or 0) * (-1 if r["label"].endswith("_refund") else 1)
+                   for r in rows if r["label"] in labels)
+
+    return rows, {
+        "G1": total("gross_cents", ("sale", "sale_refund")),
+        "1A": total("gst_cents", ("sale", "sale_refund")),
+        "1B": total("gst_cents", ("purchase", "purchase_refund")),
+    }
+
+
 def report(path, kind, start, end, connect):
     start, end = period(start, end)
     with closing(connect(path)) as db, db:
@@ -1301,32 +1322,7 @@ def report(path, kind, start, end, connect):
             kind=kind, status="draft", currency="AUD", lodgement_supported=False
         )
         if kind == "bas":
-            rows = [
-                dict(r)
-                for r in db.execute(
-                    "SELECT g.*,j.reference,s.verified AS source_verified,s.url AS source_url,s.section AS source_section,s.accessed AS source_accessed,s.note AS source_note FROM gst_items g JOIN journals j ON j.id=g.journal_id LEFT JOIN gst_sources s ON s.journal_id=j.id WHERE g.attribution_date BETWEEN ? AND ? AND g.status='reviewed' AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=j.id)",
-                    (start, end),
-                )
-            ]
-            result["reviewed_subtotals_cents"] = {
-                "G1": sum(
-                    r["gross_cents"] * (-1 if r["label"] == "sale_refund" else 1)
-                    for r in rows
-                    if r["label"] in ("sale", "sale_refund")
-                ),
-                "1A": sum(
-                    (r["gst_cents"] or 0)
-                    * (-1 if r["label"].endswith("_refund") else 1)
-                    for r in rows
-                    if r["label"] in ("sale", "sale_refund")
-                ),
-                "1B": sum(
-                    (r["gst_cents"] or 0)
-                    * (-1 if r["label"].endswith("_refund") else 1)
-                    for r in rows
-                    if r["label"] in ("purchase", "purchase_refund")
-                ),
-            }
+            rows, result["reviewed_subtotals_cents"] = gst_subtotals(db, start, end)
             result["gst_evidence"] = rows
             unverified = [r["reference"] for r in rows if r["source_verified"] == 0]
             if unverified:

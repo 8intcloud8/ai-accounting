@@ -42,6 +42,15 @@ Adapt the period, folder paths and, for a tax goal, step 7. Mention which files 
 
 Keep each message short: the result, what needs the user, one clear question. Start each stage message with "Step N of 7: <name>". Talk only about the books: never mention or quote skills, instructions, rules, scripts or databases, never explain or justify why you are pausing, and never call it a test workspace. End the stage message with the question itself, e.g. "Does this match your statement? Reply yes to go to Step 3: Invoices." Do the next stage only after the user answers or says to continue. If the user says "keep going" or "do the rest", run the remaining stages without pausing but still show each stage's result.
 
+## BAS dashboard
+
+A page that shows where the period stands, kept open beside this chat. It reads the books read-only and costs no tokens.
+
+- Open it when a period run starts, and whenever the user asks for "the dashboard" or "where am I up to": `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end> --serve`. Leave it running, open the `dashboard_url` it prints in the browser, and say once: "Your BAS dashboard is open: [link]. It updates by itself."
+- If it reports a blocked loopback port, run the same command without `--serve`, open the `dashboard_file` it prints, and say: "Your BAS dashboard: [link]. Reopen it to refresh." Do not mention the server or sandbox.
+- The page's **Copy for Codex** buttons give the user a message to paste here. Treat a pasted message as a normal request for that skill.
+- Never restate the dashboard's contents in chat unless asked.
+
 ## Autopilot (testing or on request only)
 
 Only when the user explicitly asks to run unattended, or for testing, launch `python3 <skill>/scripts/accounting_runner.py --workspace <folder> --start YYYY-MM-DD --end YYYY-MM-DD --goal bas` (or tax) in a persistent command session. It runs worker turns until only user problems remain, then stops with a grouped list. Relay its `message`, then continue the guided walkthrough from the first open stage. It uses the user's Codex CLI login and may consume usage. Never start a second runner for the workspace. If the environment has ACCOUNTING_RUNNER_CHILD=1, you are a worker: do only the task in the prompt, clear problems through the owning skills, save inferred classifications as proposals, and never launch a runner.
