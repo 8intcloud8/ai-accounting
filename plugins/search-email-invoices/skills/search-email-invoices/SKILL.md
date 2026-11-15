@@ -12,7 +12,7 @@ description: >
   or BAS, use this skill. Use Xero only when the user names Xero or asks what
   is owed, outstanding, or overdue. If ambiguous, ask first.
 metadata:
-  version: "0.6.15"
+  version: "0.6.16"
 ---
 
 ## Shared case memory
@@ -59,7 +59,9 @@ Make one minimal Gmail search and note the connected account's address. If no ac
 
 ## 2. Ask for missing inputs, in one message
 
-- Personal or business bills (business runs drop personal vendors inside `search_bills`).
+Bills are business by default (`category: "business"`; business runs drop personal vendors inside `search_bills`). Never ask business or personal; use `personal` only if the user asks for personal bills.
+
+
 - The period (accept "FY25", "last quarter" or dates; normalise to `YYYY-MM-DD`).
 - Where to save, only if not settled in this chat: read `$CODEX_HOME/accounting-workspaces.json` (default `~/.codex`).
   - Workspaces listed: ask "Which workspace should I use?". Never ask for a separate save folder.
