@@ -14,7 +14,7 @@ REQUEST = {"start": "2026-07-01", "end": "2026-09-30", "goal": "bas"}
 def problem(code, who, count=1, text=None):
     skill = {"transactions_unclassified": "classify-transactions",
              "reconciliation_required": "reconcile-accounts",
-             "intake_question": "grill-me-tax"}.get(code, "x")
+             "intake_question": "tax-intake"}.get(code, "x")
     return {"code": code, "skill": skill, "who": who, "count": count, "text": text or f"{code} {count}"}
 
 

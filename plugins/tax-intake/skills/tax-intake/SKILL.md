@@ -1,5 +1,5 @@
 ---
-name: grill-me-tax
+name: tax-intake
 description: Ask the missing questions and collect evidence needed before Australian BAS or income-tax-return preparation. Use for initial intake or changes in a returning client's circumstances.
 ---
 
@@ -35,7 +35,7 @@ For annual returns, use the entity-specific branch and reporting-year instructio
 
 ## Save and continue
 
-Save an intake JSON and concise Markdown evidence checklist under the selected workspace's output/<local-date>/reports/grill-me-tax-<unique-run-id>/. Once a run has started, update its own artifacts and preserve previous answers with a dated change history. Each case records entity, task, dates, question ID, answer, unknown/confirmed/evidence-pending status, source, confirmed date, effective period, linked evidence and next action. Collect only data needed for applicable questions. Never put private client answers in the package source or global agent memory.
+Save an intake JSON and concise Markdown evidence checklist under the selected workspace's output/<local-date>/reports/tax-intake-<unique-run-id>/. Once a run has started, update its own artifacts and preserve previous answers with a dated change history. Each case records entity, task, dates, question ID, answer, unknown/confirmed/evidence-pending status, source, confirmed date, effective period, linked evidence and next action. Collect only data needed for applicable questions. Never put private client answers in the package source or global agent memory.
 
 End each interview session with known scope, unanswered facts, missing records, applicable specialist follow-ups and saved paths. Intake completeness means applicable questions have supported answers or explicit unresolved items. It never establishes tax calculation or lodgement readiness.
 

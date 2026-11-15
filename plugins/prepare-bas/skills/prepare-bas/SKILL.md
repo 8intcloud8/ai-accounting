@@ -45,7 +45,7 @@ The helper returns saved_csv, saved_documents_csv and saved_exceptions_csv. BAS 
 
 ## Identify the BAS work required
 
-Reuse saved period applicability. Route missing or stale applicability facts to `grill-me-tax`; it owns the period interview and persistence. Validate its saved results before reporting readiness; do not repeat the interview here.
+Reuse saved period applicability. Route missing or stale applicability facts to `tax-intake`; it owns the period interview and persistence. Validate its saved results before reporting readiness; do not repeat the interview here.
 
 ## Fixed HTML report contract
 

@@ -32,7 +32,7 @@ Requires the `codex` command on `PATH` (in Codex Desktop it is inside the app: `
 |---|---|
 | setup-accounting | Workspace and business setup |
 | ato-docs | Research official ATO guidance with citations and year/entity checks |
-| grill-me-tax | Draft BAS and tax-return intake questionnaire; coverage validation pending |
+| tax-intake | BAS scope and tax-return intake questions; coverage validation pending |
 | setup-xero-mcp | Optional Xero OAuth setup and automatically refreshed MCP connection |
 | manage-accounting | Resume a period and show outstanding work |
 | search-email-invoices | Find Gmail documents |

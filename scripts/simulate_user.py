@@ -36,7 +36,7 @@ def user_prompt(root, result, answers):
     return (
         f"You are the SIMULATED USER for the test accounting workspace {root}. "
         "This workspace is test data; the real user has authorised you to answer and approve on their behalf here only. "
-        "Use installed manage-accounting and the owning skills (grill-me-tax for intake, the stage skill for approvals) to save each answer, "
+        "Use installed manage-accounting and the owning skills (tax-intake for intake, the stage skill for approvals) to save each answer, "
         "exactly as a user reply would be saved. Answer from this answers file; where it gives a default, use it for unlisted questions:\n"
         + json.dumps(answers)
         + "\nApprove proposals only as the answers file allows. Never edit source documents or databases directly, never lodge. "

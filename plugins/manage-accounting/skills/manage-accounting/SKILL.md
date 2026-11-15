@@ -29,7 +29,7 @@ Adapt the period, folder paths and, for a tax goal, step 7. Mention which files 
 
 **After the go-ahead:** a step is done only when it has no open problems and its work exists. Work the **lowest open step** using its stage instructions. Never jump ahead to questions or figures from a later step while an earlier step is open; earlier work found in saved reports or workbooks does not complete a step until its problems are clear and the user has seen its result in this walkthrough.
 
-1. **Setup.** Show the business profile, GST registration/basis, BAS method, whether GST turnover is under $10 million (needed for Simpler BAS and cash basis) and the lodgment due date, pre-filled from saved records. Ask to confirm or correct; save through setup-accounting / grill-me-tax.
+1. **Setup.** Show the business profile, GST registration/basis, BAS method, whether GST turnover is under $10 million (needed for Simpler BAS and cash basis) and the lodgment due date, pre-filled from saved records. Ask to confirm or correct; save through setup-accounting / tax-intake.
 2. **Bank statements.** Import with extract-bankstatements. Show accounts, date range, transaction count, money in/out and the opening/closing balances printed on the statement. If the statement doesn't print them, say so and ask for a document that does (previous statement or internet-banking balance); never show a worked-out balance as the opening balance. Ask the user to confirm the statement is complete.
 3. **Invoices.** Extract with extract-invoices, recording tax invoice details (supplier ABN, GST shown, buyer named). Show how many were read, totals and GST, and list the ones with issues grouped by issue; name purchases over $82.50 that are not valid tax invoices, since their GST can't be claimed until the supplier provides one. Let the user fix, skip or mark each group not applicable.
 4. **Transactions.** First, the **ATO check**: group the unclassified rows by payee and list the distinct GST treatments they need (e.g. wages, bank fees, loan repayments, overseas software, local supplies with a tax invoice). Look up each treatment once with ato-docs: the local ATO library first (`ato-search`), ato.gov.au only when it has no current answer. Show the list in chat before any proposals, one line each: treatment → rule → source (library: guide title, page and the quoted sentence; web: ATO page title and link), or "couldn't verify, not verified". Reuse a citation already checked this period. Then classify with classify-transactions, saving every inferred treatment as a proposal (`save-proposals`) that carries the matching citation as `gst.source`; post only on approval. Then review:
@@ -63,7 +63,7 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 
 
-The saved workflow covers: setup-accounting only when configuration is missing; grill-me-tax for missing intake; search-email-invoices and save-invoices for requested collection; review-invoices for source housekeeping before imports when needed; extract-invoices and extract-bankstatements; allocate-running-costs and classify-transactions; match-payments and settlement classification; reconcile-accounts; prepare-bas and/or prepare-tax-report according to the requested goal. Continue supported work and reuse saved answers/artifacts. Route mutations to the owning skill.
+The saved workflow covers: setup-accounting only when configuration is missing; tax-intake for missing intake; search-email-invoices and save-invoices for requested collection; review-invoices for source housekeeping before imports when needed; extract-invoices and extract-bankstatements; allocate-running-costs and classify-transactions; match-payments and settlement classification; reconcile-accounts; prepare-bas and/or prepare-tax-report according to the requested goal. Continue supported work and reuse saved answers/artifacts. Route mutations to the owning skill.
 
 Missing GST does not mean zero. Never count invoice plus its bank payment as two expenses. Bank transfers, director loans and repayments need explicit treatment.
 
@@ -93,7 +93,7 @@ Route: setup and source inventory; import purchases, sales/RCTIs and all bank/ca
 
 ## Identify the BAS work required
 
-Reuse saved period applicability. Route missing or stale applicability facts to `grill-me-tax`; it owns the period interview and persistence. Validate its saved results before reporting readiness; do not repeat the interview here.
+Reuse saved period applicability. Route missing or stale applicability facts to `tax-intake`; it owns the period interview and persistence. Validate its saved results before reporting readiness; do not repeat the interview here.
 
 ## Fixed HTML report contract
 

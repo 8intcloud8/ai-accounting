@@ -65,18 +65,6 @@
       }
     },
     {
-      "name": "grill-me-tax",
-      "category": "Productivity",
-      "source": {
-        "source": "local",
-        "path": "./plugins/grill-me-tax"
-      },
-      "policy": {
-        "installation": "INSTALLED_BY_DEFAULT",
-        "authentication": "ON_INSTALL"
-      }
-    },
-    {
       "name": "manage-accounting",
       "category": "Productivity",
       "source": {
@@ -190,6 +178,18 @@
       "source": {
         "source": "local",
         "path": "./plugins/setup-xero-mcp"
+      },
+      "policy": {
+        "installation": "INSTALLED_BY_DEFAULT",
+        "authentication": "ON_INSTALL"
+      }
+    },
+    {
+      "name": "tax-intake",
+      "category": "Productivity",
+      "source": {
+        "source": "local",
+        "path": "./plugins/tax-intake"
       },
       "policy": {
         "installation": "INSTALLED_BY_DEFAULT",

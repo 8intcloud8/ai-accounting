@@ -1,9 +1,9 @@
 {
-  "name": "grill-me-tax",
+  "name": "tax-intake",
   "version": "0.1.6",
   "description": "Collect missing facts and evidence for Australian BAS and tax-return preparation through a progressive, entity-specific interview.",
   "interface": {
-    "displayName": "Grill Me Tax",
+    "displayName": "Tax Intake",
     "shortDescription": "Collect missing facts and evidence for Australian BAS and tax-return preparation through a progressive, entity-specific interview.",
     "category": "Productivity",
     "capabilities": [

@@ -1100,7 +1100,7 @@ def document_review(db, start, end):
 # pipeline order: earlier problems are fixed first. Users clear "user" problems by
 # answering through the owning skill; nothing else tracks progress.
 PROBLEMS = {
-    "intake_question": ("grill-me-tax", "user"),
+    "intake_question": ("tax-intake", "user"),
     "bank_missing": ("extract-bankstatements", "worker"),
     "statements_unread": ("extract-bankstatements", "worker"),
     "invoices_unread": ("extract-invoices", "worker"),
