@@ -1,10 +1,10 @@
 {
   "name": "review-invoices",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "Review local invoice folders for duplicates and non-invoices, then quarantine approved files with a recovery log.",
   "skills": "./skills/",
   "interface": {
-    "displayName": "Invoice Folder",
+    "displayName": "Invoice Cleanup",
     "shortDescription": "Review duplicates and non-invoices before cleanup",
     "developerName": "AI Accounting contributors",
     "category": "Productivity",

@@ -1,10 +1,10 @@
 {
   "name": "upload-invoices-drive",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Store original invoices in a dedicated Google Drive invoices/YYYY-MM folder hierarchy.",
   "skills": "./skills/",
   "interface": {
-    "displayName": "Google Drive",
+    "displayName": "Google Drive Invoices",
     "shortDescription": "Store invoices in monthly Google Drive folders",
     "developerName": "AI Accounting contributors",
     "category": "Productivity",
