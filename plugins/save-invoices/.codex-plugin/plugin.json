@@ -1,6 +1,6 @@
 {
   "name": "save-invoices",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Save Gmail MCP bill attachments directly to disk without relaying PDF bytes through the model.",
   "author": {
     "name": "Save Invoices contributors"

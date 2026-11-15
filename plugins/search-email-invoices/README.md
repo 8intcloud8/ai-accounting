@@ -65,7 +65,7 @@ Settings remain inside the plugin, are reread on every search, and are ignored b
 - The server does not determine whether an expense is deductible or eligible for GST credits.
 - The host must scope Gmail queries to the requested date range; the consolidator does not independently reject out-of-range candidates.
 - Deduplication uses thread IDs. Gmail links target account slot 0; check the correct account when using multiple accounts.
-- Only `search_bills` is exposed. Vendor settings are edited locally.
+- Only `search_email_invoices` is exposed. Vendor settings are edited locally.
 - Default operation uses stdio. Optional HTTP mode uses a token and binds to loopback; see `mcp-server/README.md`.
 
 ## Development and releases

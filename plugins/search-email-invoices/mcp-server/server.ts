@@ -33,7 +33,7 @@ const candidateSchema = z.object({
   foundVia: z.string(),
 });
 
-const searchBillsInput = {
+const searchEmailInvoicesInput = {
   category: CATEGORY.describe(
     "personal, business, or bills (unlabelled). Business runs apply the personal-vendor exclusion filter.",
   ),
@@ -49,7 +49,7 @@ const searchBillsInput = {
     ),
 };
 
-const searchBillsOutput = {
+const searchEmailInvoicesOutput = {
   bills: z.array(billResultSchema),
   excluded: z.array(
     z.object({ vendor: z.string(), sender: z.string(), matchedRule: z.string() }),
@@ -73,9 +73,9 @@ export function createServer(): McpServer {
   // Browser delivery is owned by the skill. Advertising an MCP App here
   // causes hosts to render a second checklist inside the chat.
   server.registerTool(
-    "search_bills",
+    "search_email_invoices",
     {
-      title: "Search Bills",
+      title: "Search Email Invoices",
       description:
         "Consolidates candidate bills/invoices/receipts you found via your own Gmail search " +
         "into structured data for a standalone browser checklist. Never display its bill " +
@@ -84,8 +84,8 @@ export function createServer(): McpServer {
         "search strategy: keyword/attachment/label/inline/forwarded passes, then sender-domain " +
         "and synonym expansion, run until a full round adds nothing new). Business runs exclude " +
         "personal vendors.",
-      inputSchema: searchBillsInput,
-      outputSchema: searchBillsOutput,
+      inputSchema: searchEmailInvoicesInput,
+      outputSchema: searchEmailInvoicesOutput,
       // Runs on this machine only: no network, no writes, no data leaves the host.
       annotations: {
         readOnlyHint: true,

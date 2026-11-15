@@ -31,7 +31,7 @@ export interface BillResult {
 
 /**
  * One occurrence of a candidate bill found by the agent's own Gmail search
- * pass. search_bills takes an array of these (possibly several per thread,
+ * pass. search_email_invoices takes an array of these (possibly several per thread,
  * one per matching pass) and consolidates/dedupes/filters them — it never
  * calls Gmail itself, since a standalone MCP server has no way to reach an
  * already-connected Gmail MCP connector.
@@ -55,7 +55,7 @@ export interface ExcludedBill {
   matchedRule: string;
 }
 
-export interface SearchBillsCounts {
+export interface SearchEmailInvoicesCounts {
   total: number;
   withAttachment: number;
   inline: number;
@@ -65,10 +65,10 @@ export interface SearchBillsCounts {
   outOfRange: number;
 }
 
-export interface SearchBillsStructured {
+export interface SearchEmailInvoicesStructured {
   bills: BillResult[];
   excluded: ExcludedBill[];
-  counts: SearchBillsCounts;
+  counts: SearchEmailInvoicesCounts;
   category: BillCategory;
   dateFrom: string;
   dateTo: string;

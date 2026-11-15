@@ -12,12 +12,12 @@ test('search exposes data without advertising or returning an inline app', async
   await client.connect(clientTransport);
   try {
     const { tools } = await client.listTools();
-    const search = tools.find(tool => tool.name === 'search_bills');
+    const search = tools.find(tool => tool.name === 'search_email_invoices');
     assert.ok(search);
     assert.equal(search._meta, undefined);
     assert.equal(server.server.getCapabilities().resources, undefined);
     const result = await client.callTool({
-      name: 'search_bills',
+      name: 'search_email_invoices',
       arguments: {
         category: 'bills', date_from: '2026-07-01', date_to: '2026-09-30',
         candidates: [{

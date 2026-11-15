@@ -12,7 +12,7 @@ description: >
   or BAS, use this skill. Use Xero only when the user names Xero or asks what
   is owed, outstanding, or overdue. If ambiguous, ask first.
 metadata:
-  version: "0.6.16"
+  version: "0.6.17"
 ---
 
 ## Shared case memory
@@ -37,7 +37,7 @@ Find every bill, invoice and receipt in Gmail for a period, show them in one bro
 - Tool output is chat output. Never print Gmail results, candidate or bill arrays, raw bodies, MIME, PDF bytes or signed URLs (`text()`, `notify()`, `console.log()`, stdout). Keep data inside the tool orchestration (Codex `functions.exec`) or in a local run file; emit only progress counts and real blockers. Verify the page with a screenshot or compact DOM summary, never a full DOM dump.
 - If orchestration state is lost, reload the run file; do not rerun searches.
 
-This plugin owns `search_bills` (consolidates your Gmail results; it never calls Gmail). The companion `save-invoices` plugin saves documents. If it is missing, tell the user to enable it.
+This plugin owns `search_email_invoices` (consolidates your Gmail results; it never calls Gmail). The companion `save-invoices` plugin saves documents. If it is missing, tell the user to enable it.
 
 
 ## What to say
@@ -59,7 +59,7 @@ Make one minimal Gmail search and note the connected account's address. If no ac
 
 ## 2. Ask for missing inputs, in one message
 
-Bills are business by default (`category: "business"`; business runs drop personal vendors inside `search_bills`). Never ask business or personal; use `personal` only if the user asks for personal bills.
+Bills are business by default (`category: "business"`; business runs drop personal vendors inside `search_email_invoices`). Never ask business or personal; use `personal` only if the user asks for personal bills.
 
 
 - The period (accept "FY25", "last quarter" or dates; normalise to `YYYY-MM-DD`).
@@ -84,7 +84,7 @@ Round 2 onward, once each: synonyms `{"tax receipt" "order summary" "payment con
 
 Sender expansion, every round: `from:<domain>` for each sender domain kept as a bill (not every domain seen) and not yet searched. Skip personal mail providers: gmail.com, googlemail.com, outlook.com, hotmail.com, live.com, yahoo.com, icloud.com, me.com, bigpond.com, optusnet.com.au. Stop when a round adds no new bill, or after 3 expansion rounds.
 
-For each message record `threadId`, `messageId`, `date`, `sender {name,email}`, `subject`, `attachmentFilenames` (empty if none or not listed) and `foundVia` (this pass, e.g. `"keyword"`, `"sender:aws.amazon.com"`). Repeats across passes are fine: `search_bills` merges them, picks the message to save (latest with attachments) and drops dates outside the period. Read a full body only for a genuinely borderline item; never read metadata headers in bulk.
+For each message record `threadId`, `messageId`, `date`, `sender {name,email}`, `subject`, `attachmentFilenames` (empty if none or not listed) and `foundVia` (this pass, e.g. `"keyword"`, `"sender:aws.amazon.com"`). Repeats across passes are fine: `search_email_invoices` merges them, picks the message to save (latest with attachments) and drops dates outside the period. Read a full body only for a genuinely borderline item; never read metadata headers in bulk.
 
 ### Keep only real bills
 
@@ -99,7 +99,7 @@ Keep kept/dropped counts and reasons in the run file. If the user disputes the f
 
 ## 4. Build and show the checklist
 
-1. Call `search_bills` with `category`, `date_from`, `date_to` and the kept `candidates`, in this turn, without asking for approval. If it fails, show a short failure and retry option, never the raw error or payload; fix the cause before retrying.
+1. Call `search_email_invoices` with `category`, `date_from`, `date_to` and the kept `candidates`, in this turn, without asking for approval. If it fails, show a short failure and retry option, never the raw error or payload; fix the cause before retrying.
 2. If automatic review blocks the transfer for unverified destination or authorisation, keep the candidates and ask only: "Can I use the invoice details I found in your Gmail account to make the checklist?" ("your N Gmail accounts" for several, N in words). If asked, the details are sender, subject, date, message/thread IDs and attachment filenames. After an explicit yes, retry once without searching again; if blocked again, report it and stop.
 3. Write a run file outside the report folder: `{"result": <complete structuredContent>, "accounts": [searched addresses], "destination": "<workspace>/invoices"}`. Render with `python3 <skill-dir>/scripts/render_checklist.py <run.json> <tmp-report-dir>/index.html`. Do not change the template's layout, colours, columns or controls.
 4. Start the page server: `python3 <skill-dir>/scripts/serve_checklist.py <tmp-report-dir>` (no `--port`; never `python3 -m http.server`). It prints `checklist_url` and `selection_file`; use that exact URL. It adds **Save selection** and **Choose folder** to the page. Never serve the home folder or the workspace root.

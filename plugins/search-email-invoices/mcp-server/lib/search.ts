@@ -6,7 +6,7 @@ import type {
   BillCategory,
   BillResult,
   ExcludedBill,
-  SearchBillsStructured,
+  SearchEmailInvoicesStructured,
 } from "./types.js";
 
 /**
@@ -21,7 +21,7 @@ export function consolidateBills(
   category: BillCategory,
   dateFrom: string,
   dateTo: string,
-): SearchBillsStructured {
+): SearchEmailInvoicesStructured {
   const byThread = new Map<string, BillCandidateInput[]>();
   let outOfRange = 0;
   for (const c of candidates) {
