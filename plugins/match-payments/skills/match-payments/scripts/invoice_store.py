@@ -31,7 +31,13 @@ CREATE TABLE IF NOT EXISTS invoice_lines (
  description TEXT NOT NULL, amount_cents INTEGER, gst_cents INTEGER,
  PRIMARY KEY(invoice_id,line_number));
 CREATE INDEX IF NOT EXISTS invoice_dates ON invoices(business_id,invoice_date);
+CREATE TABLE IF NOT EXISTS supporting_documents (
+ document_id INTEGER PRIMARY KEY REFERENCES documents(id), business_id TEXT NOT NULL,
+ kind TEXT NOT NULL CHECK(kind IN ('notification','payment_confirmation','booking','other')),
+ linked_invoice_id INTEGER REFERENCES invoices(id), reason TEXT NOT NULL,
+ recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 """
+SUPPORTING_KINDS = ("notification", "payment_confirmation", "booking", "other")
 
 
 def date_value(value: object) -> str | None:
@@ -82,6 +88,11 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
         ):
             raise ValueError("Currency must be a three-letter code")
         currency = currency.upper() if currency else None
+        tax_evidence = tax_invoice_evidence(record)
+        if not currency and tax_evidence and tax_evidence[0]:
+            # A valid ABN means an Australian supplier billing in Australian dollars.
+            currency = "AUD"
+            issues = [i for i in issues if "currency" not in i.lower()]
         total = None if record.get("total") in (None, "") else cents(record["total"])
         gst = None if record.get("gst") in (None, "") else cents(record["gst"])
         if gst is not None and total is not None and gst > total:
@@ -99,7 +110,6 @@ def import_invoices(path: Path, payload: dict, connect, cents) -> dict:
             raise ValueError("Invalid review status")
         if status == "verified" and issues:
             raise ValueError("Verified invoice cannot contain unresolved issues")
-        tax_evidence = tax_invoice_evidence(record)
         kind = record.get("kind", "invoice")
         if kind not in ("invoice", "receipt", "credit_note"):
             raise ValueError("Unsupported document kind")
@@ -344,3 +354,49 @@ def read_invoices(path: Path, business: str | None, status: str | None) -> dict:
             "verified_total_cents_by_currency": totals,
             "invoices": invoices,
         }
+
+
+def record_supporting(path, payload, connect):
+    """Keep a document that is not an invoice (a notification, payment confirmation or
+    booking) as supporting evidence, so it is neither read again nor reviewed as one."""
+    business = optional_text(payload.get("business_id"))
+    if not business:
+        raise ValueError("Stable business identity required")
+    kind = payload.get("kind")
+    if kind not in SUPPORTING_KINDS:
+        raise ValueError("Kind must be one of: " + ", ".join(SUPPORTING_KINDS))
+    reason = optional_text(payload.get("reason"))
+    if not reason:
+        raise ValueError("Say why this is not an invoice")
+    linked = payload.get("linked_invoice_id")
+    if linked is not None and (type(linked) is not int or linked < 1):
+        raise ValueError("Linked invoice ID must be a positive integer")
+    source = Path(payload["file"]).resolve(strict=True)
+    source_hash, managed_path = preserve_source(path, source)
+    with closing(connect(path)) as db, db:
+        db.execute("BEGIN IMMEDIATE")
+        owner = db.execute("SELECT business_id FROM workspace_profile WHERE id=1").fetchone()
+        if owner and owner[0] != business:
+            raise ValueError("Document business differs from configured workspace")
+        if linked is not None and not db.execute(
+            "SELECT 1 FROM invoices WHERE id=? AND business_id=?", (linked, business)
+        ).fetchone():
+            raise ValueError("Linked invoice not found for this business")
+        db.execute("INSERT OR IGNORE INTO documents(sha256) VALUES (?)", (source_hash,))
+        doc_id = db.execute("SELECT id FROM documents WHERE sha256=?", (source_hash,)).fetchone()[0]
+        if db.execute(
+            "SELECT 1 FROM invoices WHERE document_id=? AND record_sha256!='withdrawn'", (doc_id,)
+        ).fetchone():
+            raise ValueError("Already imported as an invoice; withdraw it with correct-record first")
+        db.execute("INSERT OR IGNORE INTO managed_documents VALUES (?,?)", (source_hash, str(managed_path)))
+        db.execute(
+            "INSERT OR IGNORE INTO document_sources VALUES (?,?,?,?)",
+            (doc_id, str(source), optional_text(payload.get("email_account")) or "",
+             optional_text(payload.get("email_message_id")) or ""),
+        )
+        db.execute(
+            "INSERT OR REPLACE INTO supporting_documents(document_id,business_id,kind,linked_invoice_id,reason) VALUES (?,?,?,?,?)",
+            (doc_id, business, kind, linked, reason),
+        )
+    return {"document_id": doc_id, "kind": kind, "linked_invoice_id": linked}
+

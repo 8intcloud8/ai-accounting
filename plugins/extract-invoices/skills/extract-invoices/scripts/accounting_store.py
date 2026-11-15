@@ -41,7 +41,7 @@ from allocation_store import (
 from running_cost_workpapers import WORKPAPER_SCHEMA, save_fixed, list_fixed
 import expense_claims
 from payment_store import PAYMENT_SCHEMA, propose, confirm
-from invoice_store import INVOICE_SCHEMA, import_invoices, read_invoices
+from invoice_store import INVOICE_SCHEMA, import_invoices, read_invoices, record_supporting
 from proposal_store import PROPOSAL_SCHEMA
 from bas_labels import BAS_LABELS_SCHEMA
 import ato_library
@@ -255,6 +255,8 @@ def main() -> None:
             cmd.add_argument("--output", type=Path, required=True)
     bills = sub.add_parser("import-invoices")
     bills.add_argument("--records", type=Path, required=True)
+    support = sub.add_parser("record-supporting", help="Keep a non-invoice document as supporting evidence")
+    support.add_argument("--request", type=Path, required=True)
     listing = sub.add_parser("invoices")
     listing.add_argument("--business")
     listing.add_argument("--status", choices=["verified", "needs_review"])
@@ -281,6 +283,8 @@ def main() -> None:
     review.add_argument("--csv", type=Path, required=True)
     review.add_argument("--title")
     review.add_argument("--port", type=int, default=0)
+    review.add_argument("--start", help="Review period start; lets invoice rows be excluded")
+    review.add_argument("--end", help="Review period end")
     claims = sub.add_parser("record-purchase")
     claims.add_argument("--request", type=Path, required=True)
     add_commands(sub)
@@ -307,7 +311,8 @@ def main() -> None:
         if args.command == "review-table":
             from review_table import serve
 
-            serve(args.csv, args.db.resolve().parent.parent, args.title, args.port)
+            serve(args.csv, args.db.resolve().parent.parent, args.title, args.port,
+                  args.start, args.end, args.db.resolve())
             return
         if args.command == "record-purchase":
             result = expense_claims.record(
@@ -339,6 +344,8 @@ def main() -> None:
             result = import_invoices(
                 args.db, json.loads(args.records.read_text()), connect, cents
             )
+        elif args.command == "record-supporting":
+            result = record_supporting(args.db, json.loads(args.request.read_text()), connect)
         elif args.command == "invoices":
             result = read_invoices(args.db, args.business, args.status)
         elif args.command == "import":

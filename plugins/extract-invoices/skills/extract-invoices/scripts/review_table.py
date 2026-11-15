@@ -8,6 +8,7 @@ import os
 import tempfile
 import re
 import secrets
+import sqlite3
 from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
@@ -97,6 +98,57 @@ def load_table(csv_path, workspace, title=None):
     }
 
 
+EXCLUDE_REASONS = ("Private or personal", "Not an invoice", "Duplicate",
+                   "Belongs to another period", "Zero amount", "Other")
+
+
+def excluded_now(db_path, start, end):
+    """Invoices the user excluded from this period: {invoice_id: reason}."""
+    db = sqlite3.connect(f"{Path(db_path).resolve().as_uri()}?mode=ro", uri=True)
+    try:
+        rows = db.execute(
+            "SELECT d.invoice_id,d.status,d.reason FROM document_dispositions d JOIN invoices i ON i.id=d.invoice_id"
+            " WHERE d.start=? AND d.end=? AND d.source_hash=i.record_sha256 AND d.id=(SELECT max(x.id)"
+            " FROM document_dispositions x WHERE x.invoice_id=d.invoice_id AND x.start=? AND x.end=?)",
+            (start, end, start, end),
+        ).fetchall()
+    finally:
+        db.close()
+    return {str(i): reason for i, status, reason in rows if status == "excluded"}
+
+
+def exclude(table, request):
+    """Mark one invoice row 'not for this BAS', or undo it. Audited and reversible."""
+    from accounting_store import connect
+    from product_store import dispose_document
+
+    period = table.get("exclusion")
+    if not period:
+        raise ValueError("Excluding needs the review period; reopen the page from Codex")
+    index = request.get("row")
+    if type(index) is not int or not 0 <= index < len(table["rows"]):
+        raise ValueError("Unknown review row")
+    invoice = table["rows"][index]["values"].get("invoice_id", "")
+    if not invoice.isdigit():
+        raise ValueError("This row has no invoice to exclude")
+    undo = request.get("undo") is True
+    reason = request.get("reason")
+    if not undo and reason not in EXCLUDE_REASONS:
+        raise ValueError("Choose why this row is not for this BAS")
+    note = request.get("note") or ""
+    if not isinstance(note, str) or len(note) > 500:
+        raise ValueError("Keep the note under 500 characters")
+    text = "Undone by the user on the review page" if undo else (
+        f"Excluded by the user: {reason}" + (f" ({note.strip()})" if note.strip() else ""))
+    dispose_document(Path(table["db"]), {"invoice_id": int(invoice), "start": period["start"], "end": period["end"],
+                                   "status": "unresolved" if undo else "excluded", "reason": text}, connect)
+    if undo:
+        table["excluded"].pop(invoice, None)
+    else:
+        table["excluded"][invoice] = text
+    return {"invoice_id": int(invoice), "excluded": not undo, "reason": text}
+
+
 def save_request(table, request):
     """Save an evidence-bound request; this is never an approval or ledger write."""
     if not isinstance(request, dict) or request.get("action") not in (
@@ -158,7 +210,7 @@ def save_request(table, request):
 
 
 def render_page(table, offline=False):
-    public = {k: v for k, v in table.items() if k not in ("links", "workspace")}
+    public = {k: v for k, v in table.items() if k not in ("links", "workspace", "db")}
     public["links"] = list(table["links"])
     if offline:
         public["offlineSources"] = {key: path.as_uri() for key, path in table["links"].items()}
@@ -192,7 +244,6 @@ def save_invoice_html(table):
 def create_server(table, port=0):
     """Expose only this snapshot and its allowlisted sources on loopback."""
     token = secrets.token_urlsafe(32)
-    page = render_page(table)
 
     class Handler(LocalHandler):
         # Source PDFs and images open inside the page.
@@ -209,7 +260,7 @@ def create_server(table, port=0):
                 self.send(403, '{"error":"Open the review link supplied by Codex"}')
                 return
             if route == "/":
-                self.send(200, page, "text/html; charset=utf-8")
+                self.send(200, render_page(table), "text/html; charset=utf-8")
             elif route == "/source":
                 target = table["links"].get(self.query("id"))
                 if (
@@ -249,11 +300,12 @@ def create_server(table, port=0):
             ):
                 self.send(403, '{"error":"Request origin rejected"}')
                 return
-            if self.path != "/requests":
+            if self.path not in ("/requests", "/exclude"):
                 self.send(404, '{"error":"Not found"}')
                 return
             try:
-                result = save_request(table, self.read_json(32000))
+                handler = exclude if self.path == "/exclude" else save_request
+                result = handler(table, self.read_json(32000))
                 self.send(201, json.dumps(result))
             except (ValueError, TypeError, OSError) as exc:
                 self.send(400, json.dumps({"error": str(exc)}))
@@ -263,8 +315,12 @@ def create_server(table, port=0):
     return server
 
 
-def serve(csv_path, workspace, title=None, port=0):
+def serve(csv_path, workspace, title=None, port=0, start=None, end=None, db=None):
     table = load_table(csv_path, workspace, title)
+    if start and end and db and "invoice_id" in table["columns"]:
+        # Invoice rows can be marked "not for this BAS" straight from the page.
+        table.update(db=str(db), exclusion={"start": start, "end": end, "reasons": list(EXCLUDE_REASONS)},
+                     excluded=excluded_now(db, start, end))
     saved = {}
     if "invoice_id" in table["columns"] and "invoice_number" in table["columns"]:
         saved["saved_html"] = str(save_invoice_html(table))
@@ -292,18 +348,19 @@ HTML = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Accounting review</title>
 <style>
 :root{color-scheme:light dark;--bg:#f7f8fa;--panel:#fff;--text:#17212f;--muted:#566174;--line:#d8dfe8;--brand:#175b51;--soft:#e8f5ee;--warn:#fff3d2;--warntext:#714c00;--focus:#276add}*{box-sizing:border-box}body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}header,main{padding:24px;max-width:1600px;margin:auto}header{padding-bottom:16px}.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);font-weight:650}h1{margin:5px 0;font-size:25px;line-height:1.25;font-weight:650}.subtitle,.hint{color:var(--muted)}.summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.chip{background:var(--panel);padding:6px 12px;border:1px solid var(--line);border-radius:999px}.chip.warn,.badge.warn{background:var(--warn);color:var(--warntext)}main{padding-top:0}.toolbar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:8px 0 14px}label{display:block;font-weight:600;font-size:12px}input,select,textarea,button{font:inherit;color:inherit}input,select,textarea{border:1px solid var(--line);border-radius:7px;padding:9px 11px;background:var(--panel)}input[type=search]{min-width:260px}button,.source{border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--panel);cursor:pointer;white-space:nowrap}button:hover,.source:hover{background:var(--soft)}button:disabled{opacity:.5;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}.primary{background:var(--brand);color:#fff;border-color:var(--brand)}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--panel);max-height:68vh}table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}th{position:sticky;top:0;background:var(--panel);z-index:1;border-bottom:1px solid var(--line);text-align:left;padding:0}th button{border:0;border-radius:0;text-align:left;width:100%;padding:13px 12px;background:transparent}td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top;max-width:330px;min-width:115px;overflow-wrap:anywhere}tr:last-child td{border-bottom:0}tr:hover td{background:color-mix(in srgb,var(--soft) 35%,var(--panel))}.money{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.badge{display:inline-block;padding:3px 8px;border-radius:5px;background:var(--soft);white-space:normal}.unknown{color:var(--warntext);font-style:italic}.issue{color:var(--warntext);background:var(--warn);padding:4px 7px;border-radius:4px}.actions{min-width:180px;white-space:nowrap;position:sticky;right:0;background:var(--panel);box-shadow:-1px 0 var(--line)}.issue-cell{min-width:230px;max-width:320px}summary{cursor:pointer;color:var(--warntext)}details[open] summary{margin-bottom:8px}th:last-child{position:sticky;right:0;z-index:2;padding:12px;background:var(--panel)}footer{overflow-wrap:anywhere}.actions button{margin-right:5px}.source{color:var(--brand);text-decoration:none;display:inline-block}footer{margin-top:12px;color:var(--muted);font-size:12px}.status{margin-top:12px;padding:12px;border-radius:7px;background:var(--soft);overflow-wrap:anywhere}.status.error{background:var(--warn);color:var(--warntext)}dialog{width:min(540px,94vw);border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:24px}dialog::backdrop{background:#0007}dialog h2{margin-top:0;font-size:20px}dialog label{margin:14px 0 5px}dialog input,dialog textarea,dialog select{width:100%}dialog textarea{min-height:100px}.dialog-actions{display:flex;justify-content:end;gap:8px;margin-top:18px}.detail{max-height:130px;overflow:auto;padding:8px;background:var(--bg);border-radius:5px;white-space:pre-wrap}.pagination{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-top:12px}.pagebuttons{display:flex;gap:8px}.hidden{display:none!important}@media(prefers-color-scheme:dark){:root{--bg:#11171d;--panel:#1a222c;--text:#e9edf2;--muted:#a9b5c6;--line:#384555;--brand:#80d4bc;--soft:#203c35;--warn:#3d321b;--warntext:#f1cf85;--focus:#8bb5ff}.primary{background:#24735e;color:#fff;border-color:#24735e}}@media(max-width:600px){header,main{padding:16px}main{padding-top:0}input[type=search]{min-width:0;width:100%}.toolbar label{flex:1}.table-wrap{max-height:65vh}}
-</style></head><body>
+.groups{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 16px}.groups-title{width:100%;margin:0 0 2px;font-size:15px}.group{display:grid;gap:2px;text-align:left;white-space:normal;max-width:280px;border-radius:10px;padding:10px 12px}.group strong{font-size:15px}.group span{font-size:13px}.group small{color:var(--muted)}.group.on{border-color:var(--brand);background:var(--soft)}.group-clear{align-self:center}.exclude-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}.exclude-bar button{padding:4px 9px;font-size:12px}.excluded-note{color:var(--muted);font-style:italic}</style></head><body>
 <header><div class="eyebrow">Accounting · review</div><h1 id="title"></h1><div class="subtitle">Check documents, inspect issues and request corrections.</div><div class="summary"><span class="chip" id="count"></span><span class="chip warn" id="issues"></span><span class="chip" id="requests">0 requests saved this session</span></div></header>
-<main><div class="__TOOLBAR_CLASS__"><label>Search<input id="search" type="search" placeholder="Supplier, description, invoice…"></label><label>Show<select id="filter" aria-label="Show"><option value="all">All rows</option><option value="issues">Rows with issues</option><option value="requested">Requests saved this session</option></select></label><label>Columns<select id="columns" aria-label="Columns"><option value="summary">Review columns</option><option value="all">All source columns</option></select></label></div>
+<main><section id="groups" class="groups hidden" aria-label="What needs you"></section><div class="__TOOLBAR_CLASS__"><label>Search<input id="search" type="search" placeholder="Supplier, description, invoice…"></label><label>Show<select id="filter" aria-label="Show"><option value="all">All rows</option><option value="issues">Rows with issues</option><option value="requested">Requests saved this session</option></select></label><label>Columns<select id="columns" aria-label="Columns"><option value="summary">Review columns</option><option value="all">All source columns</option></select></label></div>
 <div class="table-wrap"><table aria-label="Accounting review records"><thead id="head"></thead><tbody id="body"></tbody></table></div><div class="pagination"><span id="visible" aria-live="polite"></span><div class="pagebuttons"><button id="prev">Previous</button><button id="next">Next</button></div></div><div id="notice" role="status" aria-live="polite" class="status hidden"></div><footer>Amounts are displayed in the row’s currency. Unknown currency stays unknown. Saving a request does not change accounting records.<br>CSV export: <span id="filename"></span></footer></main>
 <dialog id="dialog" aria-labelledby="dialog-title"><form id="form"><h2 id="dialog-title"></h2><div id="record" class="detail"></div><div id="correction"><label for="field">Field to correct</label><select id="field"></select><label for="current" id="current-label">Current value</label><input id="current" readonly><label for="proposed" id="proposed-label">Proposed value</label><input id="proposed"></div><label for="reason">What should Codex check?</label><textarea id="reason" required maxlength="4000" placeholder="Describe the issue or evidence supporting your correction"></textarea><div id="form-error" role="alert"></div><div class="dialog-actions"><button type="button" id="cancel">Cancel</button><button type="submit" class="primary" id="save">Save request</button></div></form></dialog>
+<dialog id="exclude" aria-labelledby="exclude-title"><form id="exclude-form"><h2 id="exclude-title">Not for this BAS</h2><div id="exclude-record" class="detail"></div><label for="exclude-reason">Why?</label><select id="exclude-reason"></select><label for="exclude-note">Note (optional)</label><input id="exclude-note" maxlength="500" placeholder="For example: family holiday"><p class="hint">It stays on file and you can put it back at any time.</p><div id="exclude-error" role="alert"></div><div class="dialog-actions"><button type="button" id="exclude-cancel">Cancel</button><button type="submit" class="primary" id="exclude-save">Leave it out</button></div></form></dialog>
 <script id="table-data" type="application/json">__TABLE_DATA__</script>
 <script>
 'use strict';
 const table=JSON.parse(document.getElementById('table-data').textContent);
 const $=id=>document.getElementById(id), token=new URL(location.href).searchParams.get('token');
 const offline=Boolean(table.offlineSources);
-const state={search:'',filter:'all',all:false,sort:null,descending:false,page:0,selected:null,action:null,requested:new Set(),saved:0};
+const state={search:'',filter:'all',group:null,all:false,sort:null,descending:false,page:0,selected:null,action:null,requested:new Set(),saved:0};
 const hidden=new Set(['invoice_id','transaction_id','allocation_id','business_id','record_sha256','imported_at','request_json','result_json','inputs_json','rule_json','email_message_id']);
 const allAud=table.rows.length>0&&table.rows.every(row=>row.values.currency==='AUD');
 if(allAud)hidden.add('currency');
@@ -316,7 +373,18 @@ if(table.columns.includes('invoice_number')){
 const sourceFields=new Set(['source','source_path','file','document_path','statement']);
 const label=key=>key==='issues'||key==='__review_task'?'What needs review':sourceFields.has(key)?'Document':key.replace(/_cents$/,'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())+(key.endsWith('_cents')?' (amount)':'');
 function reviewTasks(row){const tasks=[];for(const key of ['issues','blockers']){const raw=row.values[key];if(!raw||raw==='[]')continue;try{const parsed=JSON.parse(raw);if(Array.isArray(parsed))tasks.push(...parsed.map(String));else tasks.push(raw)}catch{tasks.push(raw)}}if(!row.values.currency&&table.columns.includes('currency'))tasks.push('Confirm the invoice currency.');for(const [key,value] of Object.entries(row.values)){if(key.endsWith('_cents')&&!['claim_balance_cents','recorded_reimbursement_cents'].includes(key)&&!value)tasks.push('Check '+label(key).replace(' (amount)','').toLowerCase()+' against the original document.');}if(!tasks.length){if(/needs_review|unresolved/.test(row.values.review_status||row.values.status||''))tasks.push('Codex must identify the unresolved fields before asking you to approve.');if(row.values.gst_status==='pending')tasks.push('Resolve business-use evidence and GST entitlement before claiming a credit.');if(/provisional|user_stated/.test(row.values.allocation_status||''))tasks.push('Provide usage evidence supporting the business-use percentage.');if(row.values.automatically_confirmed==='False'||row.values.automatically_confirmed==='false')tasks.push('Confirm that this invoice and bank payment belong together.');if(row.values.status==='draft'&&!tasks.length)tasks.push('Draft result: resolve the supporting review tasks before approval.');}return [...new Set(tasks)]}
-const warn=row=>reviewTasks(row).length>0;
+const excludedReason=row=>table.excluded?table.excluded[row.values.invoice_id]:undefined;
+const warn=row=>!excludedReason(row)&&reviewTasks(row).length>0;
+// Rows with the same first issue need the same decision, so they are shown as one group.
+const groupOf=row=>{if(excludedReason(row))return 'Not for this BAS';const t=reviewTasks(row);return t.length?t[0].split(/[.;\n]/)[0].trim():null};
+function drawGroups(){const box=$('groups'),groups=new Map();table.rows.forEach(r=>{const g=groupOf(r);if(g!==null){if(!groups.has(g))groups.set(g,[]);groups.get(g).push(r)}});
+if(groups.size<2){box.classList.add('hidden');return}box.classList.remove('hidden');box.replaceChildren();
+box.append(node('h2','What needs you · '+groups.size+' kinds of issue','groups-title'));
+[...groups.entries()].sort((a,b)=>b[1].length-a[1].length).forEach(([issue,rows])=>{const card=node('button','','group'+(state.group===issue?' on':''));card.type='button';
+const who=[...new Set(rows.map(r=>r.values.supplier||r.values.contact||r.values.description||'').filter(Boolean))].slice(0,3).join(', ');
+card.append(node('strong',rows.length+(rows.length===1?' row':' rows')),node('span',issue),node('small',who));
+card.onclick=()=>{state.group=state.group===issue?null:issue;state.page=0;drawGroups();render()};box.append(card)});
+if(state.group!==null){const all=node('button','Show all rows','group-clear');all.type='button';all.onclick=()=>{state.group=null;drawGroups();render()};box.append(all)}}
 const clearMessage=row=>table.columns.includes('review_status')?'No extraction issues flagged':'No issues listed';
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
 $('title').textContent=table.title;document.title=table.title+' · Accounting review';$('count').textContent=table.rows.length+' rows';$('issues').textContent=table.rows.filter(warn).length+' rows need attention';$('filename').textContent=table.csv;document.querySelector('.subtitle').textContent=(allAud?'All amounts in AUD. ':'')+'Open the document for any flagged row. If you need help or know a corrected value, use Optional follow-up.';
@@ -331,7 +399,9 @@ function invoiceAction(row, tasks) {
   const issue = tasks[0].split(/[.;\n]/)[0].trim();
   return issue.length <= 65 ? issue : issue.slice(0, 62).replace(/\s+\S*$/, '') + '…';
 }
-function cell(row,key){const td=node('td');if(key==='issues'||key==='__review_task'){const tasks=reviewTasks(row);td.className='issue-cell';td.textContent=table.columns.includes('invoice_number')?invoiceAction(row,tasks):(tasks.length?tasks.join(' · '):clearMessage(row));if(tasks.length)td.classList.add('issue');if(offline&&!tasks.length)return td;const options=node('details');options.append(node('summary',offline?'Details':state.requested.has(row.index)?'Request saved · options':'Optional follow-up'));if(tasks.length&&table.columns.includes('invoice_number'))options.append(node('p',tasks.join(' · ')));if(!offline)for(const [action,title] of [['check','Ask for a check'],['correct','Suggest a corrected value']]){const button=node('button',title);button.onclick=()=>openRequest(row,action);options.append(button)}td.append(options);return td}const value=row.values[key];if(key.endsWith('_cents'))td.className='money';if(sourceFields.has(key)){if(table.links.includes(row.index+':'+key)){const a=node('a','Open document','source');a.href=offline?table.offlineSources[row.index+':'+key]:'/source?token='+encodeURIComponent(token)+'&id='+encodeURIComponent(row.index+':'+key);a.target='_blank';a.rel='noopener noreferrer';td.append(a)}else td.append(node('span',value?'Source unavailable':'Unknown','unknown'));return td}
+function cell(row,key){const td=node('td');if(key==='issues'||key==='__review_task'){const tasks=reviewTasks(row);td.className='issue-cell';td.textContent=table.columns.includes('invoice_number')?invoiceAction(row,tasks):(tasks.length?tasks.join(' · '):clearMessage(row));if(tasks.length)td.classList.add('issue');if(offline&&!tasks.length)return td;const options=node('details');options.append(node('summary',offline?'Details':state.requested.has(row.index)?'Request saved · options':'Optional follow-up'));if(tasks.length&&table.columns.includes('invoice_number'))options.append(node('p',tasks.join(' · ')));if(!offline)for(const [action,title] of [['check','Ask for a check'],['correct','Suggest a corrected value']]){const button=node('button',title);button.onclick=()=>openRequest(row,action);options.append(button)}
+if(!offline&&table.exclusion&&row.values.invoice_id){const why=excludedReason(row),bar=node('div','','exclude-bar');if(why){bar.append(node('span',why,'excluded-note'));const undo=node('button','Put it back');undo.type='button';undo.onclick=()=>sendExclusion(row,{undo:true}).catch(e=>{const n=$('notice');n.textContent=e.message;n.className='status error'});bar.append(undo)}else{const out=node('button','Not for this BAS');out.type='button';out.onclick=()=>openExclude(row);bar.append(out)}td.append(bar)}
+td.append(options);return td}const value=row.values[key];if(key.endsWith('_cents'))td.className='money';if(sourceFields.has(key)){if(table.links.includes(row.index+':'+key)){const a=node('a','Open document','source');a.href=offline?table.offlineSources[row.index+':'+key]:'/source?token='+encodeURIComponent(token)+'&id='+encodeURIComponent(row.index+':'+key);a.target='_blank';a.rel='noopener noreferrer';td.append(a)}else td.append(node('span',value?'Source unavailable':'Unknown','unknown'));return td}
 if(key==='reimbursement_status'&&row.values.purchase_workflow==='Expense claim'){
   td.append(node('span',value||'Unknown'));
   if(!offline&&value!=='Reimbursed'){
@@ -345,7 +415,7 @@ if(!value){td.append(node('span','Unknown','unknown'));return td}
 let text=row.display[key];if(key.endsWith('_cents')&&row.values.currency==='AUD')text='$'+text;
 if(kStatus(key)){td.append(node('span',text.replace(/_/g,' '),'badge'+(/pending|unresolved|provisional|needs_review|draft/.test(value)?' warn':'')))}else if((key==='issues'||key==='blockers')&&value!=='[]'){try{const list=JSON.parse(value);text=Array.isArray(list)?list.join(' · '):value}catch{}const detail=node('details');const summary=node('summary',text.length>75?text.slice(0,75)+'…':text);detail.append(summary,node('div',text,'issue'));td.classList.add('issue-cell');td.append(detail)}else td.textContent=(key==='issues'&&text==='[]')?'—':text;return td}
 function kStatus(key){return key.includes('status')}
-function render(){let rows=table.rows.filter(r=>(state.filter!=='issues'||warn(r))&&(state.filter!=='requested'||state.requested.has(r.index))&&Object.values(r.values).join(' ').toLowerCase().includes(state.search));if(state.sort){const key=state.sort;rows.sort((a,b)=>{let aVal=a.values[key],bVal=b.values[key];let n=key.endsWith('_cents')&&aVal&&bVal?(BigInt(aVal)<BigInt(bVal)?-1:BigInt(aVal)>BigInt(bVal)?1:0):aVal.localeCompare(bVal,undefined,{numeric:true});return state.descending?-n:n})}const columns=table.columns.filter(c=>c!=='review_action'&&(state.all||!hidden.has(c)));if(!columns.includes('issues'))columns.push('__review_task');
+function render(){let rows=table.rows.filter(r=>(state.group===null||groupOf(r)===state.group)&&(state.filter!=='issues'||warn(r))&&(state.filter!=='requested'||state.requested.has(r.index))&&Object.values(r.values).join(' ').toLowerCase().includes(state.search));if(state.sort){const key=state.sort;rows.sort((a,b)=>{let aVal=a.values[key],bVal=b.values[key];let n=key.endsWith('_cents')&&aVal&&bVal?(BigInt(aVal)<BigInt(bVal)?-1:BigInt(aVal)>BigInt(bVal)?1:0):aVal.localeCompare(bVal,undefined,{numeric:true});return state.descending?-n:n})}const columns=table.columns.filter(c=>c!=='review_action'&&(state.all||!hidden.has(c)));if(!columns.includes('issues'))columns.push('__review_task');
 if(table.columns.includes('invoice_number')){
   const documents=columns.filter(key=>sourceFields.has(key));
   for(const key of documents)columns.splice(columns.indexOf(key),1);
@@ -356,5 +426,10 @@ function updateCurrent(){const key=$('field').value,money=key.endsWith('_cents')
 function proposedValue(){const key=$('field').value,value=$('proposed').value.trim();if(!key.endsWith('_cents')||value==='')return value;if(!/^-?[0-9]+(?:\.[0-9]{1,2})?$/.test(value))throw new Error('Enter an amount with at most two decimal places.');const negative=value.startsWith('-'),parts=value.replace(/^-/,'').split('.'),cents=BigInt(parts[0])*100n+BigInt((parts[1]||'').padEnd(2,'0'));return (negative?-cents:cents).toString()}
 function openRequest(row,action){state.selected=row;state.action=action;$('dialog-title').textContent=action==='check'?(warn(row)?'Review the listed issue':'Ask an optional question'):'Propose a correction';$('record').textContent=['Row '+(row.index+1),...Object.entries(row.values).filter(([k])=>['invoice_id','id','supplier','contact','description','invoice_number','date'].includes(k)).map(([k,v])=>label(k)+': '+v)].join('\n')+'\n\n'+(reviewTasks(row).length?'What needs review:\n'+reviewTasks(row).join('\n'):clearMessage(row)+'. No action is required unless you spotted something.');$('correction').classList.toggle('hidden',action!=='correct');$('field').replaceChildren();for(const key of table.columns.filter(c=>c!=='id'&&!c.endsWith('_id')&&!sourceFields.has(c))){const o=node('option',label(key));o.value=key;$('field').append(o)}$('reason').value=action==='check'&&warn(row)?'Please check: '+reviewTasks(row).join(' '):'';$('form-error').textContent='';updateCurrent();$('dialog').showModal();$('reason').focus()}
 $('field').onchange=updateCurrent;$('cancel').onclick=()=>$('dialog').close();$('form').onsubmit=async event=>{event.preventDefault();$('save').disabled=true;$('form-error').textContent='';try{const changes=state.action==='correct'?{[$('field').value]:proposedValue()}:{};const response=await fetch('/requests',{method:'POST',headers:{'Content-Type':'application/json','X-Review-Token':token},body:JSON.stringify({action:state.action,row:state.selected.index,reason:$('reason').value,changes})});const result=await response.json();if(!response.ok)throw new Error(result.error||'Request was not saved');state.requested.add(state.selected.index);state.saved++;$('requests').textContent=state.saved+' requests saved this session';$('notice').className='status';$('notice').textContent='Request saved. Ask Codex to review and apply it: '+result.saved_request;$('dialog').close();render()}catch(error){$('form-error').textContent=error.message}finally{$('save').disabled=false}};
-$('search').oninput=event=>{state.search=event.target.value.toLowerCase();state.page=0;render()};$('filter').onchange=event=>{state.filter=event.target.value;state.page=0;render()};$('columns').onchange=event=>{state.all=event.target.value==='all';render()};$('prev').onclick=()=>{state.page--;render()};$('next').onclick=()=>{state.page++;render()};render();
+$('search').oninput=event=>{state.search=event.target.value.toLowerCase();state.page=0;render()};$('filter').onchange=event=>{state.filter=event.target.value;state.page=0;render()};$('columns').onchange=event=>{state.all=event.target.value==='all';render()};$('prev').onclick=()=>{state.page--;render()};$('next').onclick=()=>{state.page++;render()};
+function openExclude(row){state.selected=row;$('exclude-record').textContent=['supplier','contact','invoice_number','invoice_date','description'].filter(k=>row.values[k]).map(k=>label(k)+': '+row.values[k]).join('\n');$('exclude-reason').replaceChildren(...table.exclusion.reasons.map(r=>{const o=node('option',r);o.value=r;return o}));$('exclude-note').value='';$('exclude-error').textContent='';$('exclude').showModal()}
+async function sendExclusion(row,body){const response=await fetch('/exclude',{method:'POST',headers:{'Content-Type':'application/json','X-Review-Token':token},body:JSON.stringify({row:row.index,...body})});const data=await response.json();if(!response.ok)throw new Error(data.error||'Could not save');if(data.excluded)table.excluded[row.values.invoice_id]=data.reason;else delete table.excluded[row.values.invoice_id];$('issues').textContent=table.rows.filter(warn).length+' rows need attention';drawGroups();render();return data}
+$('exclude-cancel').onclick=()=>$('exclude').close();
+$('exclude-form').onsubmit=async event=>{event.preventDefault();$('exclude-save').disabled=true;try{await sendExclusion(state.selected,{reason:$('exclude-reason').value,note:$('exclude-note').value});$('exclude').close()}catch(error){$('exclude-error').textContent=error.message}finally{$('exclude-save').disabled=false}};
+drawGroups();render();
 </script></body></html>"""

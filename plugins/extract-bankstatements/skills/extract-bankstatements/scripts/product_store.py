@@ -1069,8 +1069,9 @@ def document_review(db, start, end):
                     )
         elif valid:
             status, reason = disposition["status"], disposition["reason"]
-        # Extraction uncertainty cannot be hidden by a deferment/exclusion.
-        if inv["review_status"] != "verified":
+        # Extraction uncertainty cannot be hidden by a deferment. A document the user
+        # excluded from this period (private, not an invoice, duplicate) needs no review.
+        if inv["review_status"] != "verified" and not (valid and disposition["status"] == "excluded"):
             status, reason = "unresolved", "Source extraction requires review"
         allocation_pending = db.execute(
             "SELECT 1 FROM running_cost_allocations WHERE invoice_id=? AND period_start<=? AND period_end>=? AND gst_credit_cents IS NULL",
@@ -1163,8 +1164,11 @@ def status_report(db, start, end):
         (start, end),
     ).fetchone()[0]
     unreviewed = db.execute(
-        "SELECT count(*) FROM invoices WHERE business_id=? AND review_status!='verified' AND (invoice_date IS NULL OR invoice_date<=?)",
-        (p["business_id"], end),
+        "SELECT count(*) FROM invoices i WHERE business_id=? AND review_status!='verified' AND (invoice_date IS NULL OR invoice_date<=?)"
+        " AND NOT EXISTS(SELECT 1 FROM document_dispositions d WHERE d.invoice_id=i.id AND d.start=? AND d.end=?"
+        " AND d.status='excluded' AND d.source_hash=i.record_sha256 AND d.id=(SELECT max(x.id) FROM document_dispositions x"
+        " WHERE x.invoice_id=i.id AND x.start=? AND x.end=?))",
+        (p["business_id"], end, start, end, start, end),
     ).fetchone()[0]
     pending = db.execute(
         "SELECT count(*) FROM gst_items g JOIN journals j ON j.id=g.journal_id WHERE g.attribution_date BETWEEN ? AND ? AND g.status!='reviewed' AND NOT EXISTS(SELECT 1 FROM journals r WHERE r.reverses_id=j.id)",
