@@ -1,6 +1,6 @@
 {
   "name": "manage-accounting",
-  "version": "0.2.33",
+  "version": "0.2.34",
   "description": "Walk through a BAS or tax period step by step, reviewing each stage with you.",
   "interface": {
     "displayName": "BAS & Tax Workflow",

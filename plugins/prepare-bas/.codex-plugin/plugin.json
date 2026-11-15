@@ -1,6 +1,6 @@
 {
   "name": "prepare-bas",
-  "version": "0.1.32",
+  "version": "0.1.33",
   "description": "Produce an Australian Simpler BAS GST review workpaper from reviewed local ledger entries and list missing evidence.",
   "interface": {
     "displayName": "BAS Preparation",

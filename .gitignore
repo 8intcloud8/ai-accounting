@@ -28,8 +28,6 @@ __pycache__/
 profile.json
 accounting-workspace.json
 
-# Personal reference material; never shipped with the suite (see docs/OFFICIAL-GUIDANCE.md)
-/references/
 
 # Real run output (search/review results, generated reports) — workspace state, not source
 /output/
