@@ -12,7 +12,7 @@ description: >
   or BAS, use this skill. Use Xero only when the user names Xero or asks what
   is owed, outstanding, or overdue. If ambiguous, ask first.
 metadata:
-  version: "0.6.14"
+  version: "0.6.15"
 ---
 
 ## Shared case memory
@@ -61,9 +61,11 @@ Make one minimal Gmail search and note the connected account's address. If no ac
 
 - Personal or business bills (business runs drop personal vendors inside `search_bills`).
 - The period (accept "FY25", "last quarter" or dates; normalise to `YYYY-MM-DD`).
-- The workspace, only if none was chosen in this chat: read `$CODEX_HOME/accounting-workspaces.json` (default `~/.codex`) and ask "Which workspace should I use?". Never ask for a separate save folder.
+- Where to save, only if not settled in this chat: read `$CODEX_HOME/accounting-workspaces.json` (default `~/.codex`).
+  - Workspaces listed: ask "Which workspace should I use?". Never ask for a separate save folder.
+  - No workspaces (the email plugins are installed on their own): ask "Which folder should I save the invoices to?" and use the answer as the folder for this run.
 
-Invoices are saved under `<workspace>/invoices/` (save-invoices adds `<Category>/<date range>/` and `manifest.csv`), where invoice extraction finds them. The checklist report is kept at `<workspace>/output/<YYYY-MM-DD>/reports/email-invoices-<run-id>/index.html`. Use another folder only if the user names one for this run.
+With a workspace, invoices are saved under `<workspace>/invoices/` (save-invoices adds `<Category>/<date range>/` and `manifest.csv`), where invoice extraction finds them, and the checklist page is kept at `<workspace>/output/<YYYY-MM-DD>/reports/email-invoices-<run-id>/index.html`. With a plain folder, invoices go to `<folder>/<Category>/<date range>/` with `manifest.csv`, and the page to `<folder>/reports/email-invoices-<run-id>/index.html`. Use another folder only if the user names one for this run.
 
 ## 3. Search (no questions, no narration)
 
