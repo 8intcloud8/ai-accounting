@@ -80,4 +80,4 @@ Attachments are limited to 100 MB each and redirects are rejected. Inline HTML r
 
 Run `npm run typecheck`, `npm test`, and `npm run build` inside `mcp-server`. CI covers macOS and Linux. Unit tests use synthetic metadata and mocked downloads; they do not access Gmail. Browser installation and inline PDF conversion are separate from those tests.
 
-See CONTRIBUTING.md, SECURITY.md, and the repository root PUBLISHING.md. Licensed under the [MIT License](LICENSE). Dependencies retain their own licenses.
+See CONTRIBUTING.md and SECURITY.md. Licensed under the [MIT License](LICENSE). Dependencies retain their own licenses.

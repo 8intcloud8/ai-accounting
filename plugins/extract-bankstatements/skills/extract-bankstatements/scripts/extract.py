@@ -256,7 +256,6 @@ def read_rows_pdf(path, mapping):
                     body = table[1:] if table[0] == header else table
                 all_rows.extend(body)
 
-    avg = total_text_len / max(len(pdf.pages), 1) if 'pdf' in dir() else total_text_len
     if total_text_len < 20:
         raise ValueError(
             "This PDF appears to be scanned (no extractable text). "

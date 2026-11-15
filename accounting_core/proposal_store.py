@@ -191,7 +191,7 @@ def groups(path, start, end, connect):
             (start, end),
         ).fetchall()
     result = {}
-    for tid, day, text, out, into, pid, journal, reason in rows:
+    for tid, _day, text, out, into, pid, journal, reason in rows:
         group = result.setdefault(payee(text), {
             "payee": payee(text), "example": text, "count": 0, "money_out": 0, "money_in": 0,
             "treatments": set(), "reasons": [], "proposal_ids": [], "unproposed_transaction_ids": []})
