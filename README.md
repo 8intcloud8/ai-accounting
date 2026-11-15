@@ -24,7 +24,7 @@ Gmail is connected the first time you search for invoices in email, not at insta
 python3 scripts/install.py --workspace "/path/to/Accounting" --profile profile.json --dependencies
 ```
 
-Requires the `codex` command on `PATH` (in Codex Desktop it is inside the app: `/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin`). Use `--local-only` to skip the Gmail plugins and `--local-server yes|no` to answer the page-buttons question. Profile fields: business_id, legal_name, entity_type (company/sole_trader/trust/partnership), gst_registered (true/false/null), gst_basis (cash/accrual/unknown). Open a new chat after installing.
+Finds Codex on `PATH` or inside the Codex Desktop app. `--dependencies` installs the Python packages into the same private folder the setup check uses and builds the Gmail plugins. Use `--local-only` to skip the Gmail plugins and `--local-server yes|no` to answer the page-buttons question. Profile fields: business_id, legal_name, entity_type (company/sole_trader/trust/partnership), gst_registered (true/false/null), gst_basis (cash/accrual/unknown). Open a new chat after installing.
 
 ## Separate plugins
 

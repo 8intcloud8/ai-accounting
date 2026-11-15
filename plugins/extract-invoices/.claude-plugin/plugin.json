@@ -1,6 +1,6 @@
 {
   "name": "extract-invoices",
   "displayName": "Invoice Extractor",
-  "version": "1.1.23",
+  "version": "1.1.24",
   "description": "Extract local bills, invoices and receipts into shared local accounting storage."
 }

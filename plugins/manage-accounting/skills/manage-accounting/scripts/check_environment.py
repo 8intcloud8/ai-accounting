@@ -47,6 +47,17 @@ def codex_home():
     return os.path.expanduser(os.environ.get("CODEX_HOME") or "~/.codex")
 
 
+CODEX_APP_COMMAND = "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"
+
+
+def find_codex():
+    """The Codex command: on PATH, else the copy inside the Codex Desktop app."""
+    found = shutil.which("codex")
+    if found:
+        return found
+    return CODEX_APP_COMMAND if os.access(CODEX_APP_COMMAND, os.X_OK) else None
+
+
 def private_folder():
     """One folder per Python version: compiled packages do not mix across versions."""
     return os.path.join(codex_home(), "accounting-python", "py%d.%d" % sys.version_info[:2])
@@ -131,7 +142,7 @@ def install():
             "Could not install the helper packages (%s). Check the internet connection and "
             "try again; if it was blocked, allow this one command to use the network and "
             "write to %s." % (error, folder)
-        )
+        ) from error
     after = status()
     if after["missing_packages"]:
         raise SystemExit("Installed, but still cannot load: " + ", ".join(after["missing_packages"]))

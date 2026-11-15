@@ -9,7 +9,6 @@ Not shipped in plugins.
 
 import argparse
 import json
-import shutil
 import sys
 from pathlib import Path
 
@@ -104,9 +103,9 @@ def main():
     parser.add_argument("--rounds", type=int, default=8)
     parser.add_argument("--turns", type=int, default=20, help="runner turns per round")
     args = parser.parse_args()
-    codex = shutil.which("codex")
+    codex = runner.check_environment.find_codex()
     if not codex:
-        parser.error("Codex CLI is required")
+        parser.error("Codex is required: install Codex Desktop or the Codex CLI")
     request = {"start": args.start, "end": args.end, "goal": args.goal, "entity": None}
     try:
         report = simulate(args.workspace, request, json.loads(answers_file(args).read_text()), codex,

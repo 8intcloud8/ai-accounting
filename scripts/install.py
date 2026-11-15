@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Install the AI Accounting suite into Codex; configure a local workspace.
+"""Install the AI Accounting suite into Codex from this checkout and set up a workspace.
 
-Requires Python 3.11+. With --dependencies, installs isolated Python packages and
-builds Gmail plugins using an available Node/npm. No database server is needed.
+For maintainers. Users add the repository as a plugin source in Codex Desktop instead.
+Requires Python 3.11+. With --dependencies, installs the Python packages into the
+private folder the setup check uses and builds the Gmail plugins with Node/npm.
 """
 
 import argparse
@@ -12,10 +13,15 @@ import shutil
 import subprocess
 import sys
 import tomllib
-import venv
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "accounting_core"))
+import check_environment  # noqa: E402
+import enable_local_server  # noqa: E402
 
+MARKETPLACE = "ai-accounting"
+EMAIL_PLUGINS = ("search-email-invoices", "save-invoices")
 LOCAL_SERVER_QUESTION = (
     "\nTurn on the buttons in the review pages (Save selection, Choose folder)?\n"
     "Without them you copy a line from the page and paste it into the chat.\n"
@@ -24,11 +30,118 @@ LOCAL_SERVER_QUESTION = (
 )
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--workspace", type=Path, required=True)
+    parser.add_argument("--profile", type=Path, help="JSON business profile; omit when already configured")
+    parser.add_argument("--codex-home", type=Path, default=Path.home() / ".codex")
+    parser.add_argument("--dependencies", action="store_true",
+                        help="Install Python packages and build the Gmail plugins")
+    parser.add_argument("--local-only", action="store_true",
+                        help="Omit Gmail search/save plugins and the Node requirement")
+    parser.add_argument("--register-only", action="store_true",
+                        help="Write configuration only for packaging checks; does not install plugins")
+    parser.add_argument("--local-server", choices=("ask", "yes", "no"), default="ask",
+                        help="Turn on buttons in the local review pages (lets Codex commands use the network)")
+    args = parser.parse_args()
+    args.codex_home = args.codex_home.expanduser().resolve()
+    args.workspace = args.workspace.expanduser().resolve()
+    args.codex = check_environment.find_codex()
+    if not args.register_only and not args.codex:
+        parser.error("Codex is required: install Codex Desktop or the Codex CLI, then rerun.")
+    if not (args.workspace / "db/accounting.db").exists() and not args.profile:
+        parser.error("--profile required for a new workspace")
+    if args.profile:
+        json.loads(args.profile.read_text())
+    return args
+
+
+def plugin_names(local_only):
+    names = [
+        json.loads(p.read_text())["name"]
+        for p in sorted((ROOT / "plugins").glob("*/.codex-plugin/plugin.json"))
+    ]
+    return [n for n in names if not (local_only and n in EMAIL_PLUGINS)]
+
+
+def planned_config(config, plugins):
+    """Codex config with the marketplace and plugins added. Refuses conflicting installs."""
+    old = config.read_text() if config.exists() else ""
+    existing = tomllib.loads(old)
+    updated = old
+    source = existing.get("marketplaces", {}).get(MARKETPLACE, {}).get("source")
+    if source is None:
+        updated += f'\n[marketplaces.{MARKETPLACE}]\nsource_type = "local"\nsource = {json.dumps(str(ROOT))}\n'
+    elif source != str(ROOT):
+        raise ValueError(f"Existing {MARKETPLACE} marketplace points elsewhere; update that install in place")
+    for name in plugins:
+        key = f"{name}@{MARKETPLACE}"
+        entry = existing.get("plugins", {}).get(key)
+        if entry is None:
+            updated += f"\n[plugins.{json.dumps(key)}]\nenabled = true\n"
+        elif not entry.get("enabled"):
+            raise ValueError(f"{key} is disabled; enable explicitly in Codex")
+    tomllib.loads(updated)
+    return updated
+
+
+def install_dependencies(codex_home, local_only):
+    os.environ["CODEX_HOME"] = str(codex_home)
+    check_environment.install()
+    if local_only:
+        return
+    npm = shutil.which("npm")
+    if not npm:
+        raise RuntimeError("Node/npm required for Gmail plugins; use --local-only for local files")
+    for name in EMAIL_PLUGINS:
+        server = ROOT / "plugins" / name / "mcp-server"
+        subprocess.run([npm, "ci"], cwd=server, check=True)
+        subprocess.run([npm, "run", "build"], cwd=server, check=True)
+
+
+def write_json(path, value, private=False):
+    temp = path.with_suffix(".tmp")
+    temp.write_text(json.dumps(value, indent=2) + "\n")
+    if private:
+        temp.chmod(0o600)
+    temp.replace(path)
+
+
+def register_workspace(codex_home, workspace):
+    """Select this workspace and offer it to later chats. Written before any plugin is
+    enabled, so a failure partway never leaves a plugin pointing at another workspace."""
+    codex_home.mkdir(parents=True, exist_ok=True)
+    write_json(codex_home / "accounting-workspace.json", {"workspace": str(workspace)}, private=True)
+    registry = codex_home / "accounting-workspaces.json"
+    known = json.loads(registry.read_text()) if registry.exists() else {"workspaces": []}
+    if str(workspace) not in known["workspaces"]:
+        known["workspaces"].append(str(workspace))
+        write_json(registry, known)
+
+
+def install_plugins(codex, codex_home, plugins):
+    environment = dict(os.environ, CODEX_HOME=str(codex_home))
+
+    def run_codex(*arguments):
+        result = subprocess.run([codex, "plugin", *arguments, "--json"], env=environment,
+                                check=True, capture_output=True, text=True)
+        return json.loads(result.stdout)
+
+    run_codex("marketplace", "add", str(ROOT))
+    for name in plugins:
+        location = Path(run_codex("add", f"{name}@{MARKETPLACE}")["installedPath"])
+        skills = list((location / "skills").glob("*/SKILL.md"))
+        if len(skills) != 1:
+            raise RuntimeError(f"{name}: expected one installed skill, found {len(skills)}")
+    discovered = run_codex("list", "--marketplace", MARKETPLACE)
+    enabled = {i["name"] for i in discovered["installed"] if i.get("installed") and i.get("enabled")}
+    missing = set(plugins) - enabled
+    if missing:
+        raise RuntimeError(f"Plugins not enabled after installation: {sorted(missing)}")
+
+
 def local_server_choice(choice, codex_home):
     """Apply the user's answer. Never turn the setting on without a yes."""
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "accounting_core"))
-    import enable_local_server
-
     current = enable_local_server.status(codex_home)
     if choice == "ask":
         if current["on"] or current["asked"] or not sys.stdin.isatty():
@@ -41,194 +154,37 @@ def local_server_choice(choice, codex_home):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workspace", type=Path, required=True)
-    parser.add_argument(
-        "--profile",
-        type=Path,
-        help="JSON business profile; omit when already configured",
-    )
-    parser.add_argument("--codex-home", type=Path, default=Path.home() / ".codex")
-    parser.add_argument("--dependencies", action="store_true")
-    parser.add_argument(
-        "--local-only",
-        action="store_true",
-        help="Omit Gmail search/save plugins and Node requirement",
-    )
-    parser.add_argument(
-        "--register-only",
-        action="store_true",
-        help="Write configuration only for packaging checks; does not install plugins",
-    )
-    parser.add_argument(
-        "--local-server",
-        choices=("ask", "yes", "no"),
-        default="ask",
-        help="Turn on buttons in the local review pages (lets Codex commands use the network)",
-    )
-    args = parser.parse_args()
-    args.codex_home = args.codex_home.expanduser().resolve()
-    codex = shutil.which("codex")
-    if not args.register_only and not codex:
-        parser.error(
-            "Codex CLI is required to install plugins. Install Codex, then rerun."
-        )
-    root = Path(__file__).resolve().parents[1]
-    workspace = args.workspace.expanduser().resolve()
-    database = workspace / "db/accounting.db"
-    if not database.exists() and not args.profile:
-        parser.error("--profile required for a new workspace")
-    if args.profile:
-        json.loads(args.profile.read_text())
+    args = parse_args()
+    plugins = plugin_names(args.local_only)
     config = args.codex_home / "config.toml"
-    old = config.read_text() if config.exists() else ""
-    tomllib.loads(old)
-    marketplace = {
-        "plugins": [
-            json.loads(p.read_text())
-            for p in sorted((root / "plugins").glob("*/.codex-plugin/plugin.json"))
-        ]
-    }
-    plugins = [
-        e["name"]
-        for e in marketplace["plugins"]
-        if not (args.local_only and e["name"] in ("search-email-invoices", "save-invoices"))
-    ]
-    # Validate existing choices before native installation or configuration changes.
-    updated = old
-    existing = tomllib.loads(old)
-    if "ai-accounting" not in existing.get("marketplaces", {}):
-        updated += (
-            '\n[marketplaces.ai-accounting]\nsource_type = "local"\nsource = '
-            + json.dumps(str(root))
-            + "\n"
-        )
-    elif existing["marketplaces"]["ai-accounting"].get("source") != str(root):
-        raise ValueError(
-            "Existing ai-accounting marketplace points elsewhere; update that install in place"
-        )
-    for name in plugins:
-        key = name + "@ai-accounting"
-        if key not in existing.get("plugins", {}):
-            updated += "\n[plugins." + json.dumps(key) + "]\nenabled = true\n"
-        elif not existing["plugins"][key].get("enabled"):
-            raise ValueError(f"{key} is disabled; enable explicitly in Codex")
-    tomllib.loads(updated)
-    # Synchronize generated shared UI styles before npm compiles the email UI.
-    subprocess.run([sys.executable, str(root / "scripts/build_release.py")], check=True)
+    updated = planned_config(config, plugins)  # Validate before changing anything.
+    # Synchronize bundled runtime and shared UI styles before npm compiles the email UI.
+    subprocess.run([sys.executable, str(ROOT / "scripts/build_release.py")], check=True)
     if args.dependencies:
-        env = root / ".venv"
-        venv.EnvBuilder(with_pip=True).create(env)
-        python = env / (
-            "Scripts/python.exe" if sys.platform == "win32" else "bin/python"
-        )
-        subprocess.run(
-            [str(python), "-m", "pip", "install", "-r", str(root / "requirements.txt")],
-            check=True,
-        )
-        if not args.local_only:
-            npm = shutil.which("npm")
-            if not npm:
-                raise RuntimeError(
-                    "Node/npm required for Gmail plugins; use --local-only for local files"
-                )
-            for name in ("search-email-invoices", "save-invoices"):
-                subprocess.run(
-                    [npm, "ci"], cwd=root / "plugins" / name / "mcp-server", check=True
-                )
-                subprocess.run(
-                    [npm, "run", "build"],
-                    cwd=root / "plugins" / name / "mcp-server",
-                    check=True,
-                )
+        install_dependencies(args.codex_home, args.local_only)
     if args.profile:
-        subprocess.run(
-            [
-                sys.executable,
-                str(root / "accounting_core/accounting_store.py"),
-                "--db",
-                str(database),
-                "setup-accounting",
-                "--request",
-                str(args.profile),
-            ],
-            check=True,
-        )
-    config.parent.mkdir(parents=True, exist_ok=True)
-    # Write the host-specific workspace selector before any plugin is enabled
-    # below. Plugins resolve this file before falling back to the old/default
-    # database, so a failure partway through plugin-enabling must never leave
-    # an already-enabled plugin pointing at the wrong workspace.
-    selector = args.codex_home / "accounting-workspace.json"
-    selector.parent.mkdir(parents=True, exist_ok=True)
-    selector_temp = selector.with_suffix(".tmp")
-    selector_temp.write_text(json.dumps({"workspace": str(workspace)}) + "\n")
-    selector_temp.chmod(0o600)
-    selector_temp.replace(selector)
-    # Every workspace set up here is offered when a new chat asks which one to use.
-    registry = args.codex_home / "accounting-workspaces.json"
-    known = json.loads(registry.read_text()) if registry.exists() else {"workspaces": []}
-    if str(workspace) not in known["workspaces"]:
-        known["workspaces"].append(str(workspace))
-        registry_temp = registry.with_suffix(".tmp")
-        registry_temp.write_text(json.dumps(known, indent=2) + "\n")
-        registry_temp.replace(registry)
+        subprocess.run([sys.executable, str(ROOT / "accounting_core/accounting_store.py"),
+                        "--db", str(args.workspace / "db/accounting.db"),
+                        "setup-accounting", "--request", str(args.profile)], check=True)
+    register_workspace(args.codex_home, args.workspace)
     if args.register_only:
         temp = config.with_suffix(".accounting.tmp")
         temp.write_text(updated)
         temp.replace(config)
     else:
-        environment = dict(os.environ, CODEX_HOME=str(args.codex_home))
-
-        def run_codex(*arguments):
-            result = subprocess.run(
-                [codex, "plugin", *arguments, "--json"],
-                env=environment,
-                check=True,
-                capture_output=True,
-                text=True,
-            )
-            return json.loads(result.stdout)
-
-        run_codex("marketplace", "add", str(root))
-        for name in plugins:
-            installed = run_codex("add", name + "@ai-accounting")
-            location = Path(installed["installedPath"])
-            skills = list((location / "skills").glob("*/SKILL.md"))
-            if len(skills) != 1:
-                raise RuntimeError(
-                    f"{name}: expected one installed skill, found {len(skills)}"
-                )
-        discovered = run_codex("list", "--marketplace", "ai-accounting")
-        enabled = {
-            item["name"]
-            for item in discovered["installed"]
-            if item.get("installed") and item.get("enabled")
-        }
-        missing = set(plugins) - enabled
-        if missing:
-            raise RuntimeError(
-                f"Plugins not enabled after installation: {sorted(missing)}"
-            )
+        install_plugins(args.codex, args.codex_home, plugins)
     buttons = local_server_choice(args.local_server, args.codex_home)
-    print(
-        json.dumps(
-            {
-                "local_server": buttons["on"],
-                (
-                    "registered_plugins" if args.register_only else "installed_plugins"
-                ): plugins,
-                "workspace": str(workspace),
-                "next": (
-                    "Configuration written only; rerun without --register-only to install."
-                    if args.register_only
-                    else ("Quit and reopen Codex. " if buttons.get("restart_codex") else "")
-                    + "Open a new Codex chat. Ask: prepare my accounting period."
-                ),
-            },
-            indent=2,
-        )
-    )
+    if args.register_only:
+        next_step = "Configuration written only; rerun without --register-only to install."
+    else:
+        next_step = ("Quit and reopen Codex. " if buttons.get("restart_codex") else "") \
+            + "Open a new Codex chat. Ask: prepare my accounting period."
+    print(json.dumps({
+        "local_server": buttons["on"],
+        "registered_plugins" if args.register_only else "installed_plugins": plugins,
+        "workspace": str(args.workspace),
+        "next": next_step,
+    }, indent=2))
 
 
 if __name__ == "__main__":

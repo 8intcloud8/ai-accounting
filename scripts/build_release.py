@@ -5,10 +5,23 @@ import argparse
 import hashlib
 import json
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
 from check_mcp_package import validate
+
+
+# Release ZIPs carry only what git tracks, plus the built Gmail servers. Private
+# workspace files in the checkout can never end up in a release.
+BUILT = ("plugins/search-email-invoices/mcp-server/dist", "plugins/save-invoices/mcp-server/dist")
+
+
+def release_files(root):
+    tracked = subprocess.run(["git", "ls-files", "-z"], cwd=root, check=True,
+                             capture_output=True).stdout.decode().split("\0")
+    built = [str(f.relative_to(root)) for d in BUILT for f in (root / d).rglob("*") if f.is_file()]
+    return sorted(f for f in tracked + built if f and (root / f).is_file())
 
 
 def build(root, output):
@@ -111,42 +124,8 @@ def build(root, output):
         with zipfile.ZipFile(
             output / "ai-accounting.zip", "w", zipfile.ZIP_DEFLATED
         ) as archive:
-            allowed = {
-                "plugins",
-                "accounting_core",
-                "scripts",
-                ".agents",
-                "docs",
-                "tests",
-                "ui",
-                "ato-library",
-            }
-            for f in root.rglob("*"):
-                rel = f.relative_to(root)
-                if not f.is_file() or f.is_symlink():
-                    continue
-                if any(
-                    part in (".git", "node_modules", "__pycache__")
-                    for part in rel.parts
-                ):
-                    continue
-                is_guide = f.suffix == ".pdf" and "ato-library" in rel.parts
-                if not is_guide and f.suffix in (
-                    ".db",
-                    ".pdf",
-                    ".log",
-                    ".pyc",
-                    ".zip",
-                    ".plugin",
-                ) or f.name.startswith(".env"):
-                    continue
-                if rel.parts[0] in allowed or f.name in (
-                    "README.md",
-                    "LICENSE",
-                    "VERSION",
-                    "requirements.txt",
-                ):
-                    archive.write(f, rel)
+            for rel in release_files(root):
+                archive.write(root / rel, rel)
         checksums = {
             f.name: hashlib.sha256(f.read_bytes()).hexdigest()
             for f in output.glob("*.zip")

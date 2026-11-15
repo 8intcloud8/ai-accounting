@@ -8,13 +8,14 @@ import argparse
 import fcntl
 import json
 import os
-import shutil
 import signal
 import subprocess
 import time
 from pathlib import Path
 import sqlite3
 from contextlib import closing
+
+import check_environment
 
 OUTCOMES = ["continue", "needs_user", "needs_approval", "environment", "error"]
 PARKED = ("needs_user", "needs_approval", "environment")
@@ -139,7 +140,7 @@ def run(workspace, request, codex, max_turns=40, timeout=900):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
         lock.close()
-        raise ValueError("A runner already owns this workspace")
+        raise ValueError("A runner already owns this workspace") from None
     try:
         folder = directory / (time.strftime("%Y%m%d-%H%M%S") + "-" + str(os.getpid()))
         folder.mkdir(mode=0o700)
@@ -245,9 +246,9 @@ def main():
     parser.add_argument("--max-turns", type=int, default=40)
     parser.add_argument("--timeout", type=int, default=900)
     args = parser.parse_args()
-    codex = shutil.which("codex")
+    codex = check_environment.find_codex()
     if not codex:
-        parser.error("Codex CLI is required")
+        parser.error("Codex is required: install Codex Desktop or the Codex CLI")
     request = {k: getattr(args, k) for k in ("start", "end", "goal", "entity")}
     try:
         print(

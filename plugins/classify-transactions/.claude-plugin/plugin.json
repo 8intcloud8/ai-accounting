@@ -1,5 +1,5 @@
 {
   "name": "classify-transactions",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "Review income, expense, transfer and loan classifications and post balanced accounting entries with GST evidence."
 }

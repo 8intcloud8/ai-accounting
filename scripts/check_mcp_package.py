@@ -35,6 +35,27 @@ def validate(plugin: Path) -> dict:
     return servers
 
 
+def request(process, errors, name, identifier, method, params):
+    """Send one JSON-RPC request to a launched server and return its result."""
+    process.stdin.write(json.dumps({
+        'jsonrpc': '2.0', 'id': identifier,
+        'method': method, 'params': params,
+    }) + '\n')
+    process.stdin.flush()
+    with selectors.DefaultSelector() as selector:
+        selector.register(process.stdout, selectors.EVENT_READ)
+        if not selector.select(30):
+            raise RuntimeError(f'{name}: handshake/discovery timed out')
+    line = process.stdout.readline()
+    if not line:
+        errors.seek(0)
+        raise RuntimeError(f'{name}: exited: {errors.read()}')
+    response = json.loads(line)
+    if response.get('id') != identifier or 'error' in response:
+        raise RuntimeError(f'{name}: unexpected response: {response}')
+    return response['result']
+
+
 def smoke(plugin: Path, expected_tool: str) -> None:
     """Launch the extracted package exactly as declared, then discover its tool."""
     servers = validate(plugin)
@@ -54,32 +75,13 @@ def smoke(plugin: Path, expected_tool: str) -> None:
             )
             assert process.stdin is not None and process.stdout is not None
             try:
-                def request(identifier, method, params):
-                    process.stdin.write(json.dumps({
-                        'jsonrpc': '2.0', 'id': identifier,
-                        'method': method, 'params': params,
-                    }) + '\n')
-                    process.stdin.flush()
-                    with selectors.DefaultSelector() as selector:
-                        selector.register(process.stdout, selectors.EVENT_READ)
-                        if not selector.select(30):
-                            raise RuntimeError(f'{name}: handshake/discovery timed out')
-                    line = process.stdout.readline()
-                    if not line:
-                        errors.seek(0)
-                        raise RuntimeError(f'{name}: exited: {errors.read()}')
-                    response = json.loads(line)
-                    if response.get('id') != identifier or 'error' in response:
-                        raise RuntimeError(f'{name}: unexpected response: {response}')
-                    return response['result']
-
-                request(1, 'initialize', {
+                request(process, errors, name, 1, 'initialize', {
                     'protocolVersion': '2024-11-05', 'capabilities': {},
                     'clientInfo': {'name': 'release-check', 'version': '1'},
                 })
                 process.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
                 process.stdin.flush()
-                names = [tool['name'] for tool in request(2, 'tools/list', {})['tools']]
+                names = [tool['name'] for tool in request(process, errors, name, 2, 'tools/list', {})['tools']]
                 if expected_tool not in names:
                     raise RuntimeError(f'{name}: missing {expected_tool}; got {names}')
             finally:
