@@ -1,9 +1,9 @@
 {
   "name": "ato-docs",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "description": "Research official ATO guidance with sources, reporting-year checks and taxpayer-specific applicability.",
   "interface": {
-    "displayName": "ATO Docs",
+    "displayName": "ATO Guidance",
     "shortDescription": "Research official ATO guidance with sources, reporting-year checks and taxpayer-specific applicability.",
     "category": "Productivity",
     "capabilities": [

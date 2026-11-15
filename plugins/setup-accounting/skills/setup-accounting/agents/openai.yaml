@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set up my accounting"
+  short_description: "Check the computer, create the workspace and save the business details"
+  default_prompt: "Use $setup-accounting to set up my accounting."

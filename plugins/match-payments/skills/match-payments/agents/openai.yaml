@@ -1,0 +1,4 @@
+interface:
+  display_name: "Match invoices to payments"
+  short_description: "Link invoices to the bank payments that paid them"
+  default_prompt: "Use $match-payments to match my invoices to bank payments."

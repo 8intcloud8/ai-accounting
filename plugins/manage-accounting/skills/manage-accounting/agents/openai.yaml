@@ -1,0 +1,4 @@
+interface:
+  display_name: "Run my BAS or tax period"
+  short_description: "Take a period from bank statements to a BAS draft, step by step"
+  default_prompt: "Use $manage-accounting to prepare my BAS for last quarter."

@@ -1,5 +1,5 @@
 {
   "name": "manage-accounting",
-  "version": "0.2.31",
+  "version": "0.2.32",
   "description": "Walk through a BAS or tax period step by step, reviewing each stage with you."
 }

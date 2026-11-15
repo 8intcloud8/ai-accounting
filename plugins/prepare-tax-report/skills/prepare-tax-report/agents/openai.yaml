@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare the tax workpaper"
+  short_description: "Trial balance and income and expense workpaper for the year"
+  default_prompt: "Use $prepare-tax-report to prepare my tax workpaper for last financial year."

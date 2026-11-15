@@ -1,0 +1,4 @@
+interface:
+  display_name: "Classify bank transactions"
+  short_description: "Propose the account and GST for each bank transaction for approval"
+  default_prompt: "Use $classify-transactions to classify my bank transactions for last quarter."

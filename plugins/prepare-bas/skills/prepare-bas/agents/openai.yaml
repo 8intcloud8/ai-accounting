@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare the BAS draft"
+  short_description: "Build the Simpler BAS workpaper from reviewed entries"
+  default_prompt: "Use $prepare-bas to prepare my BAS draft for last quarter."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Import bank statements"
+  short_description: "Read CSV, Excel or PDF statements into the books"
+  default_prompt: "Use $extract-bankstatements to import the statements in my bankstatements folder."

@@ -1,9 +1,14 @@
 {
   "description": "Local Xero OAuth setup and MCP launcher with validated callbacks and protected token rotation",
   "name": "setup-xero-mcp",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "author": {
     "name": "Ammar"
   },
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Xero",
+    "shortDescription": "Optional connection to a Xero organisation",
+    "category": "Productivity"
+  }
 }

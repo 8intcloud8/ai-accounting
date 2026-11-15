@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tidy the invoice folder"
+  short_description: "Find duplicates and non-invoices and set them aside"
+  default_prompt: "Use $review-invoices to check my invoice folder for duplicates."

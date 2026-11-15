@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reconcile bank balances"
+  short_description: "Check imported transactions against statement balances"
+  default_prompt: "Use $reconcile-accounts to reconcile my bank accounts for last quarter."

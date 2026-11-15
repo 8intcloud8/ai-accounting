@@ -1,0 +1,4 @@
+interface:
+  display_name: "Split home running costs"
+  short_description: "Work out the business share of electricity, internet and phone"
+  default_prompt: "Use $allocate-running-costs to work out my home office running costs."

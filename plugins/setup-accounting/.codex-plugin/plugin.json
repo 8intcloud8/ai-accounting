@@ -1,9 +1,9 @@
 {
   "name": "setup-accounting",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "description": "Configure the local accounting workspace and business profile once, then show next steps.",
   "interface": {
-    "displayName": "Setup Accounting",
+    "displayName": "Accounting Setup",
     "shortDescription": "Configure the local accounting workspace and business profile once, then show next steps.",
     "longDescription": "Creates the local SQLite workspace, records your business profile (entity type, GST registration and basis), and sets up the chart of accounts before any other accounting plugin can run.",
     "developerName": "AI Accounting contributors",

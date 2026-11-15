@@ -1,0 +1,4 @@
+interface:
+  display_name: "Connect Xero"
+  short_description: "Optional connection to a Xero organisation"
+  default_prompt: "Use $setup-xero-mcp to connect my Xero account."

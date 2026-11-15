@@ -1,0 +1,4 @@
+interface:
+  display_name: "Look up ATO rules"
+  short_description: "Answer tax and GST questions from ATO guides, with page references"
+  default_prompt: "Use $ato-docs to check whether this purchase includes GST credits."

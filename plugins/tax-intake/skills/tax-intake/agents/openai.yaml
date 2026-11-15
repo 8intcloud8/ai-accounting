@@ -1,0 +1,4 @@
+interface:
+  display_name: "Answer BAS and tax questions"
+  short_description: "The questions needed before preparing a BAS or tax return"
+  default_prompt: "Use $tax-intake to ask me the open questions for my BAS."
