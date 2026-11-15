@@ -1,0 +1,4 @@
+interface:
+  display_name: "Find invoices in Gmail"
+  short_description: "Search Gmail for bills, invoices and receipts and pick which to save"
+  default_prompt: "Use $search-email-invoices to find my invoices in Gmail for last quarter."

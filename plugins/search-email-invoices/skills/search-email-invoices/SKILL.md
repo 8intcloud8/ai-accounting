@@ -12,7 +12,7 @@ description: >
   or BAS, use this skill. Use Xero only when the user names Xero or asks what
   is owed, outstanding, or overdue. If ambiguous, ask first.
 metadata:
-  version: "0.6.17"
+  version: "0.6.18"
 ---
 
 ## Shared case memory

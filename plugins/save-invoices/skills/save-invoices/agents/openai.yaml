@@ -1,0 +1,4 @@
+interface:
+  display_name: "Save chosen invoices"
+  short_description: "Save the invoices picked in the email checklist to a folder"
+  default_prompt: "Use $save-invoices to save the invoices I picked."
