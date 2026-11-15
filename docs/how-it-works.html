@@ -1,0 +1,326 @@
+<title>AI Accounting Code Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column with full-width diagram bands; the BAS run is drawn as a ledger of numbered steps. */
+:root {
+  --paper: #f4f7f6;
+  --sheet: #ffffff;
+  --ink: #15211d;
+  --muted: #55655f;
+  --rule: #d5dfdb;
+  --accent: #175b51;
+  --accent-soft: #e3f0ec;
+  --user: #8a5a00;
+  --user-soft: #fbf0d9;
+  --code-bg: #eef3f1;
+  --font-display: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Inter", -apple-system, "Segoe UI", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #101715; --sheet: #172220; --ink: #e6eeeb; --muted: #a2b3ad; --rule: #2e3e39;
+    --accent: #7fd1bb; --accent-soft: #1d3a33; --user: #f0c66e; --user-soft: #3a2f17; --code-bg: #1d2a27;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #101715; --sheet: #172220; --ink: #e6eeeb; --muted: #a2b3ad; --rule: #2e3e39;
+  --accent: #7fd1bb; --accent-soft: #1d3a33; --user: #f0c66e; --user-soft: #3a2f17; --code-bg: #1d2a27;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink); font: 16px/1.6 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+main { max-width: 960px; margin: 0 auto; display: grid; gap: 56px; }
+header { padding-block: 48px 8px; display: grid; gap: 12px; }
+.eyebrow { font: 600 12px/1 var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(32px, 6vw, 48px); line-height: 1.05; letter-spacing: -.02em; }
+h2 { font-size: 26px; line-height: 1.2; }
+h3 { font-size: 17px; line-height: 1.3; }
+p { margin: 0; max-width: 68ch; }
+.lede { font-size: 18px; color: var(--muted); }
+section { display: grid; gap: 16px; }
+code, .mono { font-family: var(--font-mono); font-size: .88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; margin: 4px 0 0; list-style: none; }
+.facts li { border: 1px solid var(--rule); border-radius: 999px; padding: 4px 12px; font-size: 14px; background: var(--sheet); }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Architecture diagram */
+.stack { display: grid; gap: 10px; }
+.layer { display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: start; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; }
+.layer > div { min-width: 0; }
+.layer .name { font: 600 13px/1.3 var(--font-display); text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip { font: 500 13px/1.4 var(--font-mono); background: var(--code-bg); border-radius: 5px; padding: 2px 8px; }
+.arrow { text-align: center; color: var(--muted); font-size: 13px; line-height: 1; }
+.layer.side { border-style: dashed; }
+
+/* BAS run ledger */
+.run { display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--sheet); }
+.step { display: grid; grid-template-columns: 56px 1fr; border-top: 1px solid var(--rule); }
+.step:first-child { border-top: 0; }
+.num { font: 700 22px/1 var(--font-display); color: var(--accent); background: var(--accent-soft); display: flex; align-items: flex-start; justify-content: center; padding-top: 18px; font-variant-numeric: tabular-nums; }
+.body { padding: 16px 18px; display: grid; gap: 8px; min-width: 0; }
+.owner { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { font: 500 12px/1.5 var(--font-mono); border: 1px solid var(--rule); border-radius: 4px; padding: 0 6px; }
+.who { font: 600 11px/1.6 var(--font-body); letter-spacing: .06em; text-transform: uppercase; border-radius: 4px; padding: 0 6px; background: var(--user-soft); color: var(--user); }
+.body p { font-size: 15px; }
+
+/* Loop */
+.loop { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.loop div { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; font-size: 14px; display: grid; gap: 6px; align-content: start; }
+.loop strong { font-family: var(--font-display); font-size: 15px; }
+.loop div.stop { background: var(--user-soft); border-color: transparent; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px; border-top: 1px solid var(--rule); vertical-align: top; }
+thead th { border-top: 0; font: 600 12px/1.4 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+td:first-child { white-space: nowrap; font-family: var(--font-mono); font-size: 13px; }
+td.num-col { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 13px; }
+
+/* Two-column notes */
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.note { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 8px; align-content: start; }
+.note ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 15px; }
+pre.tree { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; font: 13px/1.7 var(--font-mono); overflow-x: auto; }
+.tree .c { color: var(--muted); }
+
+@media (max-width: 720px) {
+  .layer { grid-template-columns: 1fr; gap: 4px; }
+  .loop, .grid2 { grid-template-columns: 1fr; }
+  .step { grid-template-columns: 44px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+</style>
+
+<main>
+<header>
+  <div class="eyebrow">ai-accounting · how the code works</div>
+  <h1>AI Accounting code map</h1>
+  <p class="lede">A set of Codex plugins that take a business from bank statements and invoices to a reviewed Australian BAS draft. Everything runs on the user's computer; the accounting records live in one SQLite database per business.</p>
+  <ul class="facts">
+    <li>17 plugins, one skill each</li>
+    <li>Python 3.11 core, standard library</li>
+    <li>2 Node MCP servers for Gmail</li>
+    <li>Money in integer cents</li>
+    <li>Never lodges with the ATO</li>
+  </ul>
+</header>
+
+<section aria-labelledby="arch">
+  <h2 id="arch">The layers</h2>
+  <p>The user talks to Codex. Codex follows a skill's instructions and runs that skill's scripts. Every script that touches the books goes through the shared core, which reads and writes the workspace.</p>
+  <div class="stack">
+    <div class="layer"><div class="name">User</div><div>Asks in a Codex chat, e.g. “prepare my BAS for July to September”. Answers questions and approves proposals.</div></div>
+    <div class="arrow">↓</div>
+    <div class="layer"><div class="name">Skills</div><div>One <code>SKILL.md</code> per plugin: when to run, what to ask, which script to call, what to say. <code>manage-accounting</code> coordinates the others.
+      <div class="chips"><span class="chip">plugins/&lt;name&gt;/skills/&lt;name&gt;/SKILL.md</span></div></div></div>
+    <div class="arrow">↓</div>
+    <div class="layer"><div class="name">Scripts</div><div>Command-line entry points bundled inside each plugin. Most call <code>accounting_store.py</code> with a sub-command such as <code>import</code>, <code>save-proposals</code> or <code>prepare-bas</code>.</div></div>
+    <div class="arrow">↓</div>
+    <div class="layer"><div class="name">Core</div><div><code>accounting_core/</code>: the single maintained runtime. The release build copies it into every plugin that needs it.</div></div>
+    <div class="arrow">↓</div>
+    <div class="layer"><div class="name">Workspace</div><div>One folder per business: <code>db/accounting.db</code>, verified copies of source documents, reports and backups.</div></div>
+    <div class="layer side"><div class="name">Alongside</div><div>
+      <div class="chips"><span class="chip">Gmail connector (Codex)</span><span class="chip">search_bills / save_invoices MCP</span><span class="chip">ATO library</span><span class="chip">local review pages</span></div></div></div>
+  </div>
+</section>
+
+<section aria-labelledby="flow">
+  <h2 id="flow">The BAS run, step by step</h2>
+  <p>The workflow has seven steps. Each problem the database reports belongs to one step and one owning skill. Steps marked <span class="who">user</span> stop for an answer or approval.</p>
+  <div class="run">
+    <div class="step"><div class="num">1</div><div class="body">
+      <h3>Setup</h3>
+      <div class="owner"><span class="tag">setup-accounting</span><span class="tag">grill-me-tax</span><span class="who">user</span></div>
+      <p>Checks the computer (Python, packages, Node), creates the workspace, saves the business profile (entity, GST registration and basis) and the BAS method. Asks once whether to turn on the review-page buttons.</p>
+    </div></div>
+    <div class="step"><div class="num">2</div><div class="body">
+      <h3>Bank statements</h3>
+      <div class="owner"><span class="tag">extract-bankstatements</span></div>
+      <p>Reads CSV, Excel or PDF statements from <code>bankstatements/</code>, maps the columns, extracts rows and checks them against the statement's running balance, then imports transactions with the source file's hash.</p>
+    </div></div>
+    <div class="step"><div class="num">3</div><div class="body">
+      <h3>Invoices</h3>
+      <div class="owner"><span class="tag">search-email-invoices</span><span class="tag">save-invoices</span><span class="tag">review-invoices</span><span class="tag">extract-invoices</span><span class="who">user</span></div>
+      <p>Optionally finds bills in Gmail and saves the ones the user ticks into <code>invoices/</code>. Review-invoices groups duplicates and non-invoices and quarantines only approved files. Extract-invoices reads each document into invoices, lines and GST evidence.</p>
+    </div></div>
+    <div class="step"><div class="num">4</div><div class="body">
+      <h3>Transactions</h3>
+      <div class="owner"><span class="tag">classify-transactions</span><span class="tag">match-payments</span><span class="tag">allocate-running-costs</span><span class="who">user</span></div>
+      <p>Proposes a treatment for every bank line, grouped by payee: account, GST, linked invoice. Nothing is posted until the user approves. Approval posts a balanced journal. Payment matches and home-office running-cost allocations follow the same propose-then-confirm rule.</p>
+    </div></div>
+    <div class="step"><div class="num">5</div><div class="body">
+      <h3>Payroll and BAS items</h3>
+      <div class="owner"><span class="tag">grill-me-tax</span><span class="tag">prepare-bas</span><span class="who">user</span></div>
+      <p>Sixteen period scope questions (PAYG withholding and instalments, fuel tax, vehicles, director loans and so on), each saved with evidence and provenance. PAYG withholding figures (W1 to W5) are recorded here.</p>
+    </div></div>
+    <div class="step"><div class="num">6</div><div class="body">
+      <h3>Reconciliation</h3>
+      <div class="owner"><span class="tag">reconcile-accounts</span></div>
+      <p>Checks imported movements against each statement's opening and closing balance. A balance worked out from rows is marked as derived and still needs a printed figure from the bank.</p>
+    </div></div>
+    <div class="step"><div class="num">7</div><div class="body">
+      <h3>BAS draft</h3>
+      <div class="owner"><span class="tag">prepare-bas</span><span class="tag">prepare-tax-report</span></div>
+      <p>Builds the Simpler BAS workpaper (G1, 1A, 1B, plus W labels where applicable) from reviewed entries only, with the evidence behind each figure. The annual tax report produces a trial balance and income and expense workpaper. Neither is lodged.</p>
+    </div></div>
+  </div>
+</section>
+
+<section aria-labelledby="loop">
+  <h2 id="loop">How progress is tracked</h2>
+  <p>There is no separate checklist to keep in sync. <code>workflow-status</code> reads the database and lists open problems, each with a code, the owning skill, who can fix it and its step. The coordinator works the list until only user items remain.</p>
+  <div class="loop">
+    <div><strong>Read</strong>workflow-status lists open problems for the period.</div>
+    <div><strong>Pick</strong>The first problem a worker can fix, in step order.</div>
+    <div><strong>Run</strong>The owning skill does the work and saves results.</div>
+    <div class="stop"><strong>Stop</strong>When only questions and approvals are left, ask them all at once.</div>
+  </div>
+  <p><code>manage-accounting</code> does this inside a chat. <code>accounting_runner.py</code> does the same from the command line, one Codex turn per problem, and <code>scripts/simulate_user.py</code> answers its stops from a test answers file for end-to-end tests on marked test workspaces only.</p>
+</section>
+
+<section aria-labelledby="core">
+  <h2 id="core">The core, module by module</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Module</th><th>What it does</th><th>Lines</th></tr></thead>
+    <tbody>
+      <tr><td>accounting_store.py</td><td>The command-line entry point. Parses sub-commands and routes them to the modules below.</td><td class="num-col">406</td></tr>
+      <tr><td>product_store.py</td><td>Schema, workspace setup, imports, journals, GST, reconciliation, workflow status, backups. The heart of the ledger.</td><td class="num-col">1,701</td></tr>
+      <tr><td>invoice_store.py</td><td>Saves extracted invoices, lines and tax evidence next to bank transactions.</td><td class="num-col">346</td></tr>
+      <tr><td>proposal_store.py</td><td>Classification proposals, payee groups and the Excel review round trip. Approval posts the saved journal.</td><td class="num-col">325</td></tr>
+      <tr><td>payment_store.py</td><td>Proposes invoice-to-payment matches and stores confirmed allocations.</td><td class="num-col">265</td></tr>
+      <tr><td>allocation_store.py</td><td>Versioned business-use rules and reproducible running-cost allocations.</td><td class="num-col">480</td></tr>
+      <tr><td>running_cost_workpapers.py</td><td>Fixed-rate home-office workpapers. Never ledger entries or GST claims.</td><td class="num-col">370</td></tr>
+      <tr><td>expense_claims.py</td><td>Payment sources and costs the owner paid personally.</td><td class="num-col">219</td></tr>
+      <tr><td>bas_applicability.py</td><td>The period scope questions, their evidence and review routes.</td><td class="num-col">520</td></tr>
+      <tr><td>bas_labels.py</td><td>Whole-dollar BAS labels, due dates and PAYG withholding W1 to W5.</td><td class="num-col">215</td></tr>
+      <tr><td>memory_store.py</td><td>Workspace facts the user stated, with dates and revision history.</td><td class="num-col">128</td></tr>
+      <tr><td>ato_library.py</td><td>Indexes the bundled ATO guides, searches them and checks quoted citations.</td><td class="num-col">347</td></tr>
+      <tr><td>review_table.py</td><td>The local browser review table with source links and correction requests.</td><td class="num-col">360</td></tr>
+      <tr><td>local_server.py</td><td>Shared loopback server code for every local page: binding, token and origin checks, safe headers.</td><td class="num-col">135</td></tr>
+      <tr><td>accounting_runner.py</td><td>Runs Codex turns until only user problems remain.</td><td class="num-col">264</td></tr>
+      <tr><td>check_environment.py</td><td>Checks Python, packages and Node, and installs the packages privately.</td><td class="num-col">149</td></tr>
+      <tr><td>enable_local_server.py</td><td>Turns the review-page buttons on or off in the Codex config.</td><td class="num-col">102</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section aria-labelledby="plugins">
+  <h2 id="plugins">The plugins</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Plugin</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>setup-accounting</td><td>Computer check, workspace and business setup</td></tr>
+      <tr><td>grill-me-tax</td><td>Intake questions for BAS and tax returns</td></tr>
+      <tr><td>manage-accounting</td><td>Coordinates the period end to end</td></tr>
+      <tr><td>ato-docs</td><td>ATO research with checked citations; ships the guide PDFs</td></tr>
+      <tr><td>search-email-invoices</td><td>Finds bills in Gmail; browser checklist</td></tr>
+      <tr><td>save-invoices</td><td>Saves the ticked emails' attachments locally</td></tr>
+      <tr><td>review-invoices</td><td>Duplicates and non-invoices; approved quarantine</td></tr>
+      <tr><td>upload-invoices-drive</td><td>Copies invoices to Google Drive folders</td></tr>
+      <tr><td>extract-bankstatements</td><td>Bank statement extraction and import</td></tr>
+      <tr><td>extract-invoices</td><td>Invoice extraction into the books</td></tr>
+      <tr><td>classify-transactions</td><td>Proposes and posts balanced entries with GST evidence</td></tr>
+      <tr><td>match-payments</td><td>Links invoices to bank payments</td></tr>
+      <tr><td>allocate-running-costs</td><td>Business-use share of electricity, internet and phone</td></tr>
+      <tr><td>reconcile-accounts</td><td>Opening and closing balance checks</td></tr>
+      <tr><td>prepare-bas</td><td>Simpler BAS GST workpaper</td></tr>
+      <tr><td>prepare-tax-report</td><td>Trial balance and annual workpaper</td></tr>
+      <tr><td>setup-xero-mcp</td><td>Optional Xero connection</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section aria-labelledby="rules">
+  <h2 id="rules">Rules the code enforces</h2>
+  <div class="grid2">
+    <div class="note"><h3>Books</h3><ul>
+      <li>Money is stored in integer cents; journals must balance.</li>
+      <li>Nothing posts without an approved proposal.</li>
+      <li>Corrections are reversals, never edits; audit events are append-only.</li>
+      <li>Source files are hashed and copied into the workspace.</li>
+      <li>One business per workspace.</li>
+    </ul></div>
+    <div class="note"><h3>Tax</h3><ul>
+      <li>GST credits need saved tax-invoice evidence.</li>
+      <li>ATO citations must quote the guide word for word; the code checks the quote.</li>
+      <li>Unknown facts stay unknown; nothing defaults to yes.</li>
+      <li>BAS output is a draft workpaper; nothing is lodged.</li>
+    </ul></div>
+    <div class="note"><h3>Email</h3><ul>
+      <li>Codex searches Gmail through its own connector.</li>
+      <li><code>search_bills</code> only tidies the results, on this computer.</li>
+      <li>Only ticked invoices are saved, with a <code>manifest.csv</code>.</li>
+    </ul></div>
+    <div class="note"><h3>Local pages</h3><ul>
+      <li>Served on 127.0.0.1 with a per-page token and origin check.</li>
+      <li>Buttons need <code>network_access</code>, which the user turns on.</li>
+      <li>Without it, pages open as files and copy-and-paste still works.</li>
+    </ul></div>
+  </div>
+</section>
+
+<section aria-labelledby="ato">
+  <h2 id="ato">The ATO library</h2>
+  <p>Guides in <code>ato-library/</code> are added with <code>ato-add</code>, which extracts each page's text into <code>library.json</code>. Searches split pages into passages at their headings and rank them with SQLite full-text search (BM25, word stemming). Results carry the guide, page, a link that opens the PDF at that page, and warnings for stale guides or guides cited outside the period they cover.</p>
+</section>
+
+<section aria-labelledby="layout">
+  <h2 id="layout">Where things live</h2>
+  <div class="grid2">
+    <pre class="tree">ai-accounting/  <span class="c"># the repository</span>
+├─ accounting_core/   <span class="c"># maintained runtime</span>
+├─ plugins/&lt;name&gt;/
+│  ├─ .codex-plugin/plugin.json
+│  ├─ skills/&lt;name&gt;/SKILL.md
+│  ├─ skills/&lt;name&gt;/scripts/  <span class="c"># bundled copies</span>
+│  └─ mcp-server/        <span class="c"># Gmail plugins</span>
+├─ ato-library/       <span class="c"># guides + library.json</span>
+├─ scripts/           <span class="c"># build, install, simulate</span>
+├─ tests/
+└─ .agents/plugins/marketplace.json</pre>
+    <pre class="tree">&lt;workspace&gt;/  <span class="c"># one per business</span>
+├─ bankstatements/  <span class="c"># user drops statements</span>
+├─ invoices/        <span class="c"># bills and receipts</span>
+├─ output/YYYY-MM-DD/reports/
+├─ db/accounting.db <span class="c"># the books</span>
+├─ documents/       <span class="c"># verified copies</span>
+└─ backups/</pre>
+  </div>
+</section>
+
+<section aria-labelledby="release">
+  <h2 id="release">Build, install and test</h2>
+  <div class="grid2">
+    <div class="note"><h3>Install</h3><ul>
+      <li>Users add <code>8intcloud8/ai-accounting</code> as a plugin source in Codex Desktop, then type “Set up my accounting”.</li>
+      <li>Maintainers run <code>scripts/install.py</code> from a checkout.</li>
+    </ul></div>
+    <div class="note"><h3>Build</h3><ul>
+      <li><code>scripts/build_release.py</code> copies the core and <code>library.json</code> into each plugin and records file hashes.</li>
+      <li>Edit only <code>accounting_core/</code>; bundled copies are generated.</li>
+    </ul></div>
+    <div class="note"><h3>Test</h3><ul>
+      <li><code>python3 -m pytest</code>: 154 tests on temporary workspaces.</li>
+      <li><code>npm test</code> in each <code>mcp-server/</code>.</li>
+      <li><code>scripts/simulate_user.py</code> for a full BAS run with Codex.</li>
+    </ul></div>
+    <div class="note"><h3>Never committed</h3><ul>
+      <li>Statements, invoices, spreadsheets, databases and workspace folders.</li>
+      <li>Real test answers stay in the private test workspace.</li>
+    </ul></div>
+  </div>
+</section>
+</main>
