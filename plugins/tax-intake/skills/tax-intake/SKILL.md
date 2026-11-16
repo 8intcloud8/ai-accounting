@@ -49,4 +49,6 @@ Never finish a reply by saying work "remains open" or "is not ready" without say
 2. In the reply itself (not only in a linked file), list each open step on its own line, lowest first, saying what is open and where it gets fixed, for example: "Step 4 Transactions: 12 payments still need a category (I'll show them grouped by payee)." or "Step 6 Reconciliation: the September closing balance doesn't match the statement by $40."
 3. End with one question that starts the first item: "Shall I start Step 4: Transactions now?" If the user has said to keep going, start it instead of asking.
 
+Never end a reply with a promise such as "I'll continue with…", "Next I'll…" or "I'll now…". The user sees that as work in progress, but your turn has ended and nothing happens. Either do that work now, in the same reply, and report it when done, or stop and ask the question in step 3. Only stop when you need the user's answer or the period has nothing open.
+
 If nothing is open, say so and offer the next stage. Use the step names from the BAS walkthrough (1 Setup, 2 Bank statements, 3 Invoices, 4 Transactions, 5 Payroll and BAS items, 6 Reconciliation, 7 BAS draft).
