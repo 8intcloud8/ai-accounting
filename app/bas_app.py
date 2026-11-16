@@ -24,6 +24,7 @@ import accounting_store  # noqa: E402
 import bas_dashboard  # noqa: E402
 import check_environment  # noqa: E402
 import local_server  # noqa: E402
+import workspace_instructions  # noqa: E402
 from codex_chat import Codex  # noqa: E402
 from local_server import LocalHandler  # noqa: E402
 
@@ -161,6 +162,7 @@ def main(argv=None):
     # Bring an older database's tables up to date (as any accounting command does), so the
     # read-only steps panel can read it. Changes no records.
     accounting_store.connect(db).close()
+    workspace_instructions.ensure(args.workspace)
     codex = Codex(codex_command(), args.workspace, f"{args.start}_{args.end}")
     server = None
     try:

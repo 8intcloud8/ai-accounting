@@ -17,9 +17,10 @@
     "local_server.py": "94e917d92b51e2b041d256da555fbabafbf6b54d301a0c7626fff1b0fa7c20cc",
     "memory_store.py": "5591905fca61fe97260d8a8a015159065fe7159ce8ccc9e13a771ba5e4a03c3c",
     "payment_store.py": "6e0611d45e3363e6c199716cd8781f59ee2177821521393aad7083bb6d8e7d53",
-    "product_store.py": "9044362e8dc20234ffdfeb1e914d376f6531596962daba39171e67b90f65e323",
+    "product_store.py": "8c55ea8960bc3b81741bc271c50a1f8b46f83c85235667610856f6758bb7eece",
     "proposal_store.py": "3a3532fb5e3dc87132ea0b195b9abb16cc9d5e05607457855ef51e770ebf20c2",
     "review_table.py": "1a2432df9707396f06b69e9ad2aeec9e408d7daf0a02e92f194c05b8380fa70e",
-    "running_cost_workpapers.py": "5d29ddd481a01531c30d5154c5024ec002343b99179b18d3ab4900f6f28e98ca"
+    "running_cost_workpapers.py": "5d29ddd481a01531c30d5154c5024ec002343b99179b18d3ab4900f6f28e98ca",
+    "workspace_instructions.py": "d79cc54c8b42642eaef841bdbbda39519eb85b9f961170750dd36b81b6f99725"
   }
 }

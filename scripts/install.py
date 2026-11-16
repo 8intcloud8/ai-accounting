@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "accounting_core"))
 import check_environment  # noqa: E402
 import enable_local_server  # noqa: E402
+import workspace_instructions  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "app"))
 
@@ -116,6 +117,8 @@ def register_workspace(codex_home, workspace):
     enabled, so a failure partway never leaves a plugin pointing at another workspace."""
     codex_home.mkdir(parents=True, exist_ok=True)
     write_json(codex_home / "accounting-workspace.json", {"workspace": str(workspace)}, private=True)
+    if (workspace / "db/accounting.db").exists():
+        workspace_instructions.ensure(workspace)
     registry = codex_home / "accounting-workspaces.json"
     known = json.loads(registry.read_text()) if registry.exists() else {"workspaces": []}
     if str(workspace) not in known["workspaces"]:

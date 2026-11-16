@@ -16,7 +16,10 @@ import local_server
 INSTRUCTIONS = (
     "The user is in the BAS app. The BAS steps are shown beside this chat and update as you "
     "work, so do not repeat the full step list unless asked. Write for a non-technical business "
-    "owner: short, plain sentences. Never end on a promise to continue: do the work or ask."
+    "owner: short, plain sentences. After every change, correction or answer, even a short one, "
+    "run workflow-status for the period and end with one question that starts the first open step, "
+    "for example: \"Shall I start Step 4: Transactions now?\" If the user said to keep going, start it. "
+    "Never end with only a summary of what changed, or with a promise to continue: do the work or ask."
 )
 WORKING = {"commandExecution": "Checking the books", "reasoning": "Thinking",
            "fileChange": "Updating files", "mcpToolCall": "Using a tool", "webSearch": "Searching the ATO site"}

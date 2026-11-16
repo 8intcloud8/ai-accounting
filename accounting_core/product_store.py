@@ -289,6 +289,9 @@ def setup(path, payload, connect):
         audit(db, "setup", "workspace", 1, None, payload, "Initial workspace setup")
     for folder in WORKSPACE_FOLDERS:
         (root_for(path) / folder).mkdir(parents=True, exist_ok=True)
+    import workspace_instructions
+
+    workspace_instructions.ensure(root_for(path))
     register_workspace(root_for(path))
     return {
         "workspace": str(root_for(path)),
