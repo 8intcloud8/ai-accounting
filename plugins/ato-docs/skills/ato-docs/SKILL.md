@@ -47,3 +47,7 @@ Answer the actual question first. Cite the library page (guide, page, exact quot
 State the specific missing fact or unavailable source when it prevents a conclusion. If a page is blocked, try another official page or official printable/PDF version. If still unavailable, disclose that verification failed; do not treat a snippet as verified guidance or guess a rate.
 
 When another accounting skill uses this research, pass back the conclusion, applicable entity/period, supporting URLs and sections, access date, and unresolved evidence. Research alone does not authorize ledger changes or lodgment. Save a research report only when the user or calling workflow requests one, using its selected workspace and report location.
+
+## Passing input to commands
+
+Commands that take `--request`, `--records`, `--rule`, `--confirmed` or `--approved` read JSON from stdin when given `-`. Pipe the JSON in (`... --request - <<'JSON'` … `JSON`) instead of writing request files: every file you write is shown to the user as an edited file. Send several documents in one call where a command accepts a list, for example `record-supporting` with `{"documents": [...]}`.

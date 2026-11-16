@@ -182,6 +182,13 @@ def register_workspace(root):
         temp.replace(registry)
 
 
+def read_request(path):
+    """JSON from a request file, or from stdin when the path is "-" so callers
+    need not write a file for every command."""
+    import sys
+    return json.loads(sys.stdin.read() if str(path) == "-" else Path(path).read_text())
+
+
 def default_db():
     override = os.environ.get("AI_ACCOUNTING_DB")
     if override:
@@ -1618,14 +1625,14 @@ COMMANDS = {
 def dispatch(args, connect):
     if args.command == "complete-bas-task":
         return complete_task(
-            args.db, json.loads(args.request.read_text()), connect, audit
+            args.db, read_request(args.request), connect, audit
         )
     if args.command == "save-bas-applicability":
         return save_answers(
-            args.db, json.loads(args.request.read_text()), connect, audit
+            args.db, read_request(args.request), connect, audit
         )
     if args.command == "save-payg-withholding":
-        return bas_labels.save_payg(args.db, json.loads(args.request.read_text()), connect, audit)
+        return bas_labels.save_payg(args.db, read_request(args.request), connect, audit)
     if args.command == "bas-applicability":
         return export_checklist(args.db, args.start, args.end, connect, args.output)
     if args.command in ("save-proposals", "decide-proposals", "proposals", "proposal-groups",
@@ -1643,7 +1650,7 @@ def dispatch(args, connect):
             return proposal_store.export_workbook(args.db, start, end, Path(output), connect)
         if args.command == "apply-proposals-workbook":
             return proposal_store.apply_workbook(args.db, args.workbook, connect, post_journal)
-        payload = json.loads(args.request.read_text())
+        payload = read_request(args.request)
         if args.command == "save-proposals":
             return proposal_store.save(args.db, payload, connect)
         return proposal_store.decide(args.db, payload, connect, post_journal)
@@ -1664,7 +1671,7 @@ def dispatch(args, connect):
     }
     if args.command in handlers:
         return handlers[args.command](
-            args.db, json.loads(args.request.read_text()), connect
+            args.db, read_request(args.request), connect
         )
     if args.command in ("prepare-bas", "tax-report"):
         return report(
@@ -1677,7 +1684,7 @@ def dispatch(args, connect):
     with closing(connect(args.db)) as db, db:
         db.row_factory = sqlite3.Row
         if args.command == "complete-step":
-            p = json.loads(args.request.read_text())
+            p = read_request(args.request)
             start, end = period(p["start"], p["end"])
             if p.get("step") not in (
                 "source_completeness",

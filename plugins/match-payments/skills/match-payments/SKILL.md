@@ -81,3 +81,7 @@ Use the existing payment reference when linking a previously recorded reimbursem
 ## Expense-claim ownership
 
 Own payment-source and expense-claim state through record-purchase: set-source, approve, confirm-unreimbursed and reimburse. Inspect the bundled helper schema before constructing requests. Require actual user confirmation and evidence for each mutation. Keep supplier payment separate from company reimbursement. Reuse stable reimbursement references; link bank debits without recording the payment twice. These actions do not post journals; route posting to classify-transactions. Return saved claim fields to invoice reports.
+
+## Passing input to commands
+
+Commands that take `--request`, `--records`, `--rule`, `--confirmed` or `--approved` read JSON from stdin when given `-`. Pipe the JSON in (`... --request - <<'JSON'` … `JSON`) instead of writing request files: every file you write is shown to the user as an edited file. Send several documents in one call where a command accepts a list, for example `record-supporting` with `{"documents": [...]}`.

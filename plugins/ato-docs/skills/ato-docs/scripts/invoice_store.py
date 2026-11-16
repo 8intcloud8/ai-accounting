@@ -357,8 +357,15 @@ def read_invoices(path: Path, business: str | None, status: str | None) -> dict:
 
 
 def record_supporting(path, payload, connect):
-    """Keep a document that is not an invoice (a notification, payment confirmation or
-    booking) as supporting evidence, so it is neither read again nor reviewed as one."""
+    """Keep documents that are not invoices (notifications, payment confirmations,
+    bookings) as supporting evidence, so they are neither read again nor reviewed as
+    invoices. Takes one document, or {"documents": [...]} for several at once."""
+    if isinstance(payload, dict) and isinstance(payload.get("documents"), list):
+        if not payload["documents"]:
+            raise ValueError("No documents given")
+        shared = {k: v for k, v in payload.items() if k != "documents"}
+        return {"recorded": [record_supporting(path, {**shared, **doc}, connect)
+                             for doc in payload["documents"]]}
     business = optional_text(payload.get("business_id"))
     if not business:
         raise ValueError("Stable business identity required")

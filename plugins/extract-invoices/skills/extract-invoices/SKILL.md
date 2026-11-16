@@ -139,3 +139,7 @@ by release generation to synchronise bundled copies, never in per-run output.
 ## Payment and claim handoff
 
 Use match-payments to record confirmed payment ownership, claim approval and reimbursements through record-purchase. Extraction owns invoice facts only. Display saved claim fields returned by invoices without recreating or approving claims.
+
+## Passing input to commands
+
+Commands that take `--request`, `--records`, `--rule`, `--confirmed` or `--approved` read JSON from stdin when given `-`. Pipe the JSON in (`... --request - <<'JSON'` … `JSON`) instead of writing request files: every file you write is shown to the user as an edited file. Send several documents in one call where a command accepts a list, for example `record-supporting` with `{"documents": [...]}`.

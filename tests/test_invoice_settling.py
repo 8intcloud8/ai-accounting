@@ -131,3 +131,32 @@ class ExcludeFromBasTests(unittest.TestCase):
                 exclude(table, bad)
         with self.assertRaisesRegex(ValueError, "period"):
             exclude(dict(table, exclusion=None), {"row": 0, "reason": "Duplicate"})
+
+
+class RequestInputTests(unittest.TestCase):
+    setUp = test_product.ProductTests.setUp
+    tearDown = test_product.ProductTests.tearDown
+
+    def test_several_supporting_documents_in_one_call(self):
+        files = []
+        for name in ("ready-1.pdf", "ready-2.pdf"):
+            f = self.root / name
+            f.write_text(name)
+            files.append({"file": str(f)})
+        result = record_supporting(self.db, {"business_id": "example", "kind": "notification",
+                                             "reason": "Invoice-ready emails", "documents": files}, connect)
+        self.assertEqual(len(result["recorded"]), 2)
+        with self.assertRaises(ValueError):
+            record_supporting(self.db, {"business_id": "example", "documents": []}, connect)
+
+    def test_commands_read_json_from_stdin(self):
+        import io
+        import sys
+        from product_store import read_request
+
+        saved = sys.stdin
+        sys.stdin = io.StringIO('{"a": 1}')
+        try:
+            self.assertEqual(read_request("-"), {"a": 1})
+        finally:
+            sys.stdin = saved

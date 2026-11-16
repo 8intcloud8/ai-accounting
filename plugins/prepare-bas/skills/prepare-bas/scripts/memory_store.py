@@ -1,6 +1,7 @@
 """Workspace-local facts; append-only revisions, explicit entity and effective dates."""
 import argparse
 import json
+import sys
 import sqlite3
 from contextlib import closing
 from datetime import date
@@ -118,7 +119,7 @@ def main():
             reader.add_argument('--on', required=True)
     args = parser.parse_args()
     try:
-        result = save(args.workspace, json.loads(args.request.read_text())) if args.command == 'save' else read(args.workspace, args.entity, getattr(args, 'on', None), args.command == 'history', args.topic)
+        result = save(args.workspace, json.loads(sys.stdin.read() if str(args.request) == '-' else args.request.read_text())) if args.command == 'save' else read(args.workspace, args.entity, getattr(args, 'on', None), args.command == 'history', args.topic)
         print(json.dumps(result, ensure_ascii=False))
     except (ValueError, OSError, sqlite3.Error) as exc:
         parser.exit(1, f'Memory operation failed: {exc}\n')

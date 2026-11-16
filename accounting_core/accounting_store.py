@@ -21,6 +21,7 @@ import check_environment
 check_environment.activate()
 
 from product_store import (
+    read_request,
     PRODUCT_SCHEMA,
     default_db,
     known_workspaces,
@@ -316,20 +317,20 @@ def main() -> None:
             return
         if args.command == "record-purchase":
             result = expense_claims.record(
-                args.db, json.loads(args.request.read_text()), connect
+                args.db, read_request(args.request), connect
             )
         elif args.command in COMMANDS:
             result = dispatch(args, connect)
         elif args.command == "calculate-fixed-running-costs":
-            result = save_fixed(args.db, json.loads(args.request.read_text()), connect)
+            result = save_fixed(args.db, read_request(args.request), connect)
         elif args.command == "running-cost-workpapers":
             result = list_fixed(args.db, args.business, args.output)
         elif args.command == "save-allocation-rule":
-            result = save_rule(args.db, json.loads(args.rule.read_text()), connect)
+            result = save_rule(args.db, read_request(args.rule), connect)
         elif args.command == "allocation-rules":
             result = list_rules(args.db, args.business)
         elif args.command == "allocate-running-costs":
-            result = allocate(args.db, json.loads(args.request.read_text()), connect)
+            result = allocate(args.db, read_request(args.request), connect)
         elif args.command == "allocations":
             result = (
                 export_allocations(args.db, args.business, args.output)
@@ -339,13 +340,13 @@ def main() -> None:
         elif args.command == "match-payments":
             result = propose(args.db, args.business, args.account)
         elif args.command == "confirm-payments":
-            result = confirm(args.db, json.loads(args.confirmed.read_text()), connect)
+            result = confirm(args.db, read_request(args.confirmed), connect)
         elif args.command == "import-invoices":
             result = import_invoices(
-                args.db, json.loads(args.records.read_text()), connect, cents
+                args.db, read_request(args.records), connect, cents
             )
         elif args.command == "record-supporting":
-            result = record_supporting(args.db, json.loads(args.request.read_text()), connect)
+            result = record_supporting(args.db, read_request(args.request), connect)
         elif args.command == "invoices":
             result = read_invoices(args.db, args.business, args.status)
         elif args.command == "import":
@@ -353,7 +354,7 @@ def main() -> None:
                 args.db,
                 args.source,
                 args.account,
-                json.loads(args.approved.read_text()),
+                read_request(args.approved),
             )
         else:
             rows = read_records(args.db, args.account, args.start, args.end)
