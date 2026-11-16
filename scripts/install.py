@@ -20,6 +20,8 @@ sys.path.insert(0, str(ROOT / "accounting_core"))
 import check_environment  # noqa: E402
 import enable_local_server  # noqa: E402
 
+sys.path.insert(0, str(ROOT / "app"))
+
 MARKETPLACE = "ai-accounting"
 EMAIL_PLUGINS = ("search-email-invoices", "save-invoices")
 LOCAL_SERVER_QUESTION = (
@@ -43,6 +45,8 @@ def parse_args():
                         help="Write configuration only for packaging checks; does not install plugins")
     parser.add_argument("--local-server", choices=("ask", "yes", "no"), default="ask",
                         help="Turn on buttons in the local review pages (lets Codex commands use the network)")
+    parser.add_argument("--desktop-app", type=Path, nargs="?", const=Path.home() / "Applications",
+                        metavar="FOLDER", help="Also make the double-clickable BAS app (default ~/Applications)")
     args = parser.parse_args()
     args.codex_home = args.codex_home.expanduser().resolve()
     args.workspace = args.workspace.expanduser().resolve()
@@ -174,6 +178,12 @@ def main():
     else:
         install_plugins(args.codex, args.codex_home, plugins)
     buttons = local_server_choice(args.local_server, args.codex_home)
+    desktop = None
+    if args.desktop_app and not args.register_only:
+        import launcher
+        os.environ["CODEX_HOME"] = str(args.codex_home)
+        launcher.install_window_package()
+        desktop = str(launcher.build(args.desktop_app))
     if args.register_only:
         next_step = "Configuration written only; rerun without --register-only to install."
     else:
@@ -183,6 +193,7 @@ def main():
         "local_server": buttons["on"],
         "registered_plugins" if args.register_only else "installed_plugins": plugins,
         "workspace": str(args.workspace),
+        **({"desktop_app": desktop} if desktop else {}),
         "next": next_step,
     }, indent=2))
 

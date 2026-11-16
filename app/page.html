@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BAS</title>
+<style>
+:root{--desk:#e9eef0;--win:#fff;--side:#f6f8f9;--ink:#101a24;--muted:#5d6b78;--faint:#8a97a3;--line:#e1e7ec;
+--accent:#0f7a63;--accent-ink:#fff;--accent-soft:#e5f4ef;--todo:#b26b00;--todo-soft:#fff4e0;--block:#6b7785;--block-soft:#eef1f4;
+--you:#0f2f4a;--you-ink:#fff;--shadow:0 1px 2px #0b16200f,0 20px 50px -24px #0b162040;
+--display:"Avenir Next","Segoe UI",system-ui,sans-serif;--body:-apple-system,"Segoe UI",system-ui,sans-serif}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--desk:#0b1117;--win:#131b23;--side:#0f161d;--ink:#e8eef3;--muted:#9eadb9;--faint:#6e7f8d;--line:#233040;
+--accent:#3ccfa6;--accent-ink:#062018;--accent-soft:#103429;--todo:#f2b450;--todo-soft:#33260f;--block:#93a1ae;--block-soft:#1c2631;--you:#1f4d74;--you-ink:#fff;--shadow:0 1px 2px #0006,0 24px 60px -24px #000a}}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--desk);color:var(--ink);font:14.5px/1.55 var(--body);display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:14px}
+.pane{background:var(--win);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);min-height:0;display:grid}
+/* Chat */
+#chat{grid-template-rows:auto minmax(0,1fr) auto}
+.head{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.head h1{margin:0;font:800 18px/1.2 var(--display);letter-spacing:-.01em}
+.head small{color:var(--muted)}
+#log{overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth}
+.msg{max-width:72ch;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:var(--you);color:var(--you-ink);padding:9px 14px;border-radius:14px 14px 4px 14px}
+.msg.assistant{align-self:flex-start}
+.msg p{margin:0 0 6px}.msg p:last-child{margin:0}
+.msg ul{margin:4px 0 8px;padding-left:20px}
+.msg code{font:12.5px ui-monospace,Menlo,monospace;background:var(--side);padding:1px 5px;border-radius:5px}
+.msg .file{color:var(--accent);font-weight:600}
+.empty{margin:auto;text-align:center;color:var(--muted);max-width:42ch}
+.empty strong{display:block;font:800 22px var(--display);color:var(--ink);margin-bottom:6px}
+#status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;padding:0 22px 8px;min-height:22px}
+#status i{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25;transform:scale(.7)}}
+@media(prefers-reduced-motion:reduce){#status i{animation:none}}
+form{display:flex;gap:10px;padding:12px 16px 16px;border-top:1px solid var(--line)}
+textarea{flex:1;resize:none;font:inherit;color:var(--ink);background:var(--side);border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:46px;max-height:160px}
+textarea:focus{outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent);border-color:transparent}
+button{font:600 13.5px var(--body);border-radius:10px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--win);color:var(--ink)}
+button:hover{background:var(--side)}
+button:disabled{opacity:.5;cursor:default}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+button.primary:hover{filter:brightness(1.07)}
+button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+/* Steps */
+#steps-pane{grid-template-rows:auto auto minmax(0,1fr) auto;overflow:hidden}
+.top{padding:18px 20px 6px;display:grid;gap:3px}
+.top .biz{color:var(--muted);font-size:12.5px}
+.top h2{margin:0;font:800 20px/1.2 var(--display);letter-spacing:-.01em}
+.top .due{color:var(--muted);font-size:13px}
+.progress{padding:8px 20px 14px;display:grid;gap:6px}
+.bar{height:7px;background:var(--block-soft);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);transition:width .5s}
+.progress small{color:var(--muted)}
+#steps{list-style:none;margin:0;padding:0 10px 10px;overflow-y:auto}
+.step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;padding:11px 10px;border-radius:12px}
+.n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 12.5px var(--display)}
+.step h3{margin:3px 0 0;font:700 14px var(--display)}
+.step p{margin:1px 0 0;color:var(--muted);font-size:12.5px}
+.step button{margin-top:8px}
+.done .n,.ready .n{background:var(--accent);color:var(--accent-ink)}
+.done h3{color:var(--muted);font-weight:600}
+.todo .n{background:var(--todo-soft);color:var(--todo)}
+.blocked .n{background:var(--block-soft);color:var(--block)}
+.step.next{background:color-mix(in srgb,var(--todo-soft) 60%,transparent)}
+.figures{border-top:1px solid var(--line);padding:12px 20px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fig b{display:block;font:700 11px var(--body);color:var(--faint);letter-spacing:.05em}
+.fig strong{font:800 17px var(--display);font-variant-numeric:tabular-nums}
+.figures .note{grid-column:1/-1;color:var(--faint);font-size:11.5px}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--win);padding:9px 16px;border-radius:10px;font-weight:600;box-shadow:var(--shadow)}
+@media(max-width:900px){body{grid-template-columns:1fr;grid-template-rows:auto minmax(70vh,1fr);height:auto}#steps-pane{order:-1}#steps{max-height:240px}}
+</style></head><body>
+<main class="pane" id="chat" aria-label="Chat">
+  <div class="head"><h1>Your BAS assistant</h1><button id="stop" type="button" hidden>Stop</button></div>
+  <div id="log" aria-live="polite"></div>
+  <div id="status" role="status"></div>
+  <form id="form"><textarea id="text" rows="1" placeholder="Ask about your BAS, or answer a question…" aria-label="Message"></textarea><button class="primary" id="send" type="submit">Send</button></form>
+</main>
+<aside class="pane" id="steps-pane" aria-label="BAS steps">
+  <div class="top"><span class="biz" id="biz"></span><h2 id="period"></h2><span class="due" id="due"></span></div>
+  <div class="progress"><div class="bar" aria-hidden="true"><i id="bar"></i></div><small id="progress"></small></div>
+  <ol id="steps"></ol>
+  <div class="figures" id="figures"></div>
+</aside>
+<div id="toast" role="status" hidden></div>
+<script>
+const TOKEN=__TOKEN__;const $=id=>document.getElementById(id);
+const api=(path,body)=>fetch(path,{method:body?'POST':'GET',headers:{'X-App-Token':TOKEN,'Content-Type':'application/json'},body:body&&JSON.stringify(body)}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Something went wrong');return j});
+const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n};
+const plain=t=>t.replace(/^\$[\w-]+\s+/,'');
+const month=d=>new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+const money=v=>(v<0?'−$':'$')+Math.abs(v).toLocaleString('en-AU');
+let working=false;
+function toast(t){const n=$('toast');n.textContent=t;n.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>n.hidden=true,3200)}
+// Inline markdown built as DOM nodes, never innerHTML.
+function inline(parent,text){
+  for(const part of text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/)){
+    if(!part)continue;
+    if(part.startsWith('**'))parent.append(el('b',null,part.slice(2,-2)));
+    else if(part.startsWith('`'))parent.append(el('code',null,part.slice(1,-1)));
+    else if(part.startsWith('['))parent.append(el('span','file',part.slice(1,part.indexOf(']'))));
+    else parent.append(part);
+  }
+}
+function render(node,text){
+  node.replaceChildren();let list=null;
+  for(const line of text.split('\n')){
+    const bullet=line.match(/^\s*(?:[-*]|\d+\.)\s+(.*)/);
+    if(bullet){if(!list){list=el('ul');node.append(list)}const li=el('li');inline(li,bullet[1]);list.append(li);continue}
+    list=null;if(!line.trim())continue;const p=el('p');inline(p,line);node.append(p);
+  }
+}
+function addMessage(m){
+  $('log').querySelector('.empty')?.remove();
+  let node=document.querySelector(`[data-id="${CSS.escape(m.id)}"]`);
+  if(!node){node=el('div','msg '+m.role);node.dataset.id=m.id;node.dataset.text='';$('log').append(node)}
+  node.dataset.text=m.text;render(node,m.role==='user'?plain(m.text):m.text);
+  $('log').scrollTop=$('log').scrollHeight;
+}
+function setWorking(on,label){
+  working=on;$('send').disabled=on;$('stop').hidden=!on;
+  $('status').replaceChildren(...(on?[el('i'),label||'Working…']:[]));
+  document.querySelectorAll('#steps button').forEach(b=>b.disabled=on);
+}
+async function send(text){
+  if(!text.trim()||working)return;
+  setWorking(true,'Sending…');
+  try{await api('/api/send',{text})}catch(e){setWorking(false);toast(e.message)}
+}
+$('form').addEventListener('submit',e=>{e.preventDefault();const t=$('text').value;$('text').value='';send(t)});
+$('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('form').requestSubmit()}});
+$('stop').addEventListener('click',()=>api('/api/stop',{}).catch(e=>toast(e.message)));
+function drawSteps(d){
+  $('biz').textContent=d.business;$('period').textContent=`BAS ${month(d.start)} – ${month(d.end)}`;
+  $('due').textContent=`Due ${month(d.due)} · ${d.basis} basis`;
+  $('bar').style.width=(100*d.done/d.steps.length)+'%';
+  $('progress').textContent=`${d.done} of ${d.steps.length} steps done`;
+  const next=d.steps.find(s=>s.state!=='done');
+  $('steps').replaceChildren(...d.steps.map(s=>{
+    const li=el('li','step '+s.state+(s===next?' next':''));
+    li.append(el('span','n',s.state==='done'?'✓':String(s.number)));
+    const body=el('div');body.append(el('h3',null,s.name));
+    for(const line of s.lines)body.append(el('p',null,line));
+    if(s.request&&s.state!=='blocked'){const b=el('button',s===next?'primary':'',s===next?'Start this step':'Do this');b.disabled=working;b.onclick=()=>send(s.request);body.append(b)}
+    li.append(body);return li;
+  }));
+  const L=d.labels;
+  $('figures').replaceChildren(
+    ...[['G1 Sales',L.G1],['1A GST on sales',L['1A']],['1B GST credits',L['1B']]].map(([k,v])=>{const f=el('div','fig');f.append(el('b',null,k),el('strong',null,money(v??0)));return f}),
+    el('span','note',d.labels_final?'Ready for the BAS draft.':'Figures so far. They change until the steps above are done.'));
+}
+let refreshing=null;
+const load=()=>api('/api/status').then(drawSteps).catch(e=>toast(e.message));
+function refresh(){clearTimeout(refreshing);refreshing=setTimeout(load,300)}
+function listen(){
+  const source=new EventSource('/api/events?token='+encodeURIComponent(TOKEN));
+  source.onmessage=e=>{const m=JSON.parse(e.data);
+    if(m.type==='message')addMessage(m);
+    else if(m.type==='delta'){const n=document.querySelector(`[data-id="${CSS.escape(m.id)}"]`);addMessage({id:m.id,role:'assistant',text:(n?.dataset.text||'')+m.text})}
+    else if(m.type==='working')setWorking(true,m.text+'…');
+    else if(m.type==='changed')refresh();
+    else if(m.type==='turn'){if(m.state==='running')setWorking(true,'Working…');else{setWorking(false);refresh();if(m.state!=='completed')toast('Stopped.')}}
+    else if(m.type==='error')toast(m.text);
+  };
+}
+api('/api/history').then(h=>{
+  if(!h.history.length){const e=el('div','empty');e.append(el('strong',null,'Let’s do your BAS'),'Press “Start this step” on the right, or type a question below.');$('log').append(e)}
+  h.history.forEach(addMessage);setWorking(h.working);listen();
+});
+load();setInterval(()=>{if(!working)refresh()},15000);
+</script>
+</body></html>
