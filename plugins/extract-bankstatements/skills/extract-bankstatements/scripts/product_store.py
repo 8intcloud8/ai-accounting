@@ -1590,12 +1590,14 @@ def add_commands(sub):
     cmd = sub.add_parser("apply-proposals-workbook")
     cmd.add_argument("--workbook", type=Path, required=True)
     for name in ("workflow-status", "prepare-bas", "tax-report", "bas-applicability", "proposals",
-                 "proposal-groups", "export-proposals"):
+                 "proposal-groups", "export-proposals", "export-transactions"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--start", required=True)
         cmd.add_argument("--end", required=True)
-        if name in ("bas-applicability", "export-proposals"):
+        if name in ("bas-applicability", "export-proposals", "export-transactions"):
             cmd.add_argument("--output", type=Path)
+        if name == "export-transactions":
+            cmd.add_argument("--ids", help="Comma-separated transaction IDs; omit for all in the period")
 
 
 COMMANDS = {
@@ -1623,6 +1625,7 @@ COMMANDS = {
     "proposals",
     "proposal-groups",
     "export-proposals",
+    "export-transactions",
     "apply-proposals-workbook",
     "save-payg-withholding",
 }
@@ -1644,8 +1647,15 @@ def dispatch(args, connect):
     if args.command == "bas-applicability":
         return export_checklist(args.db, args.start, args.end, connect, args.output)
     if args.command in ("save-proposals", "decide-proposals", "proposals", "proposal-groups",
-                        "export-proposals", "apply-proposals-workbook"):
+                        "export-proposals", "export-transactions", "apply-proposals-workbook"):
         import proposal_store
+
+        if args.command == "export-transactions":
+            start, end = period(args.start, args.end)
+            ids = [int(x) for x in args.ids.split(",") if x.strip()] if args.ids else None
+            output = args.output or (root_for(args.db) / "output" / date.today().isoformat() / "reports"
+                                     / f"transactions-{start}-{end}-{os.getpid()}.xlsx")
+            return proposal_store.export_transactions(args.db, start, end, Path(output), connect, ids)
 
         if args.command == "proposals":
             return proposal_store.listing(args.db, *period(args.start, args.end), connect)

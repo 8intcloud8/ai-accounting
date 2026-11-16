@@ -285,6 +285,82 @@ def export_workbook(path, start, end, output, connect):
     return {"workbook": str(output), "rows": len(rows)}
 
 
+TRANSACTION_HEADERS = ["ID", "Date", "Bank account", "Description", "Money out", "Money in", "Status",
+                       "Category", "GST label", "GST $", "Why"]
+
+
+def transaction_rows(db, start, end, ids=None):
+    """Every bank transaction in the period (or just `ids`) with where it stands."""
+    names = dict(db.execute("SELECT code,name FROM ledger_accounts"))
+    label = lambda code: f"{code} {names.get(code, '')}".strip() if code else ""  # noqa: E731
+    rows = db.execute(
+        "SELECT t.id,t.date,t.account_id,t.description,t.debit_cents,t.credit_cents,j.id,"
+        "g.label,g.gst_cents,p.journal_json,p.reason FROM transactions t "
+        "LEFT JOIN journals j ON j.transaction_id=t.id LEFT JOIN gst_items g ON g.journal_id=j.id "
+        "LEFT JOIN proposals p ON p.transaction_id=t.id AND p.status='proposed' "
+        "WHERE t.date BETWEEN ? AND ? ORDER BY t.date,t.id", (start, end)).fetchall()
+    wanted = set(ids) if ids else None
+    result = []
+    for tid, day, account, text, out, into, jid, glabel, gcents, proposal, reason in rows:
+        if wanted is not None and tid not in wanted:
+            continue
+        if jid:
+            code = next((c for (c,) in db.execute(
+                "SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (jid,))
+                if c not in CONTROL_ACCOUNTS), "")
+            status, why = "Classified", ""
+        elif proposal:
+            journal = json.loads(proposal)
+            code, gst = main_account(journal), journal.get("gst") or {}
+            glabel, gcents = gst.get("label"), gst.get("gst_cents")
+            status, why = "Proposed", reason
+        else:
+            code, status, why = "", "Not classified", ""
+        result.append([tid, day, cell(account), cell(text), out / 100 or None, into / 100 or None, status,
+                       label(code), glabel, gcents / 100 if isinstance(gcents, int) else None, cell(why)])
+    return result
+
+
+def export_transactions(path, start, end, output, connect, ids=None):
+    """Excel view of transactions, classified or not: a Summary by payee and one row each."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+
+    with closing(connect(path)) as db:
+        rows = transaction_rows(db, start, end, ids)
+    book = Workbook()
+    summary = book.active
+    summary.title = "Summary"
+    summary.append(["Payee group", "Transactions", "Money out", "Money in", "Not classified"])
+    groups_by = {}
+    for row in rows:
+        g = groups_by.setdefault(payee(str(row[3]).lstrip("'")), [row[3], 0, 0, 0, 0])
+        g[1] += 1
+        g[2] += row[4] or 0
+        g[3] += row[5] or 0
+        g[4] += row[6] == "Not classified"
+    for g in sorted(groups_by.values(), key=lambda g: -(g[2] + g[3])):
+        summary.append([g[0], g[1], round(g[2], 2), round(g[3], 2), g[4]])
+    sheet = book.create_sheet("Transactions")
+    sheet.append(TRANSACTION_HEADERS)
+    for row in rows:
+        sheet.append(row)
+    for page in (summary, sheet):
+        for heading in page[1]:
+            heading.font = Font(bold=True)
+        page.freeze_panes = "A2"
+        page.auto_filter.ref = page.dimensions
+        for column, width in zip("ABCDEFGHIJK", (48 if page is summary else 7, 12, 14, 48, 11, 11, 15, 26, 11, 9, 50)):
+            page.column_dimensions[column].width = width
+    for column in ("E", "F", "J"):
+        for box in sheet[column][1:]:
+            box.number_format = "#,##0.00"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    book.save(output)
+    return {"workbook": str(output), "rows": len(rows),
+            "not_classified": sum(r[6] == "Not classified" for r in rows)}
+
+
 def apply_workbook(path, workbook, connect, post_journal):
     """Apply Decision column edits. Rows left blank stay open; stale rows are refused."""
     from openpyxl import load_workbook

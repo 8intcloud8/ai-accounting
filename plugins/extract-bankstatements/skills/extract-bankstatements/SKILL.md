@@ -94,6 +94,10 @@ Use the host Python 3.11+ runtime; packages installed by the setup check are fou
 
 Use classify-transactions for the single versioned Excel review workbook and applying edits. Pass source counts, amounts, identities, exclusions and source-balance limitations. If unavailable, save the validated CSV and report classification/workbook creation as pending.
 
+## Showing transactions
+
+Whenever you show the user bank transactions (any list: "show me these", a payee group, the unclassified ones), run `export-transactions --start --end` with `--ids 12,15,...` for just those transactions (omit `--ids` for the whole period). It writes an Excel workbook in `output/` with a Summary by payee and one row per transaction showing its status (Classified, Proposed, Not classified), category and GST. Give the user the workbook link, plus a short grouped summary in chat (count and total per payee group). Never paste a table of more than 10 transactions in chat. For proposals the user will approve in Excel, use `export-proposals` instead: its Decision column can be applied back.
+
 ## Always end with the next step
 
 Never finish a reply by saying work "remains open" or "is not ready" without saying what it is and what happens next. After any change, correction or answer:
