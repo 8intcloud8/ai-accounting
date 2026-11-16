@@ -87,7 +87,7 @@ PYTHONPATH=accounting_core python3 -m unittest discover -s tests -v
 python3 scripts/build_release.py --output /tmp/ai-accounting-release
 ```
 
-Release builds must also build the two Node MCP plugins. CI runs storage/workflow tests on macOS and Linux, validates bundled parity, and tests Node plugins. Run fresh-install validation before public distribution. See docs/RELEASE-READINESS.md for remaining scope.
+Release builds must also build the two Node MCP plugins. CI runs storage/workflow tests on macOS and Linux, validates bundled parity, and tests Node plugins. Run fresh-install validation before public distribution.
 
 MIT licensed. Never commit private statements, invoices, credentials or database files.
 
@@ -105,4 +105,4 @@ Open the returned review_url in Codex’s browser panel. Keep the command runnin
 
 Every skill packages topic-specific official-source references. Before tax or regulatory decisions, Codex searches and reads applicable ATO guidance (or ASIC/Fair Work for the relevant obligations), cites exact URLs and access dates, and retains source notes with the draft workpaper. Failed access is disclosed and dependent treatment remains pending. Routine extraction and matching can continue.
 
-Browsing/search is supplied by the host, not installed by this package. These instructions do not add a tax/payroll engine or a scheduled crawler. See [docs/OFFICIAL-GUIDANCE.md](docs/OFFICIAL-GUIDANCE.md) for routing, evidence records and observed source-access failures. Rebuild the suite to distribute changed references; existing installed caches are not updated by editing source files alone.
+Browsing/search is supplied by the host, not installed by this package. These instructions do not add a tax/payroll engine or a scheduled crawler. Rebuild the suite to distribute changed references; existing installed caches are not updated by editing source files alone.

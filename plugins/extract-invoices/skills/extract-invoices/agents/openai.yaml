@@ -1,4 +1,4 @@
 interface:
-  display_name: "Read invoices into the books"
+  display_name: "Extract invoices"
   short_description: "Extract supplier, dates, totals and GST from saved invoices"
   default_prompt: "Use $extract-invoices to read the new invoices in my invoices folder."
