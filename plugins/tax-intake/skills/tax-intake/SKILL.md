@@ -40,3 +40,13 @@ Save an intake JSON and concise Markdown evidence checklist under the selected w
 End each interview session with known scope, unanswered facts, missing records, applicable specialist follow-ups and saved paths. Intake completeness means applicable questions have supported answers or explicit unresolved items. It never establishes tax calculation or lodgement readiness.
 
 Route source collection to search-email-invoices, extract-bankstatements and extract-invoices; running-cost evidence to allocate-running-costs; ongoing work to manage-accounting; GST workpapers to prepare-bas; annual bookkeeping workpapers to prepare-tax-report. Flag calculations or schedules unsupported by those tools for specialist review. Continue independent supported work while missing evidence is outstanding.
+
+## Always end with the next step
+
+Never finish a reply by saying work "remains open" or "is not ready" without saying what it is and what happens next. After any change, correction or answer:
+
+1. Run `workflow-status --start --end` for the period.
+2. In the reply itself (not only in a linked file), list each open step on its own line, lowest first, saying what is open and where it gets fixed, for example: "Step 4 Transactions: 12 payments still need a category (I'll show them grouped by payee)." or "Step 6 Reconciliation: the September closing balance doesn't match the statement by $40."
+3. End with one question that starts the first item: "Shall I start Step 4: Transactions now?" If the user has said to keep going, start it instead of asking.
+
+If nothing is open, say so and offer the next stage. Use the step names from the BAS walkthrough (1 Setup, 2 Bank statements, 3 Invoices, 4 Transactions, 5 Payroll and BAS items, 6 Reconciliation, 7 BAS draft).

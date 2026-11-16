@@ -82,6 +82,16 @@ Use the existing payment reference when linking a previously recorded reimbursem
 
 Own payment-source and expense-claim state through record-purchase: set-source, approve, confirm-unreimbursed and reimburse. Inspect the bundled helper schema before constructing requests. Require actual user confirmation and evidence for each mutation. Keep supplier payment separate from company reimbursement. Reuse stable reimbursement references; link bank debits without recording the payment twice. These actions do not post journals; route posting to classify-transactions. Return saved claim fields to invoice reports.
 
+## Always end with the next step
+
+Never finish a reply by saying work "remains open" or "is not ready" without saying what it is and what happens next. After any change, correction or answer:
+
+1. Run `workflow-status --start --end` for the period.
+2. In the reply itself (not only in a linked file), list each open step on its own line, lowest first, saying what is open and where it gets fixed, for example: "Step 4 Transactions: 12 payments still need a category (I'll show them grouped by payee)." or "Step 6 Reconciliation: the September closing balance doesn't match the statement by $40."
+3. End with one question that starts the first item: "Shall I start Step 4: Transactions now?" If the user has said to keep going, start it instead of asking.
+
+If nothing is open, say so and offer the next stage. Use the step names from the BAS walkthrough (1 Setup, 2 Bank statements, 3 Invoices, 4 Transactions, 5 Payroll and BAS items, 6 Reconciliation, 7 BAS draft).
+
 ## Passing input to commands
 
 Commands that take `--request`, `--records`, `--rule`, `--confirmed` or `--approved` read JSON from stdin when given `-`. Pipe the JSON in (`... --request - <<'JSON'` … `JSON`) instead of writing request files: every file you write is shown to the user as an edited file. Send several documents in one call where a command accepts a list, for example `record-supporting` with `{"documents": [...]}`.
