@@ -208,3 +208,58 @@ class BASApplicabilityTests(unittest.TestCase):
             export_checklist(
                 self.db, "2026-07-01", "2026-09-30", connect, self.root / "outside.csv"
             )
+
+
+class BASRegistrationTests(unittest.TestCase):
+    """Sections that never apply are answered once for the business, not every BAS."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.db = Path(self.temp.name) / "db/accounting.db"
+        setup(self.db, {"business_id": "example", "legal_name": "Example", "entity_type": "company",
+                        "gst_registered": True, "gst_basis": "accrual"}, connect)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def register(self, answers, business="example"):
+        from bas_applicability import save_registrations
+        return save_registrations(self.db, {"business_id": business, "answers": [
+            {"topic": t, "answer": a, "evidence": "User confirmed at setup", "provenance": "user_confirmed"}
+            for t, a in answers.items()]}, connect, audit)
+
+    def rows(self, start="2026-07-01", end="2026-09-30"):
+        with closing(connect(self.db)) as db:
+            db.row_factory = sqlite3.Row
+            return {r["topic_id"]: r for r in checklist(db, start, end)["rows"]}
+
+    def test_saved_no_skips_section_in_every_period(self):
+        self.register({"fuel_tax_credits": "no", "wine_tax": "no"})
+        for start, end in (("2026-07-01", "2026-09-30"), ("2026-10-01", "2026-12-31")):
+            rows = self.rows(start, end)
+            self.assertEqual(rows["fuel_tax_credits"]["status"], "not_applicable")
+            self.assertEqual(rows["wine_tax"]["answer"], "no")
+            self.assertEqual(rows["luxury_car_tax"]["status"], "needs_answer")
+
+    def test_yes_still_asks_the_period(self):
+        self.register({"payg_instalments": "yes"})
+        self.assertEqual(self.rows()["payg_instalments"]["status"], "needs_answer")
+
+    def test_period_answer_overrides_business_answer(self):
+        self.register({"fbt_instalments": "no"})
+        save_answers(self.db, {"business_id": "example", "start": "2026-07-01", "end": "2026-09-30",
+                               "answers": [{"topic": "fbt_instalments", "answer": "yes",
+                                            "evidence": "ATO notice", "provenance": "source_verified"}]},
+                     connect, audit)
+        self.assertEqual(self.rows()["fbt_instalments"]["status"], "review_required")
+
+    def test_latest_registration_wins(self):
+        self.register({"deferred_import_gst": "no"})
+        self.register({"deferred_import_gst": "yes"})
+        self.assertEqual(self.rows()["deferred_import_gst"]["status"], "needs_answer")
+
+    def test_rejects_event_topics_and_wrong_business(self):
+        with self.assertRaises(ValueError):
+            self.register({"vehicle_events": "no"})
+        with self.assertRaises(ValueError):
+            self.register({"wine_tax": "no"}, business="other")

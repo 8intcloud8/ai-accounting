@@ -57,6 +57,21 @@ Never turn it on without a yes. To turn it off later: `scripts/enable_local_serv
 
 Run `configure-reporting --request <JSON>` after verifying the BAS reporting method and all relevant bank/card account names. Example: `{"method":"simpler","expected_accounts":["CBA business","Credit card"],"gst_turnover_under_10m":true,"evidence":"User confirmed reporting method and full account inventory"}`. Always record `gst_turnover_under_10m` (work it out from the last 12 months of sales and the ATO-registered method, then confirm): Simpler BAS and cash basis are only available under $10 million. Supported methods are simpler/full/instalments/unknown; only confirmed simpler can pass this version's BAS scope gate. Do not invent eligibility from GST registration. Missing expected account-period evidence blocks readiness. The package reports G1 GST-inclusive; communicate that convention. PAYG and other labels remain separate checks.
 
+## Which BAS sections apply
+
+Ask once, after the profile is saved, in these words:
+
+> Do any of these apply to your business? Most small businesses answer no to all.
+> - Paying wages or withholding tax from workers' pay
+> - PAYG instalments (the ATO sends you an instalment amount each quarter)
+> - Fringe benefits tax paid by instalments
+> - Fuel tax credits
+> - Wine equalisation tax
+> - Luxury car tax
+> - Deferring GST on imported goods
+
+Save every answer with `save-bas-registrations --request -`: `{"business_id","answers":[{"topic","answer":"yes|no|unknown","evidence":"User confirmed at setup","provenance":"user_confirmed"}]}`. Topics: payg_withholding, payg_instalments, fbt_instalments, fuel_tax_credits, wine_tax, luxury_car_tax, deferred_import_gst. A no is saved for the business and those sections are skipped on every BAS. A yes is asked again each BAS for that period's figures. "Not sure" stays unknown. If the answer later changes, save it again; the latest answer wins.
+
 ## Identify the BAS work required
 
 Reuse saved period applicability. Route missing or stale applicability facts to `tax-intake`; it owns the period interview and persistence. Validate its saved results before reporting readiness; do not repeat the interview here.

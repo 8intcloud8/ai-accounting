@@ -17,6 +17,7 @@ from bas_applicability import (
     BAS_APPLICABILITY_SCHEMA,
     checklist,
     save_answers,
+    save_registrations,
     complete_task,
     export_checklist,
 )
@@ -1575,6 +1576,7 @@ def add_commands(sub):
         "configure-reporting",
         "review-document",
         "save-bas-applicability",
+        "save-bas-registrations",
         "complete-bas-task",
         "save-proposals",
         "decide-proposals",
@@ -1607,6 +1609,7 @@ COMMANDS = {
     "configure-reporting",
     "review-document",
     "save-bas-applicability",
+    "save-bas-registrations",
     "complete-bas-task",
     "bas-applicability",
     "workflow-status",
@@ -1631,6 +1634,8 @@ def dispatch(args, connect):
         return save_answers(
             args.db, read_request(args.request), connect, audit
         )
+    if args.command == "save-bas-registrations":
+        return save_registrations(args.db, read_request(args.request), connect, audit)
     if args.command == "save-payg-withholding":
         return bas_labels.save_payg(args.db, read_request(args.request), connect, audit)
     if args.command == "bas-applicability":

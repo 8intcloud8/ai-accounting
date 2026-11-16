@@ -13,31 +13,31 @@ from pathlib import Path
 # These questions identify work; they never calculate or establish tax entitlement.
 OBLIGATIONS = {
     "payg_withholding": (
-        "Does this period's activity statement require PAYG withholding?",
+        "Do you pay wages or withhold tax from payments to workers?",
         "Derive W1/W2 from saved wage payments and payroll documents, propose the totals with workings, then reconcile to the ATO liability.",
     ),
     "payg_instalments": (
-        "Does this period's activity statement require PAYG instalments?",
-        "Obtain the ATO-notified amount/rate and the applicable instalment workpaper.",
+        "Does the ATO send you PAYG instalment amounts (you are in the PAYG instalment system)?",
+        "Ask for this quarter's PAYG instalment amount set by the ATO. It is on the prefilled BAS in ATO Online services or myGov, or on the instalment notice.",
     ),
     "fbt_instalments": (
-        "Are FBT instalments required on this activity statement?",
-        "Obtain the notified instalment and check applicable labels.",
+        "Do you pay fringe benefits tax (FBT) by instalments?",
+        "Ask for the FBT instalment amount set by the ATO on the prefilled BAS or notice.",
     ),
     "wine_tax": (
-        "Are wine equalisation tax labels applicable?",
+        "Are you registered for wine equalisation tax (you make or sell wine wholesale)?",
         "Obtain a supported WET workpaper and label reconciliation.",
     ),
     "luxury_car_tax": (
-        "Are luxury car tax labels applicable?",
+        "Do you sell or import luxury cars and owe luxury car tax?",
         "Obtain a supported LCT workpaper and label reconciliation.",
     ),
     "fuel_tax_credits": (
-        "Are fuel tax credits being claimed or adjusted?",
+        "Are you registered for fuel tax credits (fuel for heavy vehicles or machinery)?",
         "Obtain eligibility, fuel-use and rate evidence and a supported calculation.",
     ),
     "deferred_import_gst": (
-        "Does the deferred import GST scheme apply to this period?",
+        "Are you approved to defer GST on imported goods?",
         "Reconcile customs/ATO deferred GST evidence and the required reporting period.",
     ),
 }
@@ -114,6 +114,11 @@ CREATE TABLE IF NOT EXISTS bas_task_reviews (
  id INTEGER PRIMARY KEY, answer_id INTEGER NOT NULL REFERENCES bas_applicability_events(id),
  reviewer TEXT NOT NULL, conclusion TEXT NOT NULL, evidence_json TEXT NOT NULL,
  ledger_digest TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS bas_registrations (
+ id INTEGER PRIMARY KEY, business_id TEXT NOT NULL, topic TEXT NOT NULL,
+ answer TEXT NOT NULL CHECK(answer IN ('yes','no','unknown')),
+ evidence TEXT NOT NULL, provenance TEXT NOT NULL,
+ created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 CREATE INDEX IF NOT EXISTS bas_applicability_period ON bas_applicability_events(business_id,start,end,topic,id);
 """
 
@@ -170,16 +175,12 @@ def source_digest(db, start, end):
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
-def save_answers(path, payload, connect, audit):
-    """Append confirmed answers atomically; absence never implies no."""
-    start, end = validate_period(payload.get("start"), payload.get("end"))
-    answers = payload.get("answers")
-    if not isinstance(answers, list) or not answers:
-        raise ValueError("Provide at least one answered scope question")
+def _prepare_answers(answers, topics):
+    """Validate a list of yes/no/unknown answers with evidence and provenance."""
     seen = set()
     prepared = []
     for item in answers:
-        if not isinstance(item, dict) or item.get("topic") not in CATALOG:
+        if not isinstance(item, dict) or item.get("topic") not in topics:
             raise ValueError("Unknown applicability topic")
         topic, answer = item["topic"], item.get("answer")
         if topic in seen or answer not in ("yes", "no", "unknown"):
@@ -197,6 +198,63 @@ def save_answers(path, payload, connect, audit):
         if answer != "unknown" and provenance == "unknown":
             raise ValueError("A definite answer needs confirmed provenance")
         prepared.append((topic, answer, evidence, provenance))
+    return prepared
+
+
+def save_registrations(path, payload, connect, audit):
+    """Save which BAS sections apply to the business, asked once at setup.
+
+    A saved no stands for every period until replaced, so later BAS runs skip that
+    section. A yes still needs the period's own answer (and amount)."""
+    answers = payload.get("answers")
+    if not isinstance(answers, list) or not answers:
+        raise ValueError("Provide at least one answered registration question")
+    prepared = _prepare_answers(answers, OBLIGATIONS)
+    with closing(connect(path)) as db, db:
+        db.row_factory = sqlite3.Row
+        db.execute("BEGIN IMMEDIATE")
+        owner = _owner_row(db)
+        if not owner or payload.get("business_id") != owner[0]:
+            raise ValueError("Registration answers must name this workspace's business")
+        for topic, answer, evidence, provenance in prepared:
+            before = _latest_registration(db, owner[0], topic)
+            ident = db.execute(
+                "INSERT INTO bas_registrations(business_id,topic,answer,evidence,provenance) VALUES (?,?,?,?,?)",
+                (owner[0], topic, answer, evidence, provenance),
+            ).lastrowid
+            audit(db, "answer", "bas_registration", ident, dict(before) if before else None,
+                  {"topic": topic, "answer": answer, "evidence": evidence, "provenance": provenance},
+                  evidence)
+        return {"business_id": owner[0], "registrations": registrations(db, owner[0])}
+
+
+def _latest_registration(db, business_id, topic):
+    return db.execute(
+        "SELECT * FROM bas_registrations WHERE business_id=? AND topic=? ORDER BY id DESC LIMIT 1",
+        (business_id, topic),
+    ).fetchone()
+
+
+def registrations(db, business_id):
+    """Latest business-wide answer per BAS section; unanswered sections are unknown."""
+    result = {}
+    for topic, (question, _action) in OBLIGATIONS.items():
+        row = _latest_registration(db, business_id, topic)
+        result[topic] = {
+            "question": question,
+            "answer": row["answer"] if row else "unknown",
+            "evidence": row["evidence"] if row else "",
+        }
+    return result
+
+
+def save_answers(path, payload, connect, audit):
+    """Append confirmed answers atomically; absence never implies no."""
+    start, end = validate_period(payload.get("start"), payload.get("end"))
+    answers = payload.get("answers")
+    if not isinstance(answers, list) or not answers:
+        raise ValueError("Provide at least one answered scope question")
+    prepared = _prepare_answers(answers, CATALOG)
     with closing(connect(path)) as db, db:
         db.row_factory = sqlite3.Row
         db.execute("BEGIN IMMEDIATE")
@@ -378,8 +436,14 @@ def checklist(db, start, end, digest=None, root=None, ledger=None):
     rows, blockers = [], []
     for topic, definition in CATALOG.items():
         row = latest.get(topic)
-        answer = row["answer"] if row else "unknown"
-        evidence = row["evidence"] if row else ""
+        registered = None
+        if not row and topic in OBLIGATIONS:
+            registered = _latest_registration(db, owner[0], topic)
+            if registered and registered["answer"] != "no":
+                registered = None
+        answer = row["answer"] if row else ("no" if registered else "unknown")
+        evidence = row["evidence"] if row else (
+            f"Not applicable to this business (saved once): {registered['evidence']}" if registered else "")
         stale = bool(row and row["source_digest"] != digest)
         if stale:
             status, action = (
@@ -434,7 +498,7 @@ def checklist(db, start, end, digest=None, root=None, ledger=None):
                 "next_action": action,
                 "owner_skill": definition["owner_skill"],
                 "evidence": evidence,
-                "provenance": row["provenance"] if row else "unknown",
+                "provenance": row["provenance"] if row else (registered["provenance"] if registered else "unknown"),
                 "reviewer": review["reviewer"] if review else "",
                 "review_conclusion": review["conclusion"] if review else "",
                 "review_evidence": (
@@ -449,6 +513,7 @@ def checklist(db, start, end, digest=None, root=None, ledger=None):
         "period_end": end,
         "scope": "Applicability assessment only; no tax calculations, approvals or lodgements",
         "rows": rows,
+        "registrations": registrations(db, owner[0]),
         "blockers": blockers,
         "assessment_complete": all(
             r["answer"] != "unknown" and r["status"] != "needs_review" for r in rows
