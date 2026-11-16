@@ -404,6 +404,12 @@ def main() -> None:
                                 ]
                             )
                     result["csv"] = str(args.output)
+        import next_step  # Imported here: it reads the dashboard, which imports this module's peers.
+
+        if args.command in next_step.WRITE_COMMANDS and isinstance(result, dict):
+            guide = next_step.safe_guidance(args.db, getattr(args, "start", None), getattr(args, "end", None))
+            if guide:
+                result["next_step"] = guide
         print(json.dumps(result, indent=2))
     except (ValueError, KeyError, TypeError, OSError, sqlite3.Error, subprocess.CalledProcessError) as exc:
         print(json.dumps({"error": str(exc)}), file=sys.stderr)

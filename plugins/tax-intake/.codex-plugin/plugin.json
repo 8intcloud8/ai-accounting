@@ -1,6 +1,6 @@
 {
   "name": "tax-intake",
-  "version": "0.1.10",
+  "version": "0.1.12",
   "description": "Collect missing facts and evidence for Australian BAS and tax-return preparation through a progressive, entity-specific interview.",
   "interface": {
     "displayName": "Tax Intake",

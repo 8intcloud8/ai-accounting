@@ -144,7 +144,7 @@ Use match-payments to record confirmed payment ownership, claim approval and rei
 
 Never finish a reply by saying work "remains open" or "is not ready" without saying what it is and what happens next. After any change, correction or answer:
 
-1. Run `workflow-status --start --end` for the period.
+1. Every command that changes the books returns `next_step.end_your_reply_with`: copy it word for word as the end of your reply. If a command returned none, run `workflow-status --start --end` for the period and write the same ending yourself.
 2. In the reply itself (not only in a linked file), list each open step on its own line, lowest first, saying what is open and where it gets fixed, for example: "Step 4 Transactions: 12 payments still need a category (I'll show them grouped by payee)." or "Step 6 Reconciliation: the September closing balance doesn't match the statement by $40."
 3. End with one question that starts the first item: "Shall I start Step 4: Transactions now?" If the user has said to keep going, start it instead of asking.
 
