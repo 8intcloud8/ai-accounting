@@ -169,7 +169,8 @@ def main(argv=None):
         except (ValueError, OSError, sqlite3.Error) as error:
             raise SystemExit(f"Cannot show the BAS steps for this workspace: {error}") from error
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        print(json.dumps({"app_url": server.app_url, "workspace": str(args.workspace),
+        shown = {"app_url": server.app_url} if args.no_open else {}  # Keep the token out of logs.
+        print(json.dumps({**shown, "workspace": str(args.workspace),
                           "period": [args.start, args.end], "resumed": codex.resumed}), flush=True)
         if args.no_open or args.browser or not open_window(server.app_url):
             if not args.no_open:
