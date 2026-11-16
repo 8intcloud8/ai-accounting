@@ -136,6 +136,8 @@ Never finish a reply by saying work "remains open" or "is not ready" without say
 
 Never end a reply with a promise such as "I'll continue with…", "Next I'll…" or "I'll now…". The user sees that as work in progress, but your turn has ended and nothing happens. Either do that work now, in the same reply, and report it when done, or stop and ask the question in step 3. Only stop when you need the user's answer or the period has nothing open.
 
+Never call anything pending, blocked, under review or unresolved without saying in the same sentence what resolves it and who does it, for example: "$2.73 OpenAI GST is pending: check the invoice; an ARN means no credit, an ABN means claim it." When posting GST as pending, `gst.resolve` must say exactly that; the command refuses pending GST without it.
+
 If nothing is open, say so and offer the next stage. Use the step names from the BAS walkthrough (1 Setup, 2 Bank statements, 3 Invoices, 4 Transactions, 5 Payroll and BAS items, 6 Reconciliation, 7 BAS draft).
 
 ## Passing input to commands

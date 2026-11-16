@@ -23,7 +23,7 @@ WRITE_COMMANDS = frozenset({
     "save-bas-applicability", "save-bas-registrations", "complete-bas-task", "save-proposals",
     "decide-proposals", "apply-proposals-workbook", "save-payg-withholding",
 })
-LINE_LIMIT = 160
+LINE_LIMIT = 320
 INSTRUCTION = (
     "Copy end_your_reply_with, word for word, as the end of your reply to the user, even after a "
     "short correction. "

@@ -48,6 +48,8 @@ CREATE TABLE IF NOT EXISTS journal_lines (
  account_code TEXT NOT NULL REFERENCES ledger_accounts(code), debit_cents INTEGER NOT NULL,
  credit_cents INTEGER NOT NULL, PRIMARY KEY(journal_id,line_no),
  CHECK(debit_cents>=0 AND credit_cents>=0 AND ((debit_cents>0 AND credit_cents=0) OR (credit_cents>0 AND debit_cents=0))));
+CREATE TABLE IF NOT EXISTS gst_resolutions (
+ journal_id INTEGER PRIMARY KEY REFERENCES journals(id), resolve TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS gst_items (
  journal_id INTEGER PRIMARY KEY REFERENCES journals(id), attribution_date TEXT NOT NULL,
  label TEXT NOT NULL CHECK(label IN ('sale','purchase','sale_refund','purchase_refund','excluded','settlement')),
@@ -451,6 +453,10 @@ def post_journal(path, payload, connect):
         "settlement",
     ) or status not in ("pending", "reviewed"):
         raise ValueError("Invalid GST classification")
+    resolve = str(tax.get("resolve") or "").strip()
+    if status == "pending" and not resolve:
+        raise ValueError("Pending GST needs gst.resolve: say how it will be resolved and who does it, "
+                         "e.g. \"Check the OpenAI invoice: an ARN means no credit, an ABN means claim it\"")
     sale_label = label in ("sale", "sale_refund")
     refund = label in ("sale_refund", "purchase_refund")
     gross = integer(tax.get("gross_cents"), "GST gross", True)
@@ -804,6 +810,8 @@ def post_journal(path, payload, connect):
             "INSERT INTO gst_items VALUES (?,?,?,?,?,?,?)",
             (jid, attribution, label, gross, gst, evidence, status),
         )
+        if status == "pending":
+            db.execute("INSERT INTO gst_resolutions VALUES (?,?)", (jid, resolve))
         import proposal_store
 
         proposal_store.store_source(db, jid, tax)
@@ -1168,6 +1176,19 @@ def problem(code, text, count=1):
             "step": step_of(code, text)}
 
 
+def pending_text(db, start, end, count):
+    """Each pending GST item with what resolves it, so no reply can leave it vague."""
+    rows = db.execute(
+        "SELECT j.description,g.gst_cents,r.resolve FROM gst_items g JOIN journals j ON j.id=g.journal_id "
+        "LEFT JOIN gst_resolutions r ON r.journal_id=g.journal_id WHERE g.attribution_date BETWEEN ? AND ? "
+        "AND g.status!='reviewed' AND NOT EXISTS(SELECT 1 FROM journals x WHERE x.reverses_id=j.id) "
+        "ORDER BY g.attribution_date LIMIT 3", (start, end)).fetchall()
+    items = [f"{d} ${(c or 0) / 100:,.2f}: " + (r or "check the evidence, then mark the GST reviewed or excluded")
+             for d, c, r in rows]
+    more = f" (and {count - len(items)} more)" if count > len(items) else ""
+    return f"{count} GST item{'s' if count != 1 else ''} pending. " + "; ".join(items) + more
+
+
 def status_report(db, start, end):
     p = profile(db)
     unclassified = db.execute(
@@ -1223,7 +1244,7 @@ def status_report(db, start, end):
     if unreviewed:
         problems.append(problem("invoice_review", f"{unreviewed} invoices need review", unreviewed))
     if pending:
-        problems.append(problem("gst_pending", f"{pending} GST treatments pending", pending))
+        problems.append(problem("gst_pending", pending_text(db, start, end, pending), pending))
     accounts = [
         r[0]
         for r in db.execute(
