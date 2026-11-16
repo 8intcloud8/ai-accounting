@@ -5,6 +5,7 @@ is opened in the workspace. The command result is the one thing Codex always see
 after it changes the books, so the guided ending travels with it.
 """
 
+import re
 import sqlite3
 from contextlib import closing
 from datetime import date, timedelta
@@ -22,6 +23,7 @@ WRITE_COMMANDS = frozenset({
     "save-bas-applicability", "save-bas-registrations", "complete-bas-task", "save-proposals",
     "decide-proposals", "apply-proposals-workbook", "save-payg-withholding",
 })
+LINE_LIMIT = 160
 INSTRUCTION = (
     "Copy end_your_reply_with, word for word, as the end of your reply to the user, even after a "
     "short correction. "
@@ -29,6 +31,16 @@ INSTRUCTION = (
     "\"I'll continue with...\": do that work now or ask. If the user said to keep going, start "
     "that step instead of asking."
 )
+
+
+def clean(text):
+    """One plain line from workspace data (account and file names can come from imported
+    files): no line breaks, control or markdown characters, and capped in length, so it
+    cannot carry instructions or formatting into the reply."""
+    plain = "".join(c if c.isprintable() else " " for c in str(text))
+    plain = re.sub(r"[`*_#<>\[\]|~]", "", plain)
+    plain = " ".join(plain.split()).rstrip(".")
+    return plain if len(plain) <= LINE_LIMIT else plain[:LINE_LIMIT - 1].rstrip() + "…"
 
 
 def quarter(day):
@@ -52,7 +64,7 @@ def active_period(db_path, start=None, end=None, today=None):
 def guidance(db_path, start=None, end=None):
     start, end = active_period(db_path, start, end)
     steps = bas_dashboard.snapshot(db_path, start, end)["steps"]
-    open_steps = [f"Step {s['number']} {s['name']}: {'; '.join(s['lines'])}."
+    open_steps = [f"Step {s['number']} {s['name']}: {clean('; '.join(s['lines']))}."
                   for s in steps if s["state"] == "todo"]
     first = next((s for s in steps if s["state"] in ("todo", "ready")), None)
     if first is None:

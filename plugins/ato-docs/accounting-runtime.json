@@ -16,7 +16,7 @@
     "invoice_store.py": "6ab5a34e9271ea7e2a3f1ab1b26dfe11aee17b7c1624e3e00e08c181319ca705",
     "local_server.py": "94e917d92b51e2b041d256da555fbabafbf6b54d301a0c7626fff1b0fa7c20cc",
     "memory_store.py": "5591905fca61fe97260d8a8a015159065fe7159ce8ccc9e13a771ba5e4a03c3c",
-    "next_step.py": "d14b6ac9ec6c7374026c504773ade88f70057b3af20166421a812873b103720e",
+    "next_step.py": "5baefefd8c35aa8363538edf9032c51eba5a0cc3080259779a6cf7f0b1a57751",
     "payment_store.py": "6e0611d45e3363e6c199716cd8781f59ee2177821521393aad7083bb6d8e7d53",
     "product_store.py": "8c55ea8960bc3b81741bc271c50a1f8b46f83c85235667610856f6758bb7eece",
     "proposal_store.py": "3a3532fb5e3dc87132ea0b195b9abb16cc9d5e05607457855ef51e770ebf20c2",

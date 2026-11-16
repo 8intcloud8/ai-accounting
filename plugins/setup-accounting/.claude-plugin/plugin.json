@@ -1,5 +1,5 @@
 {
   "name": "setup-accounting",
-  "version": "0.1.40",
+  "version": "0.1.41",
   "description": "Configure the local accounting workspace and business profile once, then show next steps."
 }
