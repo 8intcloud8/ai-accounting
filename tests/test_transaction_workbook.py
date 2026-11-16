@@ -70,6 +70,14 @@ class TransactionWorkbookTests(unittest.TestCase):
         description = next(r for r in self.rows() if r["ID"] == 3)["Description"]
         self.assertTrue(description.startswith("'="))
 
+    def test_proposal_text_cannot_become_a_formula(self):
+        bad = journal(3, "bad", "5000", 3300)
+        bad["gst"]["label"] = "purchase"
+        proposal_store.save(self.db, {"proposals": [{"journal": bad, "reason": "=cmd|' /C calc'!A0"}]}, connect)
+        proposal_store.export_transactions(self.db, "2026-07-01", "2026-09-30", self.output, connect)
+        row = next(r for r in self.rows() if r["ID"] == 3)
+        self.assertTrue(row["Why"].startswith("'="))
+
     def test_only_the_chosen_transactions(self):
         result = proposal_store.export_transactions(self.db, "2026-07-01", "2026-09-30", self.output, connect,
                                                     ids=[2, 3])

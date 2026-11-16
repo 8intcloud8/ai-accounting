@@ -1,6 +1,6 @@
 {
   "name": "ato-docs",
-  "version": "0.1.31",
+  "version": "0.1.32",
   "description": "Research official ATO guidance with sources, reporting-year checks and taxpayer-specific applicability.",
   "interface": {
     "displayName": "ATO Guidance",

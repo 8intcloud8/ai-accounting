@@ -316,8 +316,10 @@ def transaction_rows(db, start, end, ids=None):
             status, why = "Proposed", reason
         else:
             code, status, why = "", "Not classified", ""
-        result.append([tid, day, cell(account), cell(text), out / 100 or None, into / 100 or None, status,
-                       label(code), glabel, gcents / 100 if isinstance(gcents, int) else None, cell(why)])
+        # Every text column can carry bank or proposal text: escape them all, not a chosen few.
+        result.append([cell(v) for v in (tid, day, account, text, out / 100 or None, into / 100 or None,
+                                         status, label(code), glabel,
+                                         gcents / 100 if isinstance(gcents, int) else None, why)])
     return result
 
 
