@@ -7,7 +7,7 @@
     "allocation_store.py": "cb0332a677391e0b800ea7484664f8ae1c4254aed545360a44bde268cd1a11a1",
     "ato_library.py": "fe258e3a1b9a2b40222e0c0eba788044981239ca75406a23096a1f3b26bae75f",
     "bas_applicability.py": "c2a68090a33b119236eb182d70d2e8d192a3c540042e3ed028a4ddb4f94875e3",
-    "bas_dashboard.py": "4e5d1f551eb27535fe8f2f9e3e70a76d0d235c9f090720853b27e2cdf0f2fa97",
+    "bas_dashboard.py": "593c19ea738c7d8915dae0cbeb0a3a3aa820fac552527ee8fe82817bc97b9467",
     "bas_dashboard_page.py": "efa52ef84426ba07fa080692fdf0bec2c7dd7700d97467877f88eff5ea5d89cf",
     "bas_labels.py": "ba49a6b1f94b8dca706e714bfa2d1fbbb4447f9620567491b86048843d1dfdd5",
     "check_environment.py": "9e3901c1dd6f2e97ff28f7cc5c1288277e50244c9613fe48f3bc3a7bda3e3528",
@@ -19,9 +19,10 @@
     "next_step.py": "c571755dfd5acfc8d0029154bb41fb48283831edc5da53f43af7eb8798e878fd",
     "payment_store.py": "6e0611d45e3363e6c199716cd8781f59ee2177821521393aad7083bb6d8e7d53",
     "product_store.py": "18127161bd7375459a4dae34cd2ed2314963e6b22f39b5e9e5a441559ebe744a",
-    "proposal_store.py": "6ff45d3b7e6289b0bb60a9e92799022da5ae5386f972cde5c51218c0933ace64",
+    "proposal_store.py": "1ed0ae40e41805a6233d07c1c0591e9f0264371d8630ccae34f347e824fe08e8",
     "review_table.py": "1a2432df9707396f06b69e9ad2aeec9e408d7daf0a02e92f194c05b8380fa70e",
     "running_cost_workpapers.py": "5d29ddd481a01531c30d5154c5024ec002343b99179b18d3ab4900f6f28e98ca",
+    "workbook_style.py": "d3afe47016c8b1ba48d8164d67a611b401c75fb14ab971c33413ea31d81d91ab",
     "workspace_instructions.py": "b78f5bdf9daa16daf92bef08b4fd11d612a9246aefe238e73ff8c8f502da2ba5"
   }
 }

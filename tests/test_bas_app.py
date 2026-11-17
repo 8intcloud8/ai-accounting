@@ -126,6 +126,7 @@ class ServerTests(unittest.TestCase):
         self.addCleanup(self.codex.close)
         server = bas_app.create_server(self.codex, self.db, START, END)
         threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.watcher.stop)
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         self.base, self.token = server.app_url.split("?token=")
@@ -154,6 +155,19 @@ class ServerTests(unittest.TestCase):
         self.assertForbidden(lambda: self.get("api/status", "nope"))
         self.assertForbidden(lambda: self.get("api/history", "nope"))
         self.assertForbidden(lambda: urlopen(self.base + "api/events?token=nope"))
+
+    def test_status_carries_next_action(self):
+        data = json.loads(self.get("api/status").read())
+        self.assertTrue(data["next"]["question"].startswith("Shall I"))
+        self.assertIn("transactions", data)
+
+    def test_book_changes_are_pushed_to_the_page(self):
+        events = queue.Queue()
+        self.codex.listeners.add(events)
+        import sqlite3
+        with sqlite3.connect(self.db) as db:
+            db.execute("CREATE TABLE IF NOT EXISTS touch(x)")
+        self.assertTrue(wait_for(lambda: any(e.get("type") == "changed" for e in list(events.queue)), 3))
 
     def test_foreign_host_is_refused(self):
         request = Request(self.base + "api/status", headers={"X-App-Token": self.token, "Host": "evil.example"})

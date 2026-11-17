@@ -263,23 +263,22 @@ def export_workbook(path, start, end, output, connect):
     choice = DataValidation(type="list", formula1='"' + ",".join(DECISIONS) + '"', allow_blank=True)
     review.add_data_validation(choice)
     choice.add(f"{letter['Decision']}2:{letter['Decision']}{max(review.max_row, 2)}")
+    import workbook_style as style
+
+    style.as_table(summary, "ProposalSummary", money=("Money out", "Money in"), wrap=("Why",), widths={
+        "Payee group": 44, "Transactions": 13, "Money out": 14, "Money in": 14, "Proposed treatment": 24, "Why": 60})
+    style.as_table(review, "Review", money=("Money out", "Money in", "GST $"), wrap=("Why", "ATO source"), widths={
+        "Proposal": 10, "Date": 12, "Description": 44, "Money out": 13, "Money in": 13, "Account": 10,
+        "GST label": 11, "GST $": 10, "Why": 46, "ATO source": 40, "Decision": 12, "New account": 13, "Note": 30})
     edit = PatternFill("solid", fgColor="FFF2CC")
-    for sheet in (summary, review):
-        for heading in sheet[1]:
-            heading.font = Font(bold=True)
-        sheet.freeze_panes = "A2"
-        sheet.auto_filter.ref = sheet.dimensions
     first, last = headers.index("Decision") + 1, headers.index("Note") + 1
     for row in review.iter_rows(min_row=2, min_col=first, max_col=last):
         for box in row:
             box.fill = edit
     review.column_dimensions[letter["check"]].hidden = True
-    widths = dict(Proposal=9, Date=11, Description=48, Account=9, Why=50, Note=30, **{"ATO source": 50})
-    for name in headers[:-1]:
-        review.column_dimensions[letter[name]].width = widths.get(name, 11)
-    summary.column_dimensions["A"].width = 48
-    summary.column_dimensions["E"].width = 22
-    summary.column_dimensions["F"].width = 60
+    style.overview(book, "Categories to approve", f"{start} to {end}: set Decision on the Review sheet", [
+        ("Proposals", len(rows), False), ("Money out", sum(r[3] for r in rows) / 100, True),
+        ("Money in", sum(r[4] for r in rows) / 100, True)])
     output.parent.mkdir(parents=True, exist_ok=True)
     book.save(output)
     return {"workbook": str(output), "rows": len(rows)}
@@ -347,16 +346,19 @@ def export_transactions(path, start, end, output, connect, ids=None):
     sheet.append(TRANSACTION_HEADERS)
     for row in rows:
         sheet.append(row)
-    for page in (summary, sheet):
-        for heading in page[1]:
-            heading.font = Font(bold=True)
-        page.freeze_panes = "A2"
-        page.auto_filter.ref = page.dimensions
-        for column, width in zip("ABCDEFGHIJK", (48 if page is summary else 7, 12, 14, 48, 11, 11, 15, 26, 11, 9, 50)):
-            page.column_dimensions[column].width = width
-    for column in ("E", "F", "J"):
-        for box in sheet[column][1:]:
-            box.number_format = "#,##0.00"
+    import workbook_style as style
+
+    style.as_table(summary, "PayeeSummary", money=("Money out", "Money in"),
+                   widths={"Payee group": 48, "Transactions": 13, "Money out": 14, "Money in": 14, "Not classified": 15})
+    letter = style.as_table(sheet, "Transactions", money=("Money out", "Money in", "GST $"), wrap=("Why",), widths={
+        "ID": 8, "Date": 12, "Bank account": 18, "Description": 46, "Money out": 13, "Money in": 13,
+        "Status": 15, "Category": 26, "GST label": 11, "GST $": 10, "Why": 50})
+    style.colour_status(sheet, letter["Status"], sheet.max_row)
+    count = lambda s: sum(r[6] == s for r in rows)  # noqa: E731
+    style.overview(book, "Bank transactions", f"{start} to {end}", [
+        ("Transactions", len(rows), False), ("Classified", count("Classified"), False),
+        ("Proposed", count("Proposed"), False), ("Not classified", count("Not classified"), False),
+        ("Money out", sum(r[4] or 0 for r in rows), True), ("Money in", sum(r[5] or 0 for r in rows), True)])
     output.parent.mkdir(parents=True, exist_ok=True)
     book.save(output)
     return {"workbook": str(output), "rows": len(rows),

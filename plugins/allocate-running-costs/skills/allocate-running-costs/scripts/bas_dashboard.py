@@ -62,10 +62,46 @@ def read_only(db_path):
     return db
 
 
+# Status messages are written for the code; these say the same thing to a business owner.
+PLAIN = [
+    (r"Independent statement boundary verification required: (.+)",
+     lambda m: f"Check the {m[1]} opening and closing balances against the statement"),
+    (r"Missing account-period evidence: (.+)", lambda m: f"The {m[1]} statement doesn't cover the whole period"),
+    (r"No bank evidence for period", lambda m: "No bank statement for this period yet"),
+    (r"Bank reconciliation required: (.+)", lambda m: f"Reconcile {m[1]} to its statement"),
+    (r"(\d+) unclassified bank transactions?", lambda m: f"{m[1]} transaction{plural(m[1])} need{'s' if m[1] == '1' else ''} a category"),
+    (r"(\d+) classification proposals? awaiting approval",
+     lambda m: f"{m[1]} {'category' if m[1] == '1' else 'categories'} waiting for your OK"),
+    (r"(\d+) files? in bankstatements not yet imported", lambda m: f"{m[1]} new statement file{plural(m[1])} to import"),
+    (r"(\d+) invoice files? in invoices not yet extracted", lambda m: f"{m[1]} new invoice file{plural(m[1])} to read"),
+    (r"(\d+) invoices? need review", lambda m: f"{m[1]} invoice{plural(m[1])} to check"),
+    (r"(\d+) documents? need recognition/disposition or GST review",
+     lambda m: f"{m[1]} document{plural(m[1])} to sort out: bill, receipt or not needed"),
+    (r"Confirm BAS method and expected account coverage",
+     lambda m: "Confirm your BAS method and which bank accounts count"),
+    (r"GST profile incomplete", lambda m: "Confirm GST registration and cash or accrual basis"),
+]
+
+
+def plural(count):
+    return "" if count == "1" else "s"
+
+
+def plain(text):
+    """A status message in plain English; unknown messages pass through unchanged."""
+    import re
+
+    for pattern, say in PLAIN:
+        match = re.fullmatch(pattern, text)
+        if match:
+            return say(match)
+    return text
+
+
 def describe(problems):
     """One plain line for a step's open problems."""
     questions = sum(p["count"] for p in problems if p["code"] == "intake_question")
-    lines = [REVIEWS.get(p["text"].rpartition(": ")[2], p["text"]) if p["code"] == "review_required" else p["text"]
+    lines = [REVIEWS.get(p["text"].rpartition(": ")[2], p["text"]) if p["code"] == "review_required" else plain(p["text"])
              for p in problems if p["code"] != "intake_question"]
     if questions:
         lines.insert(0, f"{questions} question{'s' if questions != 1 else ''} to answer")

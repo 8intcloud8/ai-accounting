@@ -101,6 +101,25 @@ class TransactionWorkbookTests(unittest.TestCase):
         self.assertIn("/output/", result["workbook"])
         self.assertTrue(Path(result["workbook"]).exists())
 
+    def test_workbook_is_styled_for_people(self):
+        proposal_store.export_transactions(self.db, "2026-07-01", "2026-09-30", self.output, connect)
+        book = load_workbook(self.output)
+        self.assertEqual(book.sheetnames[0], "Overview")
+        sheet = book["Transactions"]
+        self.assertEqual(len(sheet.tables), 1)
+        self.assertIsNone(sheet.auto_filter.ref)  # the table brings its own filter
+        self.assertIn("$", sheet["E2"].number_format)
+        self.assertTrue(sheet.conditional_formatting)
+        overview = {r[0]: r[1] for r in book["Overview"].iter_rows(min_row=3, values_only=True) if r[0]}
+        self.assertEqual(overview["Not classified"], 1)
+
+    def test_approval_workbook_is_styled_and_still_applies(self):
+        book_path = self.root / "review.xlsx"
+        proposal_store.export_workbook(self.db, "2026-07-01", "2026-09-30", book_path, connect)
+        book = load_workbook(book_path)
+        self.assertEqual(len(book["Review"].tables), 1)
+        self.assertEqual(book["Review"]["A1"].value, "Proposal")
+
 
 if __name__ == "__main__":
     unittest.main()

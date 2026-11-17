@@ -23,6 +23,7 @@ sys.path.insert(0, str(HERE))
 import accounting_store  # noqa: E402
 import bas_dashboard  # noqa: E402
 import check_environment  # noqa: E402
+import dashboard_data  # noqa: E402
 import local_server  # noqa: E402
 import workspace_instructions  # noqa: E402
 from codex_chat import Codex  # noqa: E402
@@ -65,7 +66,7 @@ def create_server(codex, db, start, end, port=0):
                 return self.reply(200, PAGE.replace("__TOKEN__", json.dumps(token)), "text/html; charset=utf-8")
             if route == "/api/status" and self.authorised(self.headers.get("X-App-Token")):
                 try:
-                    data = bas_dashboard.snapshot(db, start, end)
+                    data = dashboard_data.status(db, start, end)
                 except Exception as error:  # noqa: BLE001 - shown to the user, never raised
                     return self.reply(503, json.dumps({"error": str(error)}))
                 return self.reply(200, json.dumps({**data, "working": codex.working}))
@@ -115,6 +116,9 @@ def create_server(codex, db, start, end, port=0):
 
     server = local_server.bind_loopback(Handler, port, SANDBOX_BLOCKED)
     server.app_url = local_server.url(server, token)
+    # Refresh the panel the moment the books change, whoever changed them.
+    server.watcher = dashboard_data.Watcher(db, lambda: codex._publish({"type": "changed"}))
+    server.watcher.start()
     return server
 
 
@@ -183,6 +187,7 @@ def main(argv=None):
     finally:
         if server:
             server.closing = True
+            server.watcher.stop()
             server.shutdown()
             server.server_close()
         codex.close()

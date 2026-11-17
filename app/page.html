@@ -4,13 +4,13 @@
 <style>
 :root{--desk:#e9eef0;--win:#fff;--side:#f6f8f9;--ink:#101a24;--muted:#5d6b78;--faint:#8a97a3;--line:#e1e7ec;
 --accent:#0f7a63;--accent-ink:#fff;--accent-soft:#e5f4ef;--todo:#b26b00;--todo-soft:#fff4e0;--block:#6b7785;--block-soft:#eef1f4;
---you:#0f2f4a;--you-ink:#fff;--shadow:0 1px 2px #0b16200f,0 20px 50px -24px #0b162040;
+--you:#0f2f4a;--you-ink:#fff;--late:#b42318;--late-soft:#fdecea;--ease:cubic-bezier(.16,1,.3,1);--shadow:0 1px 2px #0b16200f,0 20px 50px -24px #0b162040;
 --display:"Avenir Next","Segoe UI",system-ui,sans-serif;--body:-apple-system,"Segoe UI",system-ui,sans-serif}
 @media(prefers-color-scheme:dark){:root{color-scheme:dark;--desk:#0b1117;--win:#131b23;--side:#0f161d;--ink:#e8eef3;--muted:#9eadb9;--faint:#6e7f8d;--line:#233040;
---accent:#3ccfa6;--accent-ink:#062018;--accent-soft:#103429;--todo:#f2b450;--todo-soft:#33260f;--block:#93a1ae;--block-soft:#1c2631;--you:#1f4d74;--you-ink:#fff;--shadow:0 1px 2px #0006,0 24px 60px -24px #000a}}
+--accent:#3ccfa6;--accent-ink:#062018;--accent-soft:#103429;--todo:#f2b450;--todo-soft:#33260f;--block:#93a1ae;--block-soft:#1c2631;--you:#1f4d74;--you-ink:#fff;--late:#ff8a80;--late-soft:#3a1714;--shadow:0 1px 2px #0006,0 24px 60px -24px #000a}}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--desk);color:var(--ink);font:14.5px/1.55 var(--body);display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;padding:14px}
+body{margin:0;background:var(--desk);color:var(--ink);font:14.5px/1.55 var(--body);display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:14px;padding:14px}
 .pane{background:var(--win);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);min-height:0;display:grid}
 /* Chat */
 #chat{grid-template-rows:auto minmax(0,1fr) auto}
@@ -40,33 +40,70 @@ button:disabled{opacity:.5;cursor:default}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
 button.primary:hover{filter:brightness(1.07)}
 button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+/* Panel */
+#panel{grid-template-rows:auto minmax(0,1fr);overflow:hidden}
+.top{padding:18px 20px 14px;display:grid;gap:2px;border-bottom:1px solid var(--line)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.biz{color:var(--faint);font:700 11px var(--body);letter-spacing:.08em;text-transform:uppercase}
+.top h2{margin:2px 0 0;font:800 22px/1.15 var(--display);letter-spacing:-.02em}
+.chip{font:600 12px var(--body);padding:3px 9px;border-radius:99px;white-space:nowrap;background:var(--block-soft);color:var(--block)}
+.chip.warn{background:var(--todo-soft);color:var(--todo)}
+.chip.late{background:var(--late-soft);color:var(--late)}
+.live{display:inline-flex;align-items:center;gap:6px;color:var(--faint);font-size:12px}
+.live i{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.live.off i{background:var(--faint);box-shadow:none}
+.scroll{overflow-y:auto;padding:16px 16px 20px;display:grid;gap:14px;align-content:start}
+.card{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--win)}
+.eyebrow{font:700 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+/* Next up */
+#next{background:linear-gradient(160deg,var(--accent-soft),transparent 70%);border-color:color-mix(in srgb,var(--accent) 35%,var(--line));display:grid;gap:8px}
+#next.you{background:linear-gradient(160deg,var(--todo-soft),transparent 70%);border-color:color-mix(in srgb,var(--todo) 35%,var(--line))}
+#next.you .eyebrow{color:var(--todo)}
+#next .eyebrow{color:var(--accent)}
+#next h3{margin:0;font:800 17px/1.3 var(--display);letter-spacing:-.01em}
+#next p{margin:0;color:var(--muted);font-size:12.5px}
+#next button{justify-self:start;margin-top:4px;padding:9px 16px}
+/* Money */
+.money{display:grid;gap:10px}
+.hero{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.hero strong{font:800 32px/1 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.hero span{color:var(--muted);font-size:12.5px}
+.labels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px dashed var(--line);padding-top:10px}
+.labels b{display:block;font:700 10.5px var(--body);color:var(--faint);letter-spacing:.05em}
+.labels strong{font:700 15px var(--display);font-variant-numeric:tabular-nums}
+.note{color:var(--faint);font-size:11.5px}
 /* Steps */
-#steps-pane{grid-template-rows:auto auto minmax(0,1fr) auto;overflow:hidden}
-.top{padding:18px 20px 6px;display:grid;gap:3px}
-.top .biz{color:var(--muted);font-size:12.5px}
-.top h2{margin:0;font:800 20px/1.2 var(--display);letter-spacing:-.01em}
-.top .due{color:var(--muted);font-size:13px}
-.progress{padding:8px 20px 14px;display:grid;gap:6px}
-.bar{height:7px;background:var(--block-soft);border-radius:99px;overflow:hidden}
-.bar i{display:block;height:100%;background:var(--accent);transition:width .5s}
-.progress small{color:var(--muted)}
-#steps{list-style:none;margin:0;padding:0 10px 10px;overflow-y:auto}
-.step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;padding:11px 10px;border-radius:12px}
-.n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 12.5px var(--display)}
-.step h3{margin:3px 0 0;font:700 14px var(--display)}
-.step p{margin:1px 0 0;color:var(--muted);font-size:12.5px}
-.step button{margin-top:8px}
-.done .n,.ready .n{background:var(--accent);color:var(--accent-ink)}
-.done h3{color:var(--muted);font-weight:600}
-.todo .n{background:var(--todo-soft);color:var(--todo)}
-.blocked .n{background:var(--block-soft);color:var(--block)}
-.step.next{background:color-mix(in srgb,var(--todo-soft) 60%,transparent)}
-.figures{border-top:1px solid var(--line);padding:12px 20px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.fig b{display:block;font:700 11px var(--body);color:var(--faint);letter-spacing:.05em}
-.fig strong{font:800 17px var(--display);font-variant-numeric:tabular-nums}
-.figures .note{grid-column:1/-1;color:var(--faint);font-size:11.5px}
+.segs{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:10px 0 6px}
+.seg{height:8px;border-radius:99px;background:var(--block-soft);border:0;padding:0;cursor:pointer}
+.seg.done,.seg.ready{background:var(--accent)}
+.seg.todo{background:var(--todo)}
+.seg.current{outline:2px solid var(--ink);outline-offset:2px}
+.seg:hover{filter:brightness(1.1);background-image:none}
+.steplist{list-style:none;margin:6px 0 0;padding:0;display:grid}
+.steplist li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:start;padding:8px 2px;border-top:1px solid var(--line)}
+.steplist li:first-child{border-top:0}
+.dot{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:700 11px var(--display);background:var(--block-soft);color:var(--block)}
+.done .dot,.ready .dot{background:var(--accent);color:var(--accent-ink)}
+.todo .dot{background:var(--todo-soft);color:var(--todo)}
+.steplist h4{margin:1px 0 0;font:700 13.5px var(--display)}
+.done h4{color:var(--muted);font-weight:600}
+.steplist p{margin:1px 0 0;color:var(--muted);font-size:12px}
+.steplist button{padding:4px 10px;font-size:12px}
+/* Transactions */
+.stack{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--block-soft);margin:10px 0 8px}
+.stack i{display:block;height:100%;transition:flex-grow .5s var(--ease)}
+.k-classified{background:var(--accent)}.k-proposed{background:var(--todo)}.k-uncategorised{background:var(--block)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend b{color:var(--ink);font-variant-numeric:tabular-nums}
+.legend em{width:9px;height:9px;border-radius:3px;display:inline-block}
+.txfoot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px}
+/* A value that just changed */
+.flash{animation:flash 1.2s var(--ease)}
+@keyframes flash{0%{opacity:.35;transform:translateY(3px)}100%{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.flash,.stack i{animation:none;transition:none}}
 #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:var(--win);padding:9px 16px;border-radius:10px;font-weight:600;box-shadow:var(--shadow)}
-@media(max-width:900px){body{grid-template-columns:1fr;grid-template-rows:auto minmax(70vh,1fr);height:auto}#steps-pane{order:-1}#steps{max-height:240px}}
+@media(max-width:900px){body{grid-template-columns:1fr;grid-template-rows:auto minmax(70vh,1fr);height:auto}#panel{order:-1}}
 </style></head><body>
 <main class="pane" id="chat" aria-label="Chat">
   <div class="head"><h1>Your BAS assistant</h1><button id="stop" type="button" hidden>Stop</button></div>
@@ -74,11 +111,22 @@ button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,trans
   <div id="status" role="status"></div>
   <form id="form"><textarea id="text" rows="1" placeholder="Ask about your BAS, or answer a question…" aria-label="Message"></textarea><button class="primary" id="send" type="submit">Send</button></form>
 </main>
-<aside class="pane" id="steps-pane" aria-label="BAS steps">
-  <div class="top"><span class="biz" id="biz"></span><h2 id="period"></h2><span class="due" id="due"></span></div>
-  <div class="progress"><div class="bar" aria-hidden="true"><i id="bar"></i></div><small id="progress"></small></div>
-  <ol id="steps"></ol>
-  <div class="figures" id="figures"></div>
+<aside class="pane" id="panel" aria-label="BAS progress">
+  <header class="top">
+    <div class="row"><span class="biz" id="biz"></span><span class="live" id="live"><i></i><span id="liveText">Live</span></span></div>
+    <h2 id="period"></h2>
+    <div class="row"><span class="chip" id="due"></span><span class="note" id="basis"></span></div>
+  </header>
+  <div class="scroll">
+    <section class="card" id="next" aria-live="polite"><span class="eyebrow" id="nextWho">Next</span><h3 id="nextTitle"></h3><p id="nextDetail"></p><button class="primary" id="nextGo" type="button">Yes, do it</button></section>
+    <section class="card money"><span class="eyebrow" id="moneyLabel">GST to pay</span><div class="hero"><strong id="net"></strong><span id="netNote"></span></div>
+      <div class="labels" id="labels"></div></section>
+    <section class="card"><div class="row"><span class="eyebrow">Bank transactions</span><span class="note" id="txTotal"></span></div>
+      <div class="stack" id="stack" aria-hidden="true"></div><div class="legend" id="legend"></div>
+      <div class="txfoot"><span class="note" id="txNote"></span><button type="button" id="excel">Open in Excel</button></div></section>
+    <section class="card"><div class="row"><span class="eyebrow">Steps</span><span class="note" id="stepCount"></span></div>
+      <div class="segs" id="segs" role="list"></div><ol class="steplist" id="steps"></ol></section>
+  </div>
 </aside>
 <div id="toast" role="status" hidden></div>
 <script>
@@ -118,7 +166,7 @@ function addMessage(m){
 function setWorking(on,label){
   working=on;$('send').disabled=on;$('stop').hidden=!on;
   $('status').replaceChildren(...(on?[el('i'),label||'Working…']:[]));
-  document.querySelectorAll('#steps button').forEach(b=>b.disabled=on);
+  document.querySelectorAll('#panel button:not(.seg)').forEach(b=>b.disabled=on);
 }
 async function send(text){
   if(!text.trim()||working)return;
@@ -128,30 +176,58 @@ async function send(text){
 $('form').addEventListener('submit',e=>{e.preventDefault();const t=$('text').value;$('text').value='';send(t)});
 $('text').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('form').requestSubmit()}});
 $('stop').addEventListener('click',()=>api('/api/stop',{}).catch(e=>toast(e.message)));
-function drawSteps(d){
-  $('biz').textContent=d.business;$('period').textContent=`BAS ${month(d.start)} – ${month(d.end)}`;
-  $('due').textContent=`Due ${month(d.due)} · ${d.basis} basis`;
-  $('bar').style.width=(100*d.done/d.steps.length)+'%';
-  $('progress').textContent=`${d.done} of ${d.steps.length} steps done`;
+const SHORT=['Setup','Bank','Invoices','Transactions','BAS items','Reconcile','Draft'];
+const days=d=>Math.round((new Date(d+'T00:00:00')-new Date(new Date().toDateString()))/864e5);
+const dollars=v=>(v<0?'−$':'$')+Math.abs(v).toLocaleString('en-AU');
+let last={},current=null,openStep=null,readAt=Date.now();
+// Set text; briefly animate it when the value changed since the last refresh.
+function put(id,text){const n=$(id);const was=last[id];n.textContent=text;if(was!==undefined&&was!==text){n.classList.remove('flash');void n.offsetWidth;n.classList.add('flash')}last[id]=text}
+function ask(q){return q.replace(/^Shall I /,'').replace(/ now\?$|\?$/,'').replace(/^./,c=>c.toUpperCase())}
+function draw(d){
+  current=d;readAt=Date.now();
+  put('biz',d.business);put('period',`${month(d.start)} – ${month(d.end)}`);
+  const left=days(d.due),due=$('due');
+  due.className='chip '+(left<0?'late':left<=14?'warn':'');
+  put('due',left<0?`Overdue ${-left} day${left===-1?'':'s'} · due ${month(d.due)}`:left===0?'Due today':`Due in ${left} day${left===1?'':'s'} · ${month(d.due)}`);
+  put('basis',`${d.basis[0].toUpperCase()+d.basis.slice(1)} basis`);
+  // Next up
+  const you=d.next.who==='user';$('next').className='card'+(you?' you':'');
+  put('nextWho',you?'Needs you':'Next');put('nextTitle',ask(d.next.question));put('nextDetail',d.next.detail);
+  $('nextGo').disabled=working;
+  // Money
+  const net=d.labels['9']??0;put('moneyLabel',net<0?'GST refund':'GST to pay');put('net',dollars(Math.abs(net)));
+  put('netNote',d.labels_final?'Ready for the BAS':'Estimate so far');
+  $('labels').replaceChildren(...[['G1 Sales',d.labels.G1],['1A GST on sales',d.labels['1A']],['1B GST credits',d.labels['1B']]].map(([k,v],i)=>{
+    const f=el('div');f.append(el('b',null,k));const s=el('strong');s.id='lab'+i;f.append(s);return f}));
+  [d.labels.G1,d.labels['1A'],d.labels['1B']].forEach((v,i)=>put('lab'+i,dollars(v??0)));
+  // Steps
   const next=d.steps.find(s=>s.state!=='done');
-  $('steps').replaceChildren(...d.steps.map(s=>{
-    const li=el('li','step '+s.state+(s===next?' next':''));
-    li.append(el('span','n',s.state==='done'?'✓':String(s.number)));
-    const body=el('div');body.append(el('h3',null,s.name));
-    for(const line of s.lines)body.append(el('p',null,line));
-    if(s.request&&s.state!=='blocked'){const b=el('button',s===next?'primary':'',s===next?'Start this step':'Do this');b.disabled=working;b.onclick=()=>send(s.request);body.append(b)}
-    li.append(body);return li;
-  }));
-  const L=d.labels;
-  $('figures').replaceChildren(
-    ...[['G1 Sales',L.G1],['1A GST on sales',L['1A']],['1B GST credits',L['1B']]].map(([k,v])=>{const f=el('div','fig');f.append(el('b',null,k),el('strong',null,money(v??0)));return f}),
-    el('span','note',d.labels_final?'Ready for the BAS draft.':'Figures so far. They change until the steps above are done.'));
+  put('stepCount',`${d.done} of ${d.steps.length} done`);
+  $('segs').replaceChildren(...d.steps.map((s,i)=>{const b=el('button','seg '+s.state+(s===next?' current':''));b.type='button';
+    b.title=`${s.number} ${s.name}`;b.setAttribute('aria-label',`Step ${s.number} ${s.name}: ${s.state}`);b.onclick=()=>{openStep=openStep===i?null:i;draw(current)};return b}));
+  $('steps').replaceChildren(...d.steps.filter((s,i)=>s.state!=='done'||openStep===i).map(s=>{
+    const li=el('li',s.state);li.append(el('span','dot',s.state==='done'?'✓':String(s.number)));
+    const body=el('div');body.append(el('h4',null,s.name));for(const line of s.lines.slice(0,2))body.append(el('p',null,line));li.append(body);
+    if(s.request&&s.state==='todo'&&s!==next){const b=el('button',null,'Do this');b.type='button';b.disabled=working;b.onclick=()=>send(s.request);li.append(b)}else li.append(el('span'));
+    return li}));
+  // Transactions
+  const t=d.transactions;put('txTotal',`${t.total} in period`);
+  $('stack').replaceChildren(...['classified','proposed','uncategorised'].map(k=>{const i=el('i','k-'+k);i.style.flexGrow=t[k];return i}));
+  $('legend').replaceChildren(...[['classified','Done'],['proposed','To approve'],['uncategorised','To categorise']].map(([k,label])=>{
+    const s=el('span');const m=el('em','k-'+k);s.append(m,el('b',null,String(t[k])),label);return s}));
+  put('txNote',t.uncategorised?`${t.uncategorised} still need a category`:t.proposed?`${t.proposed} waiting for your OK`:'All categorised');
 }
+$('nextGo').onclick=()=>current&&send(current.next.request);
+$('excel').onclick=()=>current&&send(`$classify-transactions Show me all the bank transactions for ${current.start} to ${current.end} in Excel.`);
+const load=()=>api('/api/status').then(d=>{draw(d);$('live').classList.remove('off')}).catch(e=>{$('live').classList.add('off');toast(e.message)});
 let refreshing=null;
-const load=()=>api('/api/status').then(drawSteps).catch(e=>toast(e.message));
-function refresh(){clearTimeout(refreshing);refreshing=setTimeout(load,300)}
+function refresh(){clearTimeout(refreshing);refreshing=setTimeout(load,250)}
+function ago(){const s=Math.round((Date.now()-readAt)/1000);$('liveText').textContent=s<5?'Live · just updated':s<60?`Live · ${s}s ago`:`Live · ${Math.round(s/60)}m ago`}
+setInterval(ago,1000);
 function listen(){
   const source=new EventSource('/api/events?token='+encodeURIComponent(TOKEN));
+  source.onopen=()=>$('live').classList.remove('off');
+  source.onerror=()=>$('live').classList.add('off');
   source.onmessage=e=>{const m=JSON.parse(e.data);
     if(m.type==='message')addMessage(m);
     else if(m.type==='delta'){const n=document.querySelector(`[data-id="${CSS.escape(m.id)}"]`);addMessage({id:m.id,role:'assistant',text:(n?.dataset.text||'')+m.text})}
@@ -162,9 +238,9 @@ function listen(){
   };
 }
 api('/api/history').then(h=>{
-  if(!h.history.length){const e=el('div','empty');e.append(el('strong',null,'Let’s do your BAS'),'Press “Start this step” on the right, or type a question below.');$('log').append(e)}
+  if(!h.history.length){const e=el('div','empty');e.append(el('strong',null,'Let’s do your BAS'),'Press “Yes, do it” on the right, or type a question below.');$('log').append(e)}
   h.history.forEach(addMessage);setWorking(h.working);listen();
 });
-load();setInterval(()=>{if(!working)refresh()},15000);
+load();setInterval(()=>{if(!working)load()},60000);
 </script>
 </body></html>
