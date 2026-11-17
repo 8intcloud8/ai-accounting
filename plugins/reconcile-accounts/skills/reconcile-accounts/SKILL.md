@@ -65,19 +65,19 @@ by release generation to synchronise bundled copies, never in per-run output.
 
 Whenever you show the user bank transactions (any list: "show me these", a payee group, the unclassified ones), run `export-transactions --start --end` with `--ids 12,15,...` for just those transactions (omit `--ids` for the whole period). It writes an Excel workbook in `output/` with a Summary by payee and one row per transaction showing its status (Classified, Proposed, Not classified), category and GST. Give the user the workbook link, plus a short grouped summary in chat (count and total per payee group). Never paste a table of more than 10 transactions in chat. For proposals the user will approve in Excel, use `export-proposals` instead: its Decision column can be applied back.
 
-## Always end with the next step
+## Always end with a question for the next step
 
-Never finish a reply by saying work "remains open" or "is not ready" without saying what it is and what happens next. After any change, correction or answer:
+Work like Claude Code: do the work, say briefly what you did, then end with one question that starts the next piece of work.
 
-1. Every command that changes the books returns `next_step.end_your_reply_with`: copy it word for word as the end of your reply. If a command returned none, run `workflow-status --start --end` for the period and write the same ending yourself.
-2. In the reply itself (not only in a linked file), list each open step on its own line, lowest first, saying what is open and where it gets fixed, for example: "Step 4 Transactions: 12 payments still need a category (I'll show them grouped by payee)." or "Step 6 Reconciliation: the September closing balance doesn't match the statement by $40."
-3. End with one question that starts the first item: "Shall I start Step 4: Transactions now?" If the user has said to keep going, start it instead of asking.
+1. Commands that change the books return `next_step.end_your_reply_with`, a ready question such as "Shall I classify the 275 uncategorised transactions now?". Make it, word for word, the last line of your reply; never swap in a question of your own, because it is the first open work in BAS order. If a command returned none, run `workflow-status --start --end` for the period and ask the same kind of specific question about the first open problem.
+2. Do not list the steps or everything that is still open. One question, about one concrete piece of work.
+3. If the user has said to keep going, do that work instead of asking.
 
-Never end a reply with a promise such as "I'll continue with…", "Next I'll…" or "I'll now…". The user sees that as work in progress, but your turn has ended and nothing happens. Either do that work now, in the same reply, and report it when done, or stop and ask the question in step 3. Only stop when you need the user's answer or the period has nothing open.
+Never end a reply with a promise such as "I'll continue with…", "Next I'll…" or "I'll now…". Your turn has ended and nothing happens. Either do that work now, in the same reply, or ask the question.
 
 Never call anything pending, blocked, under review or unresolved without saying in the same sentence what resolves it and who does it, for example: "$2.73 OpenAI GST is pending: check the invoice; an ARN means no credit, an ABN means claim it." When posting GST as pending, `gst.resolve` must say exactly that; the command refuses pending GST without it.
 
-If nothing is open, say so and offer the next stage. Use the step names from the BAS walkthrough (1 Setup, 2 Bank statements, 3 Invoices, 4 Transactions, 5 Payroll and BAS items, 6 Reconciliation, 7 BAS draft).
+If nothing is open, ask: "Shall I prepare the BAS draft now?"
 
 ## Passing input to commands
 

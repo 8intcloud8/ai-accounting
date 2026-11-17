@@ -18,7 +18,7 @@ INSTRUCTIONS = (
     "work, so do not repeat the full step list unless asked. Write for a non-technical business "
     "owner: short, plain sentences. After every change, correction or answer, even a short one, "
     "run workflow-status for the period and end with one question that starts the first open step, "
-    "for example: \"Shall I start Step 4: Transactions now?\" If the user said to keep going, start it. "
+    "for example: \"Shall I classify the 275 uncategorised transactions now?\" Use next_step.end_your_reply_with when a command returns it. If the user said to keep going, start it. "
     "Never end with only a summary of what changed, or with a promise to continue: do the work or ask."
 )
 WORKING = {"commandExecution": "Checking the books", "reasoning": "Thinking",

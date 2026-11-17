@@ -24,7 +24,7 @@ class WorkspaceInstructionsTests(unittest.TestCase):
     def test_creates_file_with_guided_rule(self):
         wi.ensure(self.root)
         content = self.agents.read_text()
-        self.assertIn("Shall I start Step", content)
+        self.assertIn("Shall I classify", content)
         self.assertIn("I'll continue", content)
         self.assertIn(wi.START, content)
 

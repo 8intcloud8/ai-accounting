@@ -1,5 +1,5 @@
 {
   "name": "tax-intake",
-  "version": "0.1.14",
+  "version": "0.1.16",
   "description": "Collect missing facts and evidence for Australian BAS and tax-return preparation through a progressive, entity-specific interview."
 }

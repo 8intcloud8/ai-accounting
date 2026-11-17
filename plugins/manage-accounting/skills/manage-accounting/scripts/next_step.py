@@ -25,12 +25,32 @@ WRITE_COMMANDS = frozenset({
 })
 LINE_LIMIT = 320
 INSTRUCTION = (
-    "Copy end_your_reply_with, word for word, as the end of your reply to the user, even after a "
-    "short correction. "
-    "Never end with only a summary of what changed, and never with a promise such as "
-    "\"I'll continue with...\": do that work now or ask. If the user said to keep going, start "
-    "that step instead of asking."
+    "Make end_your_reply_with, word for word, the last line of your reply to the user, even after "
+    "a short correction. Never swap in a question of your own: it is the first open work in BAS "
+    "order, worked out from the books. Do not list the steps or what is still open. Never end with only a summary of "
+    "what changed, and never with a promise such as \"I'll continue with...\": do that work now "
+    "or ask. If the user said to keep going, do that work instead of asking."
 )
+# One question per kind of open work. {n} is the count, {s} the plural ending.
+QUESTIONS = {
+    "intake_question": "Shall I ask you the {n} open setup question{s} now?",
+    "bank_missing": "Shall I check the {account} bank statement covers the whole period now?",
+    "statements_unread": "Shall I import the {n} new bank statement file{s} now?",
+    "invoices_unread": "Shall I read the {n} new invoice file{s} now?",
+    "invoice_review": "Shall I go through the {n} invoice{s} that need checking now?",
+    "documents_unresolved": "Shall I sort out the {n} open document{s} now?",
+    "transactions_unclassified": "Shall I classify the {n} uncategorised transaction{s} now?",
+    "proposals_awaiting_approval": "Shall I show you the {n} proposed {categories} to approve?",
+    "gst_pending": "Shall I resolve the {n} pending GST item{s} now?",
+    "reconciliation_required": "Shall I reconcile the bank accounts now?",
+}
+REVIEW_QUESTIONS = {
+    "source_completeness": "Shall I check every bank statement and invoice is in now?",
+    "sales_completeness": "Shall I check all sales are included now?",
+    "payg_review": "Shall I review PAYG withholding now?",
+    "tax_adjustments": "Shall I review tax adjustments now?",
+}
+DONE = "Shall I prepare the BAS draft now?"
 
 
 def clean(text):
@@ -61,21 +81,34 @@ def active_period(db_path, start=None, end=None, today=None):
     return quarter(date.fromisoformat(quarter(today)[0]) - timedelta(days=1))
 
 
+def question(problem):
+    """The one question that starts `problem`, the first open piece of work."""
+    if problem is None:
+        return DONE
+    if problem["code"] == "review_required":
+        review = problem["text"].rpartition(": ")[2]
+        return REVIEW_QUESTIONS.get(review, "Shall I do the remaining BAS review now?")
+    n = problem.get("count") or 1
+    return QUESTIONS.get(problem["code"], "Shall I carry on with the BAS now?").format(
+        n=n, s="" if n == 1 else "s", categories="category" if n == 1 else "categories",
+        account=clean(problem["text"].rpartition(": ")[2])[:40])
+
+
+def first_problem(db_path, start, end):
+    """The lowest open step's first problem, in pipeline order."""
+    import product_store
+
+    with closing(bas_dashboard.read_only(db_path)) as db:
+        problems = product_store.status_report(db, start, end)["problems"]
+    order = {code: i for i, code in enumerate(product_store.PROBLEM_ORDER)}
+    return min(problems, key=lambda p: (p["step"], order.get(p["code"], 99)), default=None)
+
+
 def guidance(db_path, start=None, end=None):
     start, end = active_period(db_path, start, end)
-    steps = bas_dashboard.snapshot(db_path, start, end)["steps"]
-    open_steps = [f"Step {s['number']} {s['name']}: {clean('; '.join(s['lines']))}."
-                  for s in steps if s["state"] == "todo"]
-    first = next((s for s in steps if s["state"] in ("todo", "ready")), None)
-    if first is None:
-        ask = "Everything is done for this period. Shall I show you the BAS draft?"
-    elif first["state"] == "ready":
-        ask = f"Shall I prepare Step {first['number']}: {first['name']} now?"
-    else:
-        ask = f"Shall I start Step {first['number']}: {first['name']} now?"
-    lines = (["Still open:", *(f"- {s}" for s in open_steps), ""] if open_steps else []) + [ask]
-    return {"end_your_reply_with": "\n".join(lines), "instruction": INSTRUCTION,
-            "period": f"{start} to {end}", "open_steps": open_steps, "ask_user": ask}
+    first = first_problem(db_path, start, end)
+    return {"end_your_reply_with": question(first), "instruction": INSTRUCTION,
+            "period": f"{start} to {end}", "next_work": clean(first["text"]) if first else "BAS draft"}
 
 
 def safe_guidance(db_path, start=None, end=None):

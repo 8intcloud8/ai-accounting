@@ -49,16 +49,28 @@ class NextStepTests(unittest.TestCase):
         self.assertEqual(next_step.active_period(self.db, "2026-10-01", "2026-12-31"),
                          ("2026-10-01", "2026-12-31"))
 
-    def test_guidance_lists_open_steps_and_one_question(self):
+    def test_guidance_is_one_specific_question(self):
         self.add_transaction()
         guide = next_step.guidance(self.db)
         self.assertEqual(guide["period"], "2026-07-01 to 2026-09-30")
-        self.assertTrue(guide["open_steps"])
-        self.assertTrue(all(s.startswith("Step ") for s in guide["open_steps"]))
-        self.assertRegex(guide["ask_user"], r"^Shall I start Step \d: .+ now\?$")
-        self.assertIn("I'll continue", guide["instruction"])
-        self.assertTrue(guide["end_your_reply_with"].startswith("Still open:\n- Step "))
-        self.assertTrue(guide["end_your_reply_with"].endswith(guide["ask_user"]))
+        ending = guide["end_your_reply_with"]
+        self.assertRegex(ending, r"^Shall I .+\?$")
+        self.assertNotIn("\n", ending)
+        self.assertNotIn("Step ", ending)
+        self.assertIn("Do not list", guide["instruction"])
+
+    def test_question_names_the_work(self):
+        self.assertEqual(next_step.question({"code": "transactions_unclassified", "count": 275, "text": ""}),
+                         "Shall I classify the 275 uncategorised transactions now?")
+        self.assertEqual(next_step.question({"code": "proposals_awaiting_approval", "count": 1, "text": ""}),
+                         "Shall I show you the 1 proposed category to approve?")
+        self.assertEqual(next_step.question({"code": "review_required", "count": 1,
+                                             "text": "Review required: payg_review"}),
+                         "Shall I review PAYG withholding now?")
+        self.assertEqual(next_step.question({"code": "bank_missing", "count": 1,
+                                             "text": "Missing account-period evidence: cba-123"}),
+                         "Shall I check the cba-123 bank statement covers the whole period now?")
+        self.assertEqual(next_step.question(None), "Shall I prepare the BAS draft now?")
 
     def test_write_refreshes_workspace_agents_file(self):
         (self.root / "AGENTS.md").unlink()
@@ -86,7 +98,7 @@ class NextStepTests(unittest.TestCase):
                              capture_output=True, text=True, check=True)
         result = json.loads(out.stdout)
         self.assertIn("next_step", result)
-        self.assertTrue(result["next_step"]["ask_user"].startswith("Shall I"))
+        self.assertTrue(result["next_step"]["end_your_reply_with"].startswith("Shall I"))
 
     def test_read_command_output_has_no_next_step(self):
         out = subprocess.run([sys.executable, str(CORE / "accounting_store.py"), "--db", str(self.db),

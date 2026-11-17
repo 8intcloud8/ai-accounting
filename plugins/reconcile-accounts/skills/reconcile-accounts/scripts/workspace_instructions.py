@@ -11,17 +11,14 @@ from pathlib import Path
 START = "<!-- ai-accounting:start -->"
 END = "<!-- ai-accounting:end -->"
 BLOCK = f"""{START}
-## Accounting: always end with the next step
+## Accounting: always end with a question for the next step
 
-After every reply that changes, corrects or answers anything about the books, even a short correction:
+Work like Claude Code: do the work, say briefly what you did, then end with one question that starts the next piece of work, for example: "Shall I classify the 275 uncategorised transactions now?"
 
-1. Run `workflow-status --start --end` for the period (the manage-accounting skill shows how).
-2. In the reply itself, list each open step on its own line, lowest first, saying what is open and where it gets fixed, for example: "Step 4 Transactions: 12 payments still need a category."
-3. End with one question that starts the first open step: "Shall I start Step 4: Transactions now?" If the user has said to keep going, start it instead of asking.
-
-Never end a reply with only a summary of what changed, and never end with a promise such as "I'll continue with…": do that work now or ask the question. If nothing is open, say so and offer the BAS draft.
-
-Steps: 1 Setup, 2 Bank statements, 3 Invoices, 4 Transactions, 5 Payroll and BAS items, 6 Reconciliation, 7 BAS draft.
+- Commands that change the books return `next_step.end_your_reply_with`: make it, word for word, the last line of your reply. Never swap in your own question.
+- Do not list the steps or everything still open. One specific question only.
+- Never end with only a summary, or with a promise such as "I'll continue with…": do the work or ask.
+- If the user has said to keep going, do that work instead of asking.
 {END}
 """
 
