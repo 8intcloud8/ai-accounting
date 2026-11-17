@@ -99,6 +99,8 @@ class NextStepTests(unittest.TestCase):
         result = json.loads(out.stdout)
         self.assertIn("next_step", result)
         self.assertTrue(result["next_step"]["end_your_reply_with"].startswith("Shall I"))
+        self.assertTrue(Path(result["next_step"]["live"]["dashboard"]).exists())
+        self.assertTrue(Path(result["next_step"]["live"]["workbook"]).exists())
 
     def test_read_command_output_has_no_next_step(self):
         out = subprocess.run([sys.executable, str(CORE / "accounting_store.py"), "--db", str(self.db),

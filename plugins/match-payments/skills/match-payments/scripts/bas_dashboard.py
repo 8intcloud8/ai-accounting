@@ -144,6 +144,8 @@ def snapshot(db_path, start, end):
             "SELECT count(*) FROM transactions WHERE date BETWEEN ? AND ?", (start, end)).fetchone()[0]
     period = f"{start} to {end}"
     steps = build_steps(status["problems"], period)
+    upcoming = next_action(db_path, start, end)
+    counts = transaction_counts(db_path, start, end)
     labels = {k: bas_labels.whole_dollars(v) for k, v in cents.items()}
     labels["9"] = labels["1A"] - labels["1B"]
     return {
@@ -160,10 +162,62 @@ def snapshot(db_path, start, end):
             "invoices_to_review": status["invoices_needing_review"],
         },
         "labels": labels,
+        "next": upcoming,
+        "transactions": counts,
+        "todo": [plain_line for s in steps if s["state"] == "todo" for plain_line in s["lines"]],
         "labels_final": steps[-1]["state"] == "ready",
         "continue_request": CONTINUE.format(period=period),
         "read_at": datetime.now().astimezone().isoformat(timespec="seconds"),
     }
+
+
+def transaction_counts(db_path, start, end):
+    """Bank transactions in the period by where they stand."""
+    with closing(read_only(db_path)) as db:
+        total, classified, proposed = db.execute(
+            "SELECT count(*),"
+            " sum(EXISTS(SELECT 1 FROM journals j WHERE j.transaction_id=t.id)),"
+            " sum(NOT EXISTS(SELECT 1 FROM journals j WHERE j.transaction_id=t.id) AND"
+            "     EXISTS(SELECT 1 FROM proposals p WHERE p.transaction_id=t.id AND p.status='proposed'))"
+            " FROM transactions t WHERE t.date BETWEEN ? AND ?", (start, end)).fetchone()
+    total, classified, proposed = total or 0, classified or 0, proposed or 0
+    return {"total": total, "classified": classified, "proposed": proposed,
+            "uncategorised": total - classified - proposed}
+
+
+def next_action(db_path, start, end):
+    """The one next piece of work: the question to show and the message that starts it."""
+    import next_step  # Here, not at the top: next_step imports this module.
+
+    first = next_step.first_problem(db_path, start, end)
+    period = f"{start} to {end}"
+    if first is None:
+        return {"question": next_step.DONE, "detail": "Everything is done.", "who": "worker",
+                "request": PREPARE.format(period=period)}
+    return {"question": next_step.question(first), "detail": next_step.clean(plain(first["text"])),
+            "who": first["who"], "request": REQUESTS[first["code"]].format(period=period)}
+
+
+def live_folder(db_path, start, end):
+    return product_store.root_for(Path(db_path).expanduser().resolve()) / "output" / "BAS live" / f"{start} to {end}"
+
+
+def refresh_live(db_path, start, end):
+    """Rewrite the period's dashboard and workbook in one fixed folder. The dashboard
+    reloads itself, so an open page follows every change to the books."""
+    import proposal_store
+
+    folder = live_folder(db_path, start, end)
+    folder.mkdir(parents=True, exist_ok=True)
+    dashboard = folder / "Dashboard.html"
+    temp = folder / ".Dashboard.html.tmp"
+    temp.write_text(render(snapshot(db_path, start, end)))
+    temp.replace(dashboard)
+    workbook = folder / "Transactions.xlsx"
+    staged = folder / ".Transactions.tmp.xlsx"
+    proposal_store.export_transactions(db_path, start, end, staged, read_only)  # never writes the books
+    staged.replace(workbook)
+    return {"dashboard": dashboard, "workbook": workbook}
 
 
 def render(data, token=""):
@@ -174,12 +228,9 @@ def render(data, token=""):
 
 
 def save(db_path, start, end):
-    data = snapshot(db_path, start, end)
-    folder = product_store.root_for(Path(db_path).expanduser().resolve()) / "output" / date.today().isoformat() / "reports"
-    folder.mkdir(parents=True, exist_ok=True)
-    target = folder / f"bas-dashboard-{data['start']}_{data['end']}.html"
-    target.write_text(render(data))
-    return target
+    """The live dashboard file, refreshed now; it keeps itself current after that."""
+    start, end = product_store.period(start, end)
+    return refresh_live(db_path, start, end)["dashboard"]
 
 
 def create_server(db_path, start, end, port=0):

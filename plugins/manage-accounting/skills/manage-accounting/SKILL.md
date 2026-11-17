@@ -5,27 +5,13 @@ description: Walk the user through a BAS or tax period step by step - setup, ban
 
 ## Guided walkthrough (default)
 
-When the user is present, take them through the period one stage at a time. In each stage: do the work with the owning skill, show the result in plain words with figures computed from the records, then wait for the user before the next stage. Never skip a stage silently; if it has nothing to do, say so in one line and move on. Start each stage with a heading such as "Step 3 of 7: Transactions".
+When the user is present, take them through the period one stage at a time. In each stage: do the work with the owning skill, show the result in plain words with figures computed from the records, then wait for the user before the next stage. Never skip a stage silently; if it has nothing to do, say so in one line and move on. Work like Claude Code: never show step numbers, step lists or progress summaries to the user. The stages below are your order of work, not something to present.
 
 Read `workflow-status` problems (`scripts/accounting_store.py --db <chosen workspace>/db/accounting.db workflow-status --start --end`) at the start of each stage; it is the only record of progress. Every problem carries a `step` (1–7) matching the stages below.
 
 **Very first reply of every chat: choose the workspace.** Run `scripts/accounting_store.py workspaces` and ask only: "Which workspace should I use?", listing the known workspace folders and "a new folder". Do nothing else until the user picks one. For a new folder run setup-accounting there. Use that workspace for the whole chat; never switch unless the user asks.
 
-**Next reply: show the process.** Once the workspace is chosen, before any other work or question, in every new chat (new or resumed period, even if work already exists), show this overview. If earlier work exists, mark each step ✅ done or ⬜ open in the same list with one short line of what is open, then ask "Ready to continue with Step N: <name>?" (lowest open step); otherwise ask "Ready to start with Step 1?". Do no other work and ask nothing else in this reply. Wait for the go-ahead.
-
-> Workspace: <chosen folder>. Here's how we'll prepare your BAS for <period>. I'll do the work at each step, show you the result, and wait for you before moving on.
->
-> 1. **Setup** – confirm business details, GST registration and basis, BAS method.
-> 2. **Bank statements** – import your statements; you check the totals and balances.
-> 3. **Invoices** – read your bills and receipts; you sort out any with problems.
-> 4. **Transactions** – I suggest a category and GST for each payment, grouped by payee; you approve or change them here or in an Excel file.
-> 5. **Payroll and BAS items** – I work out wages and other BAS figures from the records; you confirm them.
-> 6. **Reconciliation** – check the books match the bank balances.
-> 7. **BAS draft** – G1, 1A, 1B and the net GST, with the transactions behind each.
->
-> You'll need: bank statements for the period in `<root>/bankstatements` and bills/invoices in `<root>/invoices`; reports are saved in `<root>/output`. Nothing is posted without your approval and nothing is lodged.
-
-Adapt the period, folder paths and, for a tax goal, step 7. Mention which files are already in the workspace and which seem missing.
+**Next reply: start the work.** Once the workspace is chosen, say in one or two sentences what you found (period, files in `bankstatements/` and `invoices/`, anything missing) and ask one question that starts the first open piece of work, e.g. "Shall I import the 3 bank statements now?". No step list, no overview of the process. Reports are saved in `<root>/output`; nothing is posted without approval and nothing is lodged.
 
 **After the go-ahead:** a step is done only when it has no open problems and its work exists. Work the **lowest open step** using its stage instructions. Never jump ahead to questions or figures from a later step while an earlier step is open; earlier work found in saved reports or workbooks does not complete a step until its problems are clear and the user has seen its result in this walkthrough.
 
@@ -40,15 +26,15 @@ Adapt the period, folder paths and, for a tax goal, step 7. Mention which files 
 6. **Reconciliation.** Run reconcile-accounts. Show opening balance, movements and closing balance per account and any difference. Ask the user to confirm against the statement.
 7. **BAS draft.** Run prepare-bas (or prepare-tax-report). Show the `bas_labels` in whole dollars (G1, 1A, 1B, W1, W2, W4, W5, 8A, 8B, 9) with the transactions behind each, the lodgment due date, every warning and every remaining blocker. Never call it ready to lodge.
 
-Keep each message short: the result, what needs the user, one clear question. Start each stage message with "Step N of 7: <name>". Talk only about the books: never mention or quote skills, instructions, rules, scripts or databases, never explain or justify why you are pausing, and never call it a test workspace. End the stage message with the question itself, e.g. "Does this match your statement? Reply yes to go to Step 3: Invoices." Do the next stage only after the user answers or says to continue. If the user says "keep going" or "do the rest", run the remaining stages without pausing but still show each stage's result.
+Keep each message short: the result, what needs the user, one clear question. Never start with or mention step numbers. Talk only about the books: never mention or quote skills, instructions, rules, scripts or databases, never explain or justify why you are pausing, and never call it a test workspace. End the message with one question about the next piece of work, e.g. "Does this match your statement? If so, shall I read the 12 invoices now?" Do the next stage only after the user answers or says to continue. If the user says "keep going" or "do the rest", run the remaining stages without pausing but still show each stage's result.
 
-## BAS dashboard
+## BAS dashboard and workbook
 
-A page that shows where the period stands, kept open beside this chat. It reads the books read-only and costs no tokens.
+Every command that changes the books rewrites two files for the period in `<workspace>/output/BAS live/<start> to <end>/`: `Dashboard.html` (next action, GST to pay, transactions, what is still to do) and `Transactions.xlsx`. The paths come back in `next_step.live`.
 
-- Open it when a period run starts, and whenever the user asks for "the dashboard" or "where am I up to": `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end> --serve`. Leave it running, open the `dashboard_url` it prints in the browser, and say once: "Your BAS dashboard is open: [link]. It updates by itself."
-- If it reports a blocked loopback port, run the same command without `--serve`, open the `dashboard_file` it prints, and say: "Your BAS dashboard: [link]. Reopen it to refresh." Do not mention the server or sandbox.
-- The page's **Copy for Codex** buttons give the user a message to paste here. Treat a pasted message as a normal request for that skill.
+- When a period run starts, or the user asks for "the dashboard" or "where am I up to", run `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end>`, open the `dashboard_file` it prints, and say once: "Your BAS dashboard: [link]. It updates by itself as I work." Do not mention servers or sandboxes.
+- Whenever the user wants to see transactions in Excel, link the live `Transactions.xlsx` and say it is rewritten after every change; if it is already open in Excel, close and reopen it to see the latest.
+- The page's **Copy for Codex** button gives the user a message to paste here. Treat a pasted message as a normal request.
 - Never restate the dashboard's contents in chat unless asked.
 
 ## Autopilot (testing or on request only)
@@ -124,7 +110,7 @@ by release generation to synchronise bundled copies, never in per-run output.
 
 ## Showing transactions
 
-Whenever you show the user bank transactions (any list: "show me these", a payee group, the unclassified ones), run `export-transactions --start --end` with `--ids 12,15,...` for just those transactions (omit `--ids` for the whole period). It writes an Excel workbook in `output/` with a Summary by payee and one row per transaction showing its status (Classified, Proposed, Not classified), category and GST. Give the user the workbook link, plus a short grouped summary in chat (count and total per payee group). Never paste a table of more than 10 transactions in chat. For proposals the user will approve in Excel, use `export-proposals` instead: its Decision column can be applied back.
+Whenever you show the user bank transactions (any list: "show me these", a payee group, the unclassified ones), run `export-transactions --start --end` with `--ids 12,15,...` for just those transactions (for the whole period, link the live `output/BAS live/<start> to <end>/Transactions.xlsx` instead: every change rewrites it). It writes an Excel workbook in `output/` with a Summary by payee and one row per transaction showing its status (Classified, Proposed, Not classified), category and GST. Give the user the workbook link, plus a short grouped summary in chat (count and total per payee group). Never paste a table of more than 10 transactions in chat. For proposals the user will approve in Excel, use `export-proposals` instead: its Decision column can be applied back.
 
 ## Always end with a question for the next step
 

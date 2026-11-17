@@ -1,84 +1,90 @@
 """The BAS dashboard page. Data arrives as JSON in place of __DASHBOARD__; every
-value is written with textContent, never as HTML."""
+value is written with textContent, never as HTML. Saved as a file it reloads itself,
+so an open page follows the books as Codex works."""
 
 PAGE = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>BAS dashboard</title>
 <style>
-:root{--desk:#e9eef0;--win:#fff;--side:#f6f8f9;--ink:#101a24;--muted:#5d6b78;--faint:#8a97a3;--line:#e1e7ec;
---accent:#0f7a63;--accent-ink:#fff;--accent-soft:#e5f4ef;--todo:#b26b00;--todo-soft:#fff4e0;--block:#6b7785;--block-soft:#eef1f4;
---shadow:0 1px 2px #0b16200f,0 20px 50px -24px #0b162040;
+:root{--desk:#eef1f3;--win:#fff;--side:#f5f7f8;--ink:#101a24;--muted:#5d6b78;--faint:#8a97a3;--line:#e3e8ec;
+--accent:#0f7a63;--accent-ink:#fff;--accent-soft:#e5f4ef;--todo:#b26b00;--todo-soft:#fff4e0;--late:#b42318;--late-soft:#fdecea;
+--block:#6b7785;--block-soft:#e9edf0;--shadow:0 1px 2px #0b16200f,0 18px 44px -24px #0b162040;
 --display:"Avenir Next","Segoe UI",system-ui,sans-serif;--body:-apple-system,"Segoe UI",system-ui,sans-serif}
 @media(prefers-color-scheme:dark){:root{color-scheme:dark;--desk:#0b1117;--win:#131b23;--side:#0f161d;--ink:#e8eef3;--muted:#9eadb9;--faint:#6e7f8d;--line:#233040;
---accent:#3ccfa6;--accent-ink:#062018;--accent-soft:#103429;--todo:#f2b450;--todo-soft:#33260f;--block:#93a1ae;--block-soft:#1c2631;--shadow:0 1px 2px #0006,0 24px 60px -24px #000a}}
+--accent:#3ccfa6;--accent-ink:#062018;--accent-soft:#103429;--todo:#f2b450;--todo-soft:#33260f;--late:#ff8a80;--late-soft:#3a1714;--block:#93a1ae;--block-soft:#1c2631;--shadow:0 1px 2px #0006,0 24px 60px -24px #000a}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--desk);color:var(--ink);font:14px/1.5 var(--body);padding:24px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
-main{max-width:860px;margin:0 auto;background:var(--win);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:26px 28px;display:grid;gap:22px}
-header{display:grid;gap:4px}
-.eyebrow{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:13px}
-h1{font:800 26px/1.15 var(--display);margin:0;letter-spacing:-.02em;text-wrap:balance}
-.meta{color:var(--muted)}
-.live{display:inline-flex;align-items:center;gap:7px;font-weight:600}
-.live i{width:8px;height:8px;border-radius:50%;background:var(--faint);display:block}
-.live.on i{background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
-.bar{height:8px;background:var(--block-soft);border-radius:99px;overflow:hidden}
-.bar i{display:block;height:100%;background:var(--accent);transition:width .4s}
-.progress{display:grid;gap:8px}.progress small{color:var(--muted)}
-.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:grid;gap:2px}
-.kpi strong{font:800 22px/1.1 var(--display);font-variant-numeric:tabular-nums}
-.kpi span{color:var(--muted);font-size:12.5px}
-.kpi.warn strong{color:var(--todo)}
-.steps{border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.step{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:14px;align-items:center;padding:13px 16px;border-top:1px solid var(--line)}
-.step:first-child{border-top:0}
-.n{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--display)}
-.step h2{margin:0;font:700 14.5px var(--display)}
-.step p{margin:1px 0 0;color:var(--muted);font-size:13px;overflow-wrap:anywhere}
-.done .n,.ready .n{background:var(--accent);color:var(--accent-ink)}
-.todo .n{background:var(--todo-soft);color:var(--todo)}
-.blocked .n{background:var(--block-soft);color:var(--block)}
-.step.next{background:color-mix(in srgb,var(--todo-soft) 55%,transparent)}
-.act{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-.chip{font:600 12px var(--body);padding:3px 10px;border-radius:99px;white-space:nowrap}
-.chip.done,.chip.ready{background:var(--accent-soft);color:var(--accent)}
-.chip.todo{background:var(--todo-soft);color:var(--todo)}
-.chip.blocked{background:var(--block-soft);color:var(--block)}
-button{font:600 13px var(--body);border-radius:9px;padding:7px 13px;cursor:pointer;border:1px solid var(--line);background:var(--win);color:var(--ink)}
+body{margin:0;background:var(--desk);color:var(--ink);font:14.5px/1.5 var(--body);padding:28px 16px 48px}
+main{max-width:760px;margin:0 auto;display:grid;gap:14px}
+.card{background:var(--win);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:18px 20px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.eyebrow{font:700 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+header.card{display:grid;gap:4px}
+h1{margin:0;font:800 26px/1.15 var(--display);letter-spacing:-.02em}
+.chip{font:600 12.5px var(--body);padding:3px 10px;border-radius:99px;background:var(--block-soft);color:var(--block)}
+.chip.warn{background:var(--todo-soft);color:var(--todo)}.chip.late{background:var(--late-soft);color:var(--late)}
+.note{color:var(--faint);font-size:12.5px}
+.live{display:inline-flex;align-items:center;gap:7px;color:var(--faint);font-size:12.5px}
+.live i{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+#next{display:grid;gap:8px;background:linear-gradient(160deg,var(--accent-soft),var(--win) 65%);border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+#next .eyebrow{color:var(--accent)}
+#next.you{background:linear-gradient(160deg,var(--todo-soft),var(--win) 65%);border-color:color-mix(in srgb,var(--todo) 35%,var(--line))}
+#next.you .eyebrow{color:var(--todo)}
+#next h2{margin:0;font:800 21px/1.25 var(--display);letter-spacing:-.01em}
+#next p{margin:0;color:var(--muted)}
+.how{color:var(--faint);font-size:12.5px}
+button{font:600 13.5px var(--body);border-radius:10px;padding:9px 16px;cursor:pointer;border:1px solid var(--line);background:var(--win);color:var(--ink)}
 button:hover{background:var(--side)}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
-button:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
-.labels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.label{background:var(--side);border-radius:12px;padding:12px 14px}
-.label b{display:block;font:700 12px var(--body);color:var(--muted);letter-spacing:.04em}
-.label strong{font:800 20px var(--display);font-variant-numeric:tabular-nums}
-.label span{display:block;color:var(--muted);font-size:12px}
-h3{margin:0 0 8px;font:700 13px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
-.how{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;background:var(--side);border-radius:12px;padding:12px 14px}
-.how p{margin:0;color:var(--muted);max-width:60ch}
+button:focus-visible,a:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.hero strong{display:block;font:800 36px/1.05 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.labels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px dashed var(--line);margin-top:12px;padding-top:10px}
+.labels b{display:block;font:700 10.5px var(--body);color:var(--faint);letter-spacing:.05em}
+.labels strong{font:700 15px var(--display);font-variant-numeric:tabular-nums}
+.big{font:800 36px/1.05 var(--display);letter-spacing:-.03em;margin:6px 0 2px;font-variant-numeric:tabular-nums}
+.stack{display:flex;height:12px;border-radius:99px;overflow:hidden;background:var(--block-soft);margin:12px 0 10px}
+.stack i{display:block;height:100%}
+.k1{background:var(--accent)}.k2{background:var(--todo)}.k3{background:var(--block)}
+.legend{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:8px}.legend b{color:var(--ink);min-width:3ch;text-align:right;font-variant-numeric:tabular-nums}
+.legend em{width:10px;height:10px;border-radius:3px}
+a.open{display:inline-block;margin-top:12px;color:var(--accent);font-weight:700;text-decoration:none}
+a.open:hover{text-decoration:underline}
+ul.todo{list-style:none;margin:10px 0 0;padding:0;display:grid}
+ul.todo li{padding:9px 0;border-top:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
+ul.todo li:first-child{border-top:0}
+ul.todo li::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--todo);flex:none;transform:translateY(-1px)}
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--win);padding:9px 16px;border-radius:10px;font-weight:600;box-shadow:var(--shadow)}
 #manual{width:100%;font:13px ui-monospace,Menlo,monospace;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--win);color:var(--ink)}
-@media(max-width:640px){.kpis,.labels{grid-template-columns:repeat(2,minmax(0,1fr))}.step{grid-template-columns:30px minmax(0,1fr)}.act{grid-column:2;justify-content:flex-start}main{padding:18px 14px}}
+@media(max-width:640px){.pair{grid-template-columns:1fr}h1{font-size:22px}.hero strong,.big{font-size:30px}}
 </style></head><body>
 <main>
-  <header>
-    <div class="eyebrow"><span id="business"></span><span class="live" id="live"><i></i><span id="liveText"></span></span></div>
+  <header class="card">
+    <div class="row"><span class="eyebrow" id="business"></span><span class="live"><i></i><span id="liveText"></span></span></div>
     <h1 id="title"></h1>
-    <div class="meta" id="meta"></div>
+    <div class="row"><span class="chip" id="due"></span><span class="note" id="basis"></span></div>
   </header>
-  <div class="progress"><div class="bar" aria-hidden="true"><i id="bar"></i></div><small id="progress"></small></div>
-  <div class="kpis" id="kpis"></div>
-  <div class="steps" id="steps"></div>
-  <section><h3>BAS figures so far</h3><div class="labels" id="labels"></div></section>
-  <div class="how"><p>Buttons copy a ready message. Paste it into your Codex chat; this page updates as Codex works.</p><button class="primary" id="continue" type="button">Copy “continue my BAS”</button></div>
+  <section class="card" id="next" aria-live="polite">
+    <span class="eyebrow" id="who">Next</span><h2 id="question"></h2><p id="detail"></p>
+    <div class="row"><button class="primary" id="go" type="button">Copy for Codex</button><span class="how">Paste it into your Codex chat.</span></div>
+  </section>
+  <div class="pair">
+    <section class="card hero"><span class="eyebrow" id="moneyLabel">GST to pay</span><strong id="net"></strong><span class="note" id="netNote"></span>
+      <div class="labels" id="labels"></div></section>
+    <section class="card"><span class="eyebrow">Bank transactions</span><div class="big" id="txTotal"></div>
+      <div class="stack" id="stack" aria-hidden="true"></div><div class="legend" id="legend"></div>
+      <a class="open" id="workbook" href="Transactions.xlsx">Open the transactions in Excel →</a></section>
+  </div>
+  <section class="card"><div class="row"><span class="eyebrow">Still to do</span><span class="note" id="todoCount"></span></div><ul class="todo" id="todo"></ul></section>
   <input id="manual" hidden readonly aria-label="Message to copy">
 </main>
 <div id="toast" role="status" hidden></div>
 <script>
 const boot=__DASHBOARD__;const $=id=>document.getElementById(id);
 const live=location.protocol.startsWith('http')&&boot.token;
-const month=d=>new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'});
+const month=d=>new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
 const money=n=>(n<0?'-$':'$')+Math.abs(n).toLocaleString('en-AU');
+const days=d=>Math.round((new Date(d+'T00:00:00')-new Date(new Date().toDateString()))/864e5);
 function node(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
 let toastTimer;
 async function copy(text){
@@ -86,40 +92,34 @@ async function copy(text){
   catch{const m=$('manual');m.hidden=false;m.value=text;m.select();toast('Select the text below and copy it.')}
 }
 function toast(text){const t=$('toast');t.textContent=text;t.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.hidden=true,2600)}
+const ask=q=>q.replace(/^Shall I /,'').replace(/ now\?$|\?$/,'').replace(/^./,c=>c.toUpperCase());
 function draw(d){
   $('business').textContent=d.business;
-  $('title').textContent='BAS · '+month(d.start)+' – '+month(d.end);
-  $('meta').textContent=[d.due?'Due '+month(d.due):'',d.basis&&d.basis!=='unknown'?d.basis[0].toUpperCase()+d.basis.slice(1)+' basis':''].filter(Boolean).join(' · ');
-  $('bar').style.width=(d.done/d.steps.length*100)+'%';
-  const next=d.steps.find(s=>s.request);
-  $('progress').textContent=d.done+' of '+d.steps.length+' steps done'+(next?' · next: '+next.name.toLowerCase():'');
-  const c=d.counts,k=$('kpis');k.replaceChildren();
-  [['Bank transactions',c.transactions,false],['To classify',c.unclassified,c.unclassified>0],['Waiting for your approval',c.awaiting_approval,c.awaiting_approval>0],['Invoices to check',c.invoices_to_review,c.invoices_to_review>0]]
-    .forEach(([label,value,warn])=>{const b=node('div','kpi'+(warn?' warn':''));b.append(node('strong','',value.toLocaleString('en-AU')),node('span','',label));k.append(b)});
-  const box=$('steps');box.replaceChildren();
-  d.steps.forEach(s=>{
-    const row=node('div','step '+s.state+(s===next?' next':''));
-    row.append(node('span','n',s.state==='done'?'✓':s.number));
-    const mid=node('div');mid.append(node('h2','',s.name));
-    const shown=s.lines.slice(0,3).join(' · ')+(s.lines.length>3?' · and '+(s.lines.length-3)+' more':'');
-    if(shown)mid.append(node('p','',shown));row.append(mid);
-    const act=node('div','act');
-    act.append(node('span','chip '+s.state,{done:'Done',todo:s.needs_user?'Needs you':'To do',blocked:'Blocked',ready:'Ready'}[s.state]));
-    if(s.request){const b=node('button',s===next?'primary':'','Copy for Codex');b.type='button';b.onclick=()=>copy(s.request);act.append(b)}
-    row.append(act);box.append(row);
-  });
-  const L=$('labels');L.replaceChildren();
-  [['G1','Total sales',d.labels.G1],['1A','GST on sales',d.labels['1A']],['1B','GST on purchases',d.labels['1B']],['9',d.labels['9']<0?'Refund':'To pay',d.labels['9']]]
-    .forEach(([code,name,value])=>{const b=node('div','label');b.append(node('b','',code),node('strong','',money(value)),node('span','',name));L.append(b)});
-  $('continue').onclick=()=>copy(d.continue_request);
+  $('title').textContent=`BAS ${month(d.start)} – ${month(d.end)}`;
+  const left=d.due?days(d.due):null,due=$('due');
+  due.className='chip'+(left===null?'':left<0?' late':left<=14?' warn':'');
+  due.textContent=left===null?'':left<0?`Overdue ${-left} day${left===-1?'':'s'} · due ${month(d.due)}`:left===0?'Due today':`Due in ${left} day${left===1?'':'s'} · ${month(d.due)}`;
+  $('basis').textContent=d.basis&&d.basis!=='unknown'?d.basis[0].toUpperCase()+d.basis.slice(1)+' basis':'';
+  const you=d.next.who==='user';$('next').className='card'+(you?' you':'');
+  $('who').textContent=you?'Needs you':'Next';$('question').textContent=ask(d.next.question);$('detail').textContent=d.next.detail;
+  $('go').onclick=()=>copy(d.next.request);
+  const net=d.labels['9']??0;$('moneyLabel').textContent=net<0?'GST refund':'GST to pay';$('net').textContent=money(Math.abs(net));
+  $('netNote').textContent=d.labels_final?'Ready for the BAS':'Estimate so far';
+  $('labels').replaceChildren(...[['G1 Sales',d.labels.G1],['1A On sales',d.labels['1A']],['1B Credits',d.labels['1B']]].map(([k,v])=>{const f=node('div');f.append(node('b','',k),node('strong','',money(v??0)));return f}));
+  const t=d.transactions;$('txTotal').textContent=t.total.toLocaleString('en-AU');
+  $('stack').replaceChildren(...[['k1',t.classified],['k2',t.proposed],['k3',t.uncategorised]].map(([k,v])=>{const i=node('i',k);i.style.flexGrow=v;return i}));
+  $('legend').replaceChildren(...[['k1',t.classified,'categorised'],['k2',t.proposed,'waiting for your OK'],['k3',t.uncategorised,'still need a category']].map(([k,v,label])=>{const s=node('span');s.append(node('em',k),node('b','',v.toLocaleString('en-AU')),label);return s}));
+  $('workbook').hidden=live;
+  const todo=[...new Set(d.todo)];$('todoCount').textContent=todo.length?`${todo.length} item${todo.length===1?'':'s'}`:'';
+  $('todo').replaceChildren(...(todo.length?todo:['Nothing left. Ready for the BAS draft.']).map(x=>node('li','',x)));
   const at=new Date(d.read_at).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});
-  $('live').className='live'+(live?' on':'');
-  $('liveText').textContent=live?'Live · updated '+at:'Snapshot from '+at+' · reopen to refresh';
+  $('liveText').textContent=(live?'Live':'This page updates by itself')+' · '+at;
 }
 draw(boot.data);
 if(live){setInterval(async()=>{
   try{const r=await fetch('/api/status',{headers:{'X-Dashboard-Token':boot.token}});if(r.ok)draw(await r.json());else throw 0}
-  catch{$('live').className='live';$('liveText').textContent='Not updating · ask Codex to open the dashboard again'}
+  catch{$('liveText').textContent='Not updating · ask Codex to open the dashboard again'}
 },boot.refresh*1000)}
+else{setTimeout(()=>location.reload(),boot.refresh*1000)}  // Codex rewrites this file after every change.
 </script></body></html>
 """

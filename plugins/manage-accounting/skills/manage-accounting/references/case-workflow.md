@@ -22,4 +22,4 @@ Follow the loop in SKILL.md: run the skill for the first worker problem, re-read
 
 ## Handoff
 
-Show a concise completed/pending/blocked summary, next action, saved report links and memory changes. Save a versioned handoff in `<workspace>/output/<local-date>/reports/`. On restart read persisted state and artifacts, not chat recollection. No claim of unattended work while Codex is not running.
+Say in a sentence or two what was done, link saved reports, and end with one question about the next piece of work. No completed/pending/blocked lists. Save a versioned handoff in `<workspace>/output/<local-date>/reports/`. On restart read persisted state and artifacts, not chat recollection. No claim of unattended work while Codex is not running.

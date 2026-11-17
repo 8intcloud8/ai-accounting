@@ -119,6 +119,13 @@ def safe_guidance(db_path, start=None, end=None):
     except OSError:
         pass  # A read-only workspace still gets the guidance below.
     try:
-        return guidance(Path(db_path), start, end)
+        guide = guidance(Path(db_path), start, end)
     except (ValueError, KeyError, TypeError, OSError, sqlite3.Error):
         return None
+    try:  # Keep the open dashboard and workbook current with this change.
+        period = guide["period"].split(" to ")
+        live = bas_dashboard.refresh_live(Path(db_path), *period)
+        guide["live"] = {name: str(path) for name, path in live.items()}
+    except (ValueError, KeyError, TypeError, OSError, sqlite3.Error, ImportError):
+        pass
+    return guide

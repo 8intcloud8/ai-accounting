@@ -50,9 +50,28 @@ class BasDashboardTests(unittest.TestCase):
         data = dict(bas_dashboard.snapshot(self.db, START, END), business="</script><b>Evil & Co</b>")
         page = bas_dashboard.render(data)
         self.assertNotIn("<b>Evil", page)
-        self.assertIn("Snapshot", bas_dashboard.save(self.db, START, END).read_text())
+        self.assertIn("updates by itself", bas_dashboard.save(self.db, START, END).read_text())
         self.assertIn("\\u003cb\\u003eEvil \\u0026 Co", page)
         self.assertIn('"token": ""', page)
+
+    def test_snapshot_has_next_action_and_transaction_counts(self):
+        data = bas_dashboard.snapshot(self.db, START, END)
+        self.assertRegex(data["next"]["question"], r"^Shall I .+\?$")
+        self.assertTrue(data["next"]["request"].startswith("$"))
+        t = data["transactions"]
+        self.assertEqual(t["total"], t["classified"] + t["proposed"] + t["uncategorised"])
+
+    def test_live_files_are_rewritten_in_one_fixed_place(self):
+        first = bas_dashboard.refresh_live(self.db, START, END)
+        self.assertEqual(first["dashboard"].name, "Dashboard.html")
+        self.assertEqual(first["workbook"].name, "Transactions.xlsx")
+        self.assertEqual(first["dashboard"].parent.name, f"{START} to {END}")
+        again = bas_dashboard.refresh_live(self.db, START, END)
+        self.assertEqual(first, again)
+        self.assertIn("location.reload", first["dashboard"].read_text())
+
+    def test_plain_english_lines(self):
+        self.assertEqual(bas_dashboard.plain("275 unclassified bank transactions"), "275 transactions need a category")
 
     def test_live_page_needs_the_token_and_serves_fresh_status(self):
         server = bas_dashboard.create_server(self.db, START, END)
