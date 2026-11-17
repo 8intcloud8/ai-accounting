@@ -52,10 +52,6 @@ Finds Codex on `PATH` or inside the Codex Desktop app. `--dependencies` installs
 
 Ask Codex to "open my BAS dashboard" to keep a page beside the chat showing the period's seven steps, what needs you, and the BAS figures so far. It reads the books read-only, costs no model tokens, and each step has a **Copy for Codex** button with the message to paste into the chat. Maintainers can run it directly: `python3 accounting_core/bas_dashboard.py --db <workspace>/db/accounting.db --start 2026-07-01 --end 2026-09-30 --serve --open`.
 
-### BAS app (Mac)
-
-One window: the Codex chat on the left, the BAS steps on the right, so the steps' buttons send their message straight to the chat. It uses your Codex sign-in and plugins, stays on this computer, and keeps each period's chat between sessions. Make the double-clickable **BAS** app in `~/Applications` with `python3 app/launcher.py` (or `scripts/install.py --desktop-app`); it opens the workspace Codex uses at the last BAS quarter. Run `python3 app/bas_app.py --start 2026-07-01 --end 2026-09-30` for another period. Without the pywebview package it opens in the browser.
-
 Each plugin has one skill. All reuse the same local workspace. Gmail search/save are optional. No Xero account is required.
 
 ## Workspace
