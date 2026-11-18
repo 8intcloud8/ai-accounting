@@ -1,32 +1,92 @@
 # AI Accounting
 
-A local Codex accounting suite for Australian bookkeeping, BAS preparation and annual tax workpapers. Version 0.2.0-beta. macOS is the first supported installation target; other hosts are not yet certified.
+Bookkeeping and BAS preparation for Australian small businesses, done for you in a chat with Codex. You give it your bank statements and invoices; it sorts the transactions, works out the GST and prepares your BAS figures, and asks you only when it needs you.
+
+Everything stays on your computer. It does not lodge anything with the ATO: you check the figures and lodge them yourself (or your accountant does).
+
+**You need:** a Mac and the Codex app. Installing takes about 5 minutes.
 
 ## Install
 
-### Codex Desktop
+1. **Install Codex** from [openai.com/codex](https://openai.com/codex/), open it once and sign in. Then quit it.
+2. **Open Terminal**: press `⌘ Command` + `Space`, type `Terminal` and press `Return`.
+3. **Copy this line, paste it into Terminal and press `Return`:**
 
-1. Open **Plugins** in Codex Desktop and add this repository as a plugin source: `8intcloud8/ai-accounting`. All 17 plugins install together.
-2. Start a new chat and type: **Set up my accounting**.
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/8intcloud8/ai-accounting/main/scripts/install.sh | sh
+   ```
 
-Setup checks the computer and handles the rest in the chat:
+   - If a window asks to install **developer tools**, click **Install**, wait until it finishes, then paste the line again.
+   - If it says to install **Python**, go to [python.org/downloads](https://www.python.org/downloads/), download the macOS installer, open it and click through.
 
-- **Python 3.11 or newer** is required. If it is missing, setup gives the download link (python.org/downloads).
-- **Two Python packages** (`pdfplumber`, `openpyxl`) are installed for you, after you agree, into a private folder in the Codex home. Nothing else on the computer changes.
-- **Node.js** is only needed for finding and saving invoices from email. Without it, everything else works.
-- **Page buttons** (optional): setup asks once whether to turn on the buttons in the review pages. Saying yes sets `network_access = true` under `[sandbox_workspace_write]` in `~/.codex/config.toml`, which lets commands Codex runs use the network. Saying no keeps copy and paste.
+4. When Terminal says **Done**, close it. Open Codex, start a new chat and type:
 
-Gmail is connected the first time you search for invoices in email, not at install time.
+   > **Set up my accounting**
 
-### From a local checkout (maintainers)
+   Codex asks for your business details and where to keep your files, then takes it from there.
+
+## Using it
+
+Just ask in the chat, in your own words. For example:
+
+- "Set up my accounting"
+- "Here are my bank statements" (then drop the PDF or CSV files into the chat)
+- "Find my invoices in Gmail for July to September"
+- "Do my BAS for July to September"
+- "Show my BAS"
+
+**Show my BAS** opens an interactive view right in the chat: the amount to pay, the BAS labels (G1, 1A, 1B, W2), what is still to do, and a **Transactions** tab where you can change a category and press **Save**. Every figure can be checked in the BAS workbook (Excel) it keeps up to date.
+
+Codex keeps working by itself and stops only when it needs something from you: a fact only you know, a missing document, or your OK before it records something.
+
+## Your files
+
+When you set up, you choose a folder (for example `Documents/Accounting`). Inside it:
+
+| Folder | What goes there |
+|---|---|
+| `bankstatements` | Your bank statements |
+| `invoices` | Your invoices and receipts |
+| `output` | Your BAS workbook, dashboard and reports |
+| `backups` | Automatic backups |
+
+Keep this folder private: it holds your financial records. Back it up like any important folder.
+
+## Update
+
+Paste the same line from step 3 into Terminal again, then quit and reopen Codex.
+
+## If something goes wrong
+
+- **"Codex was not found"**: install Codex, open it once, then run the line again.
+- **Codex doesn't know about accounting**: quit Codex completely (`⌘ Command` + `Q`), open it again and start a new chat.
+- **Anything else**: tell Codex what happened in the chat, or [open an issue](https://github.com/8intcloud8/ai-accounting/issues). Never post your statements, invoices or tax details in an issue.
+
+## Good to know
+
+- Gmail is only connected if you ask Codex to search your email for invoices. Xero is optional.
+- Codex checks tax and GST questions against current ATO guidance and tells you where each answer comes from. Treat its BAS as a draft for you or your accountant to review.
+- Beta: Mac only for now.
+
+---
+
+## For developers
+
+Install from a local checkout (maintainers):
 
 ```sh
 python3 scripts/install.py --workspace "/path/to/Accounting" --profile profile.json --dependencies
 ```
 
-Finds Codex on `PATH` or inside the Codex Desktop app. `--dependencies` installs the Python packages into the same private folder the setup check uses and builds the Gmail plugins. Use `--local-only` to skip the Gmail plugins and `--local-server yes|no` to answer the page-buttons question. Profile fields: business_id, legal_name, entity_type (company/sole_trader/trust/partnership), gst_registered (true/false/null), gst_basis (cash/accrual/unknown). Open a new chat after installing.
+Finds Codex on `PATH` or inside the Codex app. `--dependencies` installs the Python packages (`pdfplumber`, `openpyxl`) into a private folder in the Codex home and builds the Gmail plugins (needs Node.js). Use `--local-only` to skip the Gmail plugins and `--local-server yes|no` to answer the page-buttons question. Profile fields: business_id, legal_name, entity_type (company/sole_trader/trust/partnership), gst_registered (true/false/null), gst_basis (cash/accrual/unknown). Open a new chat after installing.
 
-## Separate plugins
+`scripts/install.sh` is the one-line installer above: it adds this repository as a Codex plugin marketplace and installs every plugin in it.
+
+### BAS view in the chat
+
+The `manage-accounting` plugin includes the `bas` MCP server (`accounting_core/bas_mcp.py`, standard library only). Its `show_bas` tool renders `bas_view.html` inline in the Codex chat as an MCP App. `save_transaction_edits` saves category changes from its table: same-kind account swaps reverse and repost the journal; anything that can affect GST is sent to Codex in the chat. The live `Dashboard.html` and `BAS workbook.xlsx` are rewritten after every change in `<workspace>/output/BAS live/<start> to <end>/`.
+
+## Plugins
 
 | Plugin | Role |
 |---|---|
@@ -34,7 +94,7 @@ Finds Codex on `PATH` or inside the Codex Desktop app. `--dependencies` installs
 | ato-docs | Research official ATO guidance with citations and year/entity checks |
 | tax-intake | BAS scope and tax-return intake questions; coverage validation pending |
 | setup-xero-mcp | Optional Xero OAuth setup and automatically refreshed MCP connection |
-| manage-accounting | Resume a period and show outstanding work |
+| manage-accounting | Resume a period, show the BAS view and what is outstanding |
 | search-email-invoices | Find Gmail documents |
 | save-invoices | Save selected documents |
 | review-invoices | Review duplicates and non-invoices; quarantine approved files |
@@ -43,14 +103,10 @@ Finds Codex on `PATH` or inside the Codex Desktop app. `--dependencies` installs
 | extract-invoices | Extract/import invoice evidence |
 | match-payments | Propose and confirm payment links |
 | allocate-running-costs | Apply business-use allocations |
-| classify-transactions | Post balanced ledger entries with GST evidence |
+| classify-transactions | Post balanced ledger entries with GST evidence (Xero-style Australian chart of accounts) |
 | reconcile-accounts | Reconcile statement opening/closing balances |
 | prepare-bas | Draft G1/1A/1B GST workpaper |
 | prepare-tax-report | Trial balance and annual accounting workpaper |
-
-### BAS dashboard
-
-Ask Codex to "open my BAS dashboard" to keep a page beside the chat showing the period's seven steps, what needs you, and the BAS figures so far. It reads the books read-only, costs no model tokens, and each step has a **Copy for Codex** button with the message to paste into the chat. Maintainers can run it directly: `python3 accounting_core/bas_dashboard.py --db <workspace>/db/accounting.db --start 2026-07-01 --end 2026-09-30 --serve --open`.
 
 Each plugin has one skill. All reuse the same local workspace. Gmail search/save are optional. No Xero account is required.
 
@@ -61,6 +117,7 @@ Accounting/
   db/accounting.db
   documents/<hash-prefix>/<hash>.<extension>
   output/YYYY-MM-DD/reports/
+  output/BAS live/<start> to <end>/
   backups/
 ```
 
@@ -76,7 +133,7 @@ The workflow supports audited withdrawal/reimport of invoice extraction, reversi
 
 ## Supported scope
 
-This is a beta accounting workpaper product. It does not lodge BAS or income-tax returns. BAS output covers reviewed Simpler BAS GST subtotals only; PAYG/other labels and special GST schemes require additional work. Tax output is a bookkeeping workpaper, not tax payable or a complete statutory return. Accrual recognition requires reviewed entries and explicit attribution evidence. Opening balances and year-end adjustments must be entered before relying on full accounts. Cash partial payments use confirmed payment links and bounded per-invoice GST allocations. Multiple invoices in one journal require explicit invoice_tax_allocations. Mixed-use allocations must match the GST basis and attribution period.
+This is a beta accounting workpaper product. It does not lodge BAS or income-tax returns. BAS output covers reviewed GST and PAYG withholding labels; special GST schemes require additional work. Tax output is a bookkeeping workpaper, not tax payable or a complete statutory return. Accrual recognition requires reviewed entries and explicit attribution evidence. Opening balances and year-end adjustments must be entered before relying on full accounts. Cash partial payments use confirmed payment links and bounded per-invoice GST allocations. Multiple invoices in one journal require explicit invoice_tax_allocations. Mixed-use allocations must match the GST basis and attribution period.
 
 ## Development and release
 
@@ -99,7 +156,7 @@ Accounting skills show review CSVs as a local table beside the chat: search, sor
 python3 accounting_core/accounting_store.py --db /path/to/accounting/db/accounting.db review-table --csv /path/to/accounting/output/YYYY-MM-DD/reports/invoice-review.csv --title "Invoice review"
 ```
 
-Open the returned review_url in Codex’s browser panel. Keep the command running while reviewing; stop it with Ctrl-C afterwards. Requests are saved as dated JSON workpapers with original row values and the CSV hash. Ask Codex to review and apply them through audited accounting commands. The table itself never edits SQLite or silently approves tax treatment. Source links serve only existing managed files under that workspace’s documents folder.
+Open the returned review_url in Codex's browser panel. Keep the command running while reviewing; stop it with Ctrl-C afterwards. Requests are saved as dated JSON workpapers with original row values and the CSV hash. Ask Codex to review and apply them through audited accounting commands. The table itself never edits SQLite or silently approves tax treatment. Source links serve only existing managed files under that workspace's documents folder.
 
 ## Official guidance lookup
 
