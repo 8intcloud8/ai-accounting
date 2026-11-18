@@ -75,6 +75,13 @@ td.pend{color:var(--todo);font-weight:600}
 @media(max-width:560px){.grid{grid-template-columns:1fr}}
 [hidden]{display:none!important}
 #err{color:var(--late)}
+select.cat{font:inherit;font-size:12px;max-width:220px;padding:3px 6px;border-radius:7px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+select.cat.pend{color:var(--todo);font-weight:600}
+tr.changed td{background:color-mix(in srgb,var(--todo-soft) 70%,transparent)}
+select.cat:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:1px}
+.savebar{position:sticky;bottom:0;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--ink);color:var(--bg)}
+.savebar button.act{border-color:transparent}
+#saveMsg{white-space:pre-line}
 </style></head><body>
 <main>
   <div class="row">
@@ -101,6 +108,9 @@ td.pend{color:var(--todo);font-weight:600}
     <div class="filters" id="filters"></div>
     <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th>Status</th><th>Category</th><th class="num">GST</th></tr></thead><tbody id="rows"></tbody></table></div>
     <p class="note" id="txNote"></p>
+    <div class="savebar" id="savebar" hidden><span id="pending"></span>
+      <span class="row"><button class="act" id="undo" type="button">Undo</button><button class="act primary" id="save" type="button">Save</button></span></div>
+    <p class="note" id="saveMsg" aria-live="polite"></p>
   </section>
 </main>
 <script>
@@ -111,7 +121,7 @@ const cents=n=>n==null?'':(n<0?'-$':'$')+Math.abs(n).toLocaleString('en-AU',{min
 const month=d=>new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
 const days=d=>Math.round((new Date(d+'T00:00:00')-new Date(new Date().toDateString()))/864e5);
 const ask=q=>q.replace(/^Shall I /,'').replace(/ now\?$|\?$/,'').replace(/^./,c=>c.toUpperCase());
-let args={},data=null,rows=null,filter='All',search='',last={};
+let args={},data=null,rows=null,accounts=[],edits={},filter='All',search='',last={};
 
 // MCP Apps bridge: JSON-RPC over postMessage with the host (Codex).
 let nextId=1;const waiting=new Map();
@@ -165,7 +175,7 @@ function tab(name){document.querySelectorAll('[role=tab]').forEach(b=>b.setAttri
 document.querySelectorAll('[role=tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
 async function loadRows(){if(rows){drawRows();return}
   $('txNote').textContent='Loading…';
-  try{const r=await rpc('tools/call',{name:'bas_transactions',arguments:args});rows=r.structuredContent.rows;drawRows()}
+  try{const r=await rpc('tools/call',{name:'bas_transactions',arguments:args});rows=r.structuredContent.rows;accounts=r.structuredContent.accounts||[];drawRows()}
   catch(e){$('txNote').textContent='Could not load the transactions: '+e.message}}
 // Status is the transaction's purpose; the category line says where its accounting stands.
 const purpose=r=>r.Purpose||'Not reviewed';
@@ -187,13 +197,58 @@ function drawTable(){
     const amount=r['Money in']?r['Money in']:-(r['Money out']||0);
     tr.append(node('td','',r.Date),node('td','',String(r.Description).replace(/^'/,'')),node('td','num',cents(amount)));
     const st=node('td');st.append(node('span','st p-'+purpose(r).replace(' ','-'),purpose(r)));
-    const cat=r.Status==='Not classified'?'Needs a category':(r.Status==='Proposed'?'To approve: ':'')+String(r.Category||'').replace(/^'/,'');
-    tr.append(st,node('td',r.Status==='Classified'?'':'pend',cat),node('td','num',cents(r['GST $'])));
-    tr.onclick=()=>say(`About transaction #${r.ID} on ${r.Date} (${String(r.Description).replace(/^'/,'')}, ${cents(amount)}): what is it, is it business, personal or shared, and how should it be treated for GST?`);
+    tr.append(st,categoryCell(r),node('td','num',cents(r['GST $'])));
+    if(edits[r.ID]!==undefined)tr.classList.add('changed');
+    tr.onclick=e=>{if(e.target.closest('select'))return;say(`About transaction #${r.ID} on ${r.Date} (${String(r.Description).replace(/^'/,'')}, ${cents(amount)}): what is it, is it business, personal or shared, and how should it be treated for GST?`);}
     return tr}));
-  $('txNote').textContent=`${shown.length} shown${shown.length>500?', first 500 listed':''}. Click a row to ask Codex about it.`;
+  $('txNote').textContent=`${shown.length} shown${shown.length>500?', first 500 listed':''}. Change a category, then Save. Click a row to ask Codex about it.`;
+  drawSavebar();
   resize();
 }
+// Category: a dropdown of the chart. Its first option is where the row stands now.
+const KINDS=[['expense','Expenses'],['income','Income'],['equity','Owner'],['asset','Assets'],['liability','Liabilities']];
+const kindOf=code=>(accounts.find(a=>a.code===code)||{}).kind;
+const nameOf=code=>{const a=accounts.find(a=>a.code===code);return a?`${a.code} ${a.name}`:code};
+function categoryCell(r){
+  const td=node('td');const now=String(r.Category||'').replace(/^'/,'');
+  if(!accounts.length||(r.Status==='Classified'&&!r.Code&&r.Edit!=='table')){td.textContent=now;return td}
+  const sel=node('select','cat'+(r.Status==='Classified'?'':' pend'));sel.setAttribute('aria-label','Category for '+String(r.Description).replace(/^'/,''));
+  const first=node('option','',r.Status==='Not classified'?'Needs a category':(r.Status==='Proposed'?'To approve: ':'')+now);first.value='';sel.append(first);
+  for(const [kind,label] of KINDS){const g=node('optgroup');g.label=label;
+    for(const a of accounts.filter(a=>a.kind===kind&&a.code!=='090'&&a.code!=='820'))g.append(Object.assign(node('option','',`${a.code} ${a.name}`),{value:a.code}));
+    if(g.children.length)sel.append(g)}
+  sel.value=edits[r.ID]??'';
+  sel.onchange=()=>{if(sel.value&&sel.value!==r.Code)edits[r.ID]=sel.value;else delete edits[r.ID];drawTable()};
+  td.append(sel);return td}
+// Straight from the table: a same-kind swap on a posted row or a proposal. Everything else goes to Codex.
+const direct=r=>r.Edit==='table'&&kindOf(edits[r.ID])===kindOf(r.Code);
+function drawSavebar(){const n=Object.keys(edits).length;$('savebar').hidden=!n;
+  $('pending').textContent=`${n} change${n===1?'':'s'} not saved`;resize()}
+$('undo').onclick=()=>{edits={};$('saveMsg').textContent='';drawTable()};
+$('save').onclick=async()=>{
+  const changed=rows.filter(r=>edits[r.ID]!==undefined);if(!changed.length)return;
+  const now=changed.filter(direct),later=changed.filter(r=>!direct(r));
+  const btn=$('save');btn.disabled=true;btn.textContent='Saving…';const lines=[];let codex=later;
+  try{
+    if(now.length){
+      const r=await rpc('tools/call',{name:'save_transaction_edits',arguments:{...args,changes:now.map(r=>({transaction_id:r.ID,account:edits[r.ID]}))}});
+      if(r&&r.isError)throw new Error((r.content||[]).map(c=>c.text).join(' ')||'Not saved');
+      const res=r.structuredContent||{saved:[],for_codex:[],errors:[]};
+      if(res.saved.length)lines.push(`Saved ${res.saved.length}.`);
+      const back=new Set(res.for_codex.map(c=>c.transaction_id));codex=codex.concat(now.filter(r=>back.has(r.ID)));
+      for(const e of res.errors)lines.push(`#${e.transaction_id} not saved: ${e.why}`);
+      for(const s of res.saved)delete edits[s.transaction_id];
+    }
+    if(codex.length){
+      const list=codex.map(r=>`#${r.ID} ${r.Date} ${String(r.Description).replace(/^'/,'')} (${cents(r['Money in']||-(r['Money out']||0))}): ${nameOf(edits[r.ID])}`).join('\n');
+      await say(`Change the category of these transactions as I chose in the BAS view, working out the GST treatment for each:\n${list}`);
+      lines.push(`Sent ${codex.length} to Codex: ${codex.length===1?'it needs':'they need'} the GST worked out.`);
+      for(const r of codex)delete edits[r.ID];
+    }
+  }catch(e){lines.push('Not saved: '+e.message)}
+  btn.disabled=false;btn.textContent='Save';$('saveMsg').textContent=lines.join('\n');
+  rows=null;await loadRows();refresh();
+};
 function resize(){notify('ui/notifications/size-changed',{height:Math.ceil(document.documentElement.scrollHeight)})}
 new ResizeObserver(resize).observe(document.body);
 

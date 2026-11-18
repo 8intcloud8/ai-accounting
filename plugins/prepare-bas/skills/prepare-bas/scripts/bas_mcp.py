@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bas_dashboard  # noqa: E402
 import next_step  # noqa: E402
 import proposal_store  # noqa: E402
+import transaction_edits  # noqa: E402
 
 UI_URI = "ui://bas/dashboard.html"
 UI_MIME = "text/html;profile=mcp-app"
@@ -47,6 +48,22 @@ TOOLS = [
         "description": "Bank transactions for the period with status, category and GST (for the BAS view).",
         "inputSchema": {"type": "object", "properties": {"workspace": WORKSPACE_ARG, **PERIOD_ARGS}},
         "annotations": READ_ONLY,
+        "_meta": {"ui": {"visibility": ["app"]}},
+    },
+    {
+        "name": "save_transaction_edits",
+        "title": "Save category changes",
+        "description": "Save category changes the user made in the BAS view's transaction table. A posted "
+                       "transaction is reversed and reposted to the new account; a proposal is approved with it. "
+                       "Only same-kind swaps (expense to expense, income to income) are saved here.",
+        "inputSchema": {"type": "object", "required": ["changes"], "properties": {
+            "workspace": WORKSPACE_ARG, **PERIOD_ARGS,
+            "changes": {"type": "array", "maxItems": transaction_edits.MAX_CHANGES, "items": {
+                "type": "object", "required": ["transaction_id", "account"], "properties": {
+                    "transaction_id": {"type": "integer"}, "account": {"type": "string"}}}}}},
+        # Writes the books: the host asks the user before running it.
+        "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True,
+                        "openWorldHint": False},
         "_meta": {"ui": {"visibility": ["app"]}},
     },
 ]
@@ -92,13 +109,33 @@ def transactions(args):
     start, end = period(db, args)
     with closing(bas_dashboard.read_only(db)) as conn:
         rows = proposal_store.transaction_rows(conn, start, end)
+        modes = transaction_edits.table_modes(conn, [row[0] for row in rows])
+        chart_rows = transaction_edits.accounts(conn)
     headers = proposal_store.TRANSACTION_HEADERS
-    items = [dict(zip(headers, row)) for row in rows]
+    items = [dict(zip(headers, row), Edit=modes[row[0]]["edit"], Code=modes[row[0]]["code"]) for row in rows]
     return {"content": [{"type": "text", "text": f"{len(items)} transactions"}],
-            "structuredContent": {"start": start, "end": end, "rows": items}}
+            "structuredContent": {"start": start, "end": end, "rows": items, "accounts": chart_rows}}
 
 
-HANDLERS = {"show_bas": show_bas, "bas_transactions": transactions}
+def save_edits(args):
+    import accounting_store
+    import product_store
+
+    db = database(args.get("workspace"))
+    start, end = period(db, args)
+    result = transaction_edits.apply(db, args.get("changes"), accounting_store.connect, product_store.audit,
+                                     product_store.post_journal)
+    if result["saved"]:
+        try:
+            bas_dashboard.refresh_live(db, start, end)
+        except OSError:
+            pass  # The books are saved; the live files catch up on the next change.
+    text = (f"Saved {len(result['saved'])} category change(s); {len(result['for_codex'])} need Codex; "
+            f"{len(result['errors'])} could not be saved.")
+    return {"content": [{"type": "text", "text": text}], "structuredContent": result}
+
+
+HANDLERS = {"show_bas": show_bas, "bas_transactions": transactions, "save_transaction_edits": save_edits}
 
 
 def handle(message):

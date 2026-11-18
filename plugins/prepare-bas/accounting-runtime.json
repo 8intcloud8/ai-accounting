@@ -10,7 +10,7 @@
     "bas_dashboard.py": "b0626c4bdc0cd66320a9915ce863ac6021b6f8e8765e416e15cd6c71a2cca90c",
     "bas_dashboard_page.py": "36af73d9969c340a1d920269e1e7414827696a82fabc6d69b9eea01983e19340",
     "bas_labels.py": "ba49a6b1f94b8dca706e714bfa2d1fbbb4447f9620567491b86048843d1dfdd5",
-    "bas_mcp.py": "1663c5a84203b5c5de6f82529eb50580db5724410ef2d4842aeeca8ed5103065",
+    "bas_mcp.py": "8ae68b31079fdb3aab4da44913722b539eca108265042506fb65c690ec658031",
     "chart.py": "8474ba0b457bbc2831a40c33ac7f54a70eac8c955ba017f3b6272ef4c7d2f241",
     "check_environment.py": "9e3901c1dd6f2e97ff28f7cc5c1288277e50244c9613fe48f3bc3a7bda3e3528",
     "enable_local_server.py": "38ebb43a749a2921fc894d42e7f1260f1ba0f4556f61fe4310d08e35cf336a6f",
@@ -26,9 +26,10 @@
     "review_table.py": "1a2432df9707396f06b69e9ad2aeec9e408d7daf0a02e92f194c05b8380fa70e",
     "running_cost_workpapers.py": "5d29ddd481a01531c30d5154c5024ec002343b99179b18d3ab4900f6f28e98ca",
     "supplier_links.py": "9eefef155f55f2db2beb80e4f57be7cacba33acb725ddca99d14a88e22c3dd72",
+    "transaction_edits.py": "810acfc47047e7ee5326ffa0bb66ae804e6b566d97c7ebdf7d17f0bf766d1528",
     "transaction_purpose.py": "51bac25b514f80b522eff409d6506e920c3d0cde4dcd1109a03c331626699213",
     "workbook_style.py": "2ffa00cf4e20e4f802b5cb214ca7cd749c16aa7ef4dea2675fb28971995e6882",
     "workspace_instructions.py": "242bd4a0a3d6946a0bb4e862d0fd272cb7ec16a70c89b04a0d99ce9987562654",
-    "bas_view.html": "a43cc6616a6e7168921c26155f3aa3ba8648455b8fe5bd5c63d7e2ab1a2d399c"
+    "bas_view.html": "290c4ac3bbf11078d163d3507a015e61a95dacb1aa19ecf2135b9cc16cacb32b"
   }
 }

@@ -25,7 +25,11 @@ class BasMcpTests(unittest.TestCase):
         tools = {t["name"]: t for t in self.call("tools/list")["result"]["tools"]}
         self.assertEqual(tools["show_bas"]["_meta"]["ui"]["resourceUri"], bas_mcp.UI_URI)
         self.assertEqual(tools["bas_transactions"]["_meta"]["ui"]["visibility"], ["app"])
-        self.assertTrue(all(t["annotations"]["readOnlyHint"] for t in tools.values()))
+        self.assertTrue(tools["show_bas"]["annotations"]["readOnlyHint"])
+        self.assertTrue(tools["bas_transactions"]["annotations"]["readOnlyHint"])
+        # The only tool that writes: the host asks the user before running it.
+        self.assertFalse(tools["save_transaction_edits"]["annotations"]["readOnlyHint"])
+        self.assertEqual(tools["save_transaction_edits"]["_meta"]["ui"]["visibility"], ["app"])
         page = self.call("resources/read", {"uri": bas_mcp.UI_URI})["result"]["contents"][0]
         self.assertEqual(page["mimeType"], "text/html;profile=mcp-app")
         self.assertIn("ui/initialize", page["text"])
