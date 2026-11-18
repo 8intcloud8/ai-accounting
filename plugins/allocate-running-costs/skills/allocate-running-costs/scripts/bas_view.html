@@ -92,14 +92,14 @@ select.cat:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,t
   </div>
   <p id="err" hidden></p>
   <section id="overview" class="pane">
-    <div class="card" id="next" aria-live="polite"><span class="eyebrow" id="who">Next</span><h2 id="question"></h2><p id="detail"></p>
-      <div><button class="act primary" id="go" type="button">Do it</button></div></div>
-    <div class="grid" style="margin-top:12px">
+    <div class="grid">
       <div class="card"><span class="eyebrow" id="moneyLabel">Amount to pay</span><div class="big" id="net"></div><span class="note" id="netNote"></span>
         <div class="labels" id="labels"></div></div>
       <div class="card"><span class="eyebrow">Bank transactions</span><div class="big" id="txTotal"></div>
         <div class="stack" id="stack" aria-hidden="true"></div><div class="legend" id="legend"></div></div>
     </div>
+    <div class="card" id="next" style="margin-top:12px" aria-live="polite"><span class="eyebrow" id="who">Next</span><h2 id="question"></h2><p id="detail"></p>
+      <div><button class="act primary" id="go" type="button">Do it</button></div></div>
     <div class="card" style="margin-top:12px"><div class="row"><span class="eyebrow">Still to do</span><span class="note" id="updated"></span></div><ul class="todo" id="todo"></ul></div>
     <div class="row" style="margin-top:10px"><span class="note">Every number is worked out in your BAS workbook.</span>
       <button class="act" id="workbook" type="button">Open BAS workbook</button></div>
