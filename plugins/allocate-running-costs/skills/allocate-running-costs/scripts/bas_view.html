@@ -100,7 +100,7 @@ select.cat:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,t
     </div>
     <div class="card" id="next" style="margin-top:12px" aria-live="polite"><span class="eyebrow" id="who">Next</span><h2 id="question"></h2><p id="detail"></p>
       <div><button class="act primary" id="go" type="button">Do it</button></div></div>
-    <div class="card" style="margin-top:12px"><div class="row"><span class="eyebrow">Still to do</span><span class="note" id="updated"></span></div><ul class="todo" id="todo"></ul></div>
+    <div class="card" id="todoCard" style="margin-top:12px"><div class="row"><span class="eyebrow">Still to do</span><span class="note" id="updated"></span></div><ul class="todo" id="todo"></ul></div>
     <div class="row" style="margin-top:10px"><span class="note">Every number is worked out in your BAS workbook.</span>
       <button class="act" id="workbook" type="button">Open BAS workbook</button></div>
   </section>
@@ -159,7 +159,8 @@ function draw(d){
   $('stack').replaceChildren(...[['k1',t.classified],['k2',t.proposed],['k3',t.uncategorised]].map(([k,v])=>{const i=node('i',k);i.style.flexGrow=v;return i}));
   $('legend').replaceChildren(...[['k1',t.classified,'categorised','All'],['k2',t.proposed,'waiting for your OK','To approve'],['k3',t.uncategorised,'still need a category','Needs a category']]
     .map(([k,v,label,status])=>{const b=node('button');b.type='button';b.append(node('em',k),node('b','',v.toLocaleString('en-AU')),label);b.onclick=()=>{filter=status;tab('tx')};return b}));
-  const todo=[...new Set(d.todo)];
+  const all=[...new Set(d.todo)],todo=all.filter(x=>x!==d.next.detail&&x!==d.next.question);
+  $('todoCard').hidden=all.length>0&&!todo.length;
   $('todo').replaceChildren(...(todo.length?todo:['Nothing left. Ready for the BAS draft.']).map(x=>{const li=node('li');li.append(node('span','',x));
     if(todo.length){const b=node('button','act','Fix');b.type='button';b.onclick=()=>say(`Sort this out for my BAS ${d.start} to ${d.end}: ${x}`);li.append(b)}return li}));
   put('updated','Updated '+new Date(d.read_at).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'}));
