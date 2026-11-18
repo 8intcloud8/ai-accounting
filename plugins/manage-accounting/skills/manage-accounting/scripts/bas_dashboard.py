@@ -239,6 +239,43 @@ def refresh_live(db_path, start, end):
     return {"dashboard": dashboard, "workbook": workbook}
 
 
+def chat_summary(db_path, start, end):
+    """The dashboard as a short markdown card for the chat, with links to the live files.
+    Refreshes those files first so the links show the same numbers."""
+    import next_step
+
+    start, end = product_store.period(start, end)
+    live = refresh_live(db_path, start, end)
+    d = snapshot(db_path, start, end)
+    money = lambda v: ("-$" if v < 0 else "$") + f"{abs(v):,}"  # noqa: E731
+    due = date.fromisoformat(d["due"])
+    left = (due - date.today()).days
+    when = f"overdue {-left} days" if left < 0 else "due today" if left == 0 else f"due in {left} days"
+    t = d["transactions"]
+    rows = [
+        f"**BAS {date.fromisoformat(start):%-d %b} – {date.fromisoformat(end):%-d %b %Y}** · "
+        f"{when} ({due:%-d %b}) · {'final figures' if d['labels_final'] else 'figures so far'}",
+        "",
+        "| | |",
+        "|---|---:|",
+        f"| {'Refund due' if d['labels']['9'] < 0 else 'Amount to pay'} (9) | **{money(abs(d['labels']['9']))}** |",
+        f"| G1 Total sales | {money(d['labels']['G1'])} |",
+        f"| 1A GST on sales | {money(d['labels']['1A'])} |",
+        f"| 1B GST on purchases | {money(d['labels']['1B'])} |",
+        f"| W2 Tax withheld from wages | {money(d['labels'].get('W2', 0))} |",
+        f"| Bank transactions | {t['total']}: {t['classified']} done, {t['proposed']} to approve, "
+        f"{t['uncategorised']} to categorise |",
+        "",
+    ]
+    todo = list(dict.fromkeys(next_step.clean(x) for x in d["todo"]))
+    if todo:
+        rows.append("Still to do: " + "; ".join(todo[:4]) + (f"; and {len(todo) - 4} more" if len(todo) > 4 else "") + ".")
+        rows.append("")
+    rows.append(f"[Dashboard](<{live['dashboard']}>) · [BAS workbook](<{live['workbook']}>): "
+                "every figure is worked out in the workbook.")
+    return "\n".join(rows)
+
+
 def render(data, token=""):
     """The page with its data embedded. `token` is set only when served live."""
     payload = json.dumps({"data": data, "token": token, "refresh": REFRESH_SECONDS})
@@ -285,7 +322,14 @@ def main():
     parser.add_argument("--serve", action="store_true", help="Serve a live page that refreshes itself")
     parser.add_argument("--open", action="store_true", help="Open the page in the default browser")
     parser.add_argument("--port", type=int, default=0)
+    parser.add_argument("--chat", action="store_true", help="Print a short markdown summary for the chat")
     args = parser.parse_args()
+    if args.chat:
+        try:
+            print(json.dumps({"markdown": chat_summary(args.db, args.start, args.end)}), flush=True)
+        except (ValueError, OSError, sqlite3.Error) as error:
+            parser.exit(1, f"Cannot summarise the BAS: {error}\n")
+        return
     try:
         if not args.serve:
             target = save(args.db, args.start, args.end)

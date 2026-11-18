@@ -32,7 +32,7 @@ Keep each message short: what you did, what needs the user, then the questions. 
 
 Every command that changes the books rewrites two files for the period in `<workspace>/output/BAS live/<start> to <end>/`: `Dashboard.html` (next action, GST to pay, transactions, what is still to do) and `BAS workbook.xlsx`, the master workbook: its BAS sheet works out every dashboard figure as a formula over the GST items sheet, then Transactions and By payee. The paths come back in `next_step.live`.
 
-- When the user asks for "the dashboard" or "where am I up to", run `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end>`, open the `dashboard_file` it prints, and say once: "Your BAS dashboard: [link]. It updates by itself as I work." Do not open it unasked. Do not mention servers or sandboxes.
+- When the user asks "where am I up to", "show my BAS", "the dashboard" or for the figures, run `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end> --chat` and paste its `markdown` into the reply exactly as given: GST to pay, G1, 1A, 1B, transaction counts, what is still to do, and links to the dashboard and the master workbook. Show the same card when you present the BAS draft. Do not open files or mention servers or sandboxes.
 - Whenever the user wants to see transactions in Excel, link the live `BAS workbook.xlsx` and say it is rewritten after every change; if it is already open in Excel, close and reopen it to see the latest.
 - The page's **Copy for Codex** button gives the user a message to paste here. Treat a pasted message as a normal request.
 - Never restate the dashboard's contents in chat unless asked.

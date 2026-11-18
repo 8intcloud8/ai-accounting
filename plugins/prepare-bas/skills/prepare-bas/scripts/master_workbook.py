@@ -63,19 +63,35 @@ def bas_sheet(book, data, gst):
     sheet.append(["Label", "What it is", "Amount", "Where it comes from"])
     for box in sheet[4]:
         box.font = Font(bold=True)
-    figures = [("G1", "Total sales, including GST"), ("1A", "GST on sales"), ("1B", "GST on purchases")]
-    for label, what in figures:
-        column = SUM_COLUMN[label]
-        sheet.append([label, what, f"=TRUNC(SUM('GST items'!{column}:{column}))",
-                      f"Column {label} of the GST items sheet, counted lines only, whole dollars"])
-    sheet.append(["9", "GST to pay (a minus amount is a refund)", "=C6-C7",
-                  "1A minus 1B"])
-    for row in range(5, 9):
-        sheet.cell(row, 3).number_format = style.MONEY
+    payg = data.get("payg") or {"W3": 0, "W4": 0}
+    rows = {}
+
+    def add(label, what, formula, source, bold=False):
+        sheet.append([label, what, formula, source])
+        row = sheet.max_row
+        rows[label] = f"C{row}"
         sheet.cell(row, 1).font = Font(bold=True)
-    sheet.cell(8, 3).font = Font(bold=True, size=13)
+        sheet.cell(row, 3).number_format = style.MONEY
+        if bold:
+            sheet.cell(row, 3).font = Font(bold=True, size=13)
+
+    for label, what in (("G1", "Total sales, including GST"), ("1A", "GST on sales"), ("1B", "GST on purchases")):
+        column = SUM_COLUMN[label]
+        add(label, what, f"=TRUNC(SUM('GST items'!{column}:{column}))",
+            f"Column {label} of the GST items sheet: counted lines only, whole dollars")
+    add("W1", "Total wages paid", "=TRUNC(SUM('PAYG withholding'!B:B))", "Gross column of the PAYG withholding sheet")
+    add("W2", "Tax withheld from wages", "=TRUNC(SUM('PAYG withholding'!C:C))",
+        "Withheld column of the PAYG withholding sheet")
+    add("W3", "Other amounts withheld", payg["W3"], "Saved with the pay runs")
+    add("W4", "Withheld where no ABN quoted", payg["W4"], "Saved with the pay runs")
+    add("W5", "Total amounts withheld", f"={rows['W2']}+{rows['W3']}+{rows['W4']}", "W2 + W3 + W4")
+    add("4", "PAYG tax withheld", f"={rows['W5']}", "Same as W5")
+    add("8A", "Amounts you owe", f"={rows['1A']}+{rows['4']}", "1A + 4")
+    add("8B", "Amounts the ATO owes you", f"={rows['1B']}", "1B")
+    add("9", "Amount to pay (a minus amount is a refund)", f"={rows['8A']}-{rows['8B']}", "8A - 8B", bold=True)
+    sheet.append([])
     pending = [r for r in gst if r[4] == "Pending"]
-    line = 10
+    line = sheet.max_row + 1
     if pending:
         sheet.cell(line, 1, f"Not counted yet: {len(pending)} pending GST line{'s' if len(pending) != 1 else ''}, "
                             f"${sum(r[6] for r in pending):,.2f} GST. See Status = Pending on the GST items sheet.")
@@ -94,10 +110,30 @@ def bas_sheet(book, data, gst):
     sheet.cell(line + 1, 1).font = Font(italic=True, color="8A97A3")
     for column, width in zip("ABCD", (12, 42, 16, 60)):
         sheet.column_dimensions[column].width = width
-    for row in sheet.iter_rows(min_row=10):
+    for row in sheet.iter_rows(min_row=18):
         for box in row:
             box.alignment = Alignment(wrap_text=False, vertical="top")
     return sheet
+
+
+def payg_sheet(book, runs):
+    sheet = book.create_sheet("PAYG withholding")
+    sheet.append(["Pay date", "Gross (W1)", "Withheld (W2)", "Net paid", "Evidence"])
+    for run in runs:
+        sheet.append([cell(v) for v in (run.get("pay_date"), run["gross_cents"] / 100, run["withheld_cents"] / 100,
+                                         run["net_cents"] / 100, run.get("evidence", ""))])
+    style.as_table(sheet, "PaygRuns", money=("Gross (W1)", "Withheld (W2)", "Net paid"), wrap=("Evidence",),
+                   widths={"Pay date": 12, "Gross (W1)": 14, "Withheld (W2)": 15, "Net paid": 13, "Evidence": 60})
+
+
+def payg_runs(db, start, end):
+    import json
+
+    row = db.execute("SELECT payload_json FROM payg_withholding WHERE start=? AND end=?", (start, end)).fetchone()
+    if row is None:
+        return [], {"W3": 0, "W4": 0}
+    saved = json.loads(row[0])
+    return saved.get("runs", []), {"W3": int(saved.get("w3_cents", 0) / 100), "W4": int(saved.get("w4_cents", 0) / 100)}
 
 
 def gst_sheet(book, gst):
@@ -118,11 +154,13 @@ def build(db_path, start, end, output):
     data = bas_dashboard.snapshot(db_path, start, end)
     with closing(bas_dashboard.read_only(db_path)) as db:
         gst = gst_rows(db, start, end)
+        runs, data["payg"] = payg_runs(db, start, end)
         transactions = proposal_store.transaction_rows(db, start, end)
     book = Workbook()
     book.remove(book.active)
     bas_sheet(book, data, gst)
     gst_sheet(book, gst)
+    payg_sheet(book, runs)
     proposal_store.transaction_sheets(book, transactions, "By payee", payee_last=True)
     book.active = 0
     output.parent.mkdir(parents=True, exist_ok=True)

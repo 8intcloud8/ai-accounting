@@ -38,7 +38,7 @@ button.primary{background:var(--accent);color:var(--accent-ink);border-color:tra
 button:focus-visible,a:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
 .pair{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .hero strong{display:block;font:800 36px/1.05 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin:6px 0 2px}
-.labels{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px dashed var(--line);margin-top:12px;padding-top:10px}
+.labels{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;border-top:1px dashed var(--line);margin-top:12px;padding-top:10px}
 .labels b{display:block;font:700 10.5px var(--body);color:var(--faint);letter-spacing:.05em}
 .labels strong{font:700 15px var(--display);font-variant-numeric:tabular-nums}
 .big{font:800 36px/1.05 var(--display);letter-spacing:-.03em;margin:6px 0 2px;font-variant-numeric:tabular-nums}
@@ -70,7 +70,7 @@ ul.todo li::before{content:"";width:7px;height:7px;border-radius:50%;background:
     <div class="row"><button class="primary" id="go" type="button">Copy for Codex</button><span class="how">Paste it into your Codex chat.</span></div>
   </section>
   <div class="pair">
-    <section class="card hero"><span class="eyebrow" id="moneyLabel">GST to pay</span><strong id="net"></strong><span class="note" id="netNote"></span>
+    <section class="card hero"><span class="eyebrow" id="moneyLabel">Amount to pay</span><strong id="net"></strong><span class="note" id="netNote"></span>
       <div class="labels" id="labels"></div><div class="labels" id="basTotals"></div><span class="note">BAS total before existing ATO credits or payments</span></section>
     <section class="card"><span class="eyebrow">Bank transactions</span><div class="big" id="txTotal"></div>
       <div class="stack" id="stack" aria-hidden="true"></div><div class="legend" id="legend"></div><div class="legend" id="purposes" style="margin-top:12px"></div>
@@ -109,7 +109,7 @@ function draw(d){
   $('go').onclick=()=>copy(d.next.request);
   const net=(d.labels['1A']??0)-(d.labels['1B']??0);$('moneyLabel').textContent=net<0?'GST refund':'GST to pay';$('net').textContent=money(Math.abs(net));
   $('netNote').textContent=d.labels_final?'Ready for the BAS':'Estimate so far';
-  $('labels').replaceChildren(...[['G1 Sales',d.labels.G1],['1A On sales',d.labels['1A']],['1B Credits',d.labels['1B']]].map(([k,v])=>{const f=node('div');f.append(node('b','',k),node('strong','',money(v??0)));return f}));
+  $('labels').replaceChildren(...[['G1 Sales',d.labels.G1],['1A GST on sales',d.labels['1A']],['1B GST credits',d.labels['1B']],['W2 Tax withheld',d.labels.W2??0]].map(([k,v])=>{const f=node('div');f.append(node('b','',k),node('strong','',money(v??0)));return f}));
   $('basTotals').replaceChildren(...[['PAYG withheld (4)',d.payg_recorded?d.labels['4']:null],[d.payg_recorded?(d.labels['9']<0?'Draft BAS refund':'Draft BAS payable'):'GST subtotal',d.payg_recorded?Math.abs(d.labels['9']):net]].map(([k,v])=>{const f=node('div');f.append(node('b','',k),node('strong','',v===null?'Not recorded':money(v)));return f}));
   const t=d.transactions;$('txTotal').textContent=t.total.toLocaleString('en-AU');
   $('stack').replaceChildren(...[['k1',t.classified],['k2',t.proposed],['k3',t.uncategorised]].map(([k,v])=>{const i=node('i',k);i.style.flexGrow=v;return i}));

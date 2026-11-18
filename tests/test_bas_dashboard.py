@@ -70,6 +70,14 @@ class BasDashboardTests(unittest.TestCase):
         self.assertEqual(first, again)
         self.assertIn("location.reload", first["dashboard"].read_text())
 
+    def test_chat_summary_is_markdown_with_links(self):
+        text = bas_dashboard.chat_summary(self.db, START, END)
+        self.assertIn("| Amount to pay (9) |", text)
+        self.assertIn("| G1 Total sales |", text)
+        self.assertIn("BAS workbook.xlsx>)", text)
+        self.assertIn("Dashboard.html>)", text)
+        self.assertNotIn("Step ", text)
+
     def test_plain_english_lines(self):
         self.assertEqual(bas_dashboard.plain("275 unclassified bank transactions"), "275 transactions need a category")
 

@@ -52,13 +52,17 @@ class MasterWorkbookTests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_sheets_in_order(self):
-        self.assertEqual(self.book.sheetnames, ["BAS", "GST items", "Transactions", "By payee"])
+        self.assertEqual(self.book.sheetnames, ["BAS", "GST items", "PAYG withholding", "Transactions", "By payee"])
 
     def test_bas_figures_are_formulas_over_gst_items(self):
         bas = self.book["BAS"]
         formulas = {bas.cell(r, 1).value: bas.cell(r, 3).value for r in range(1, bas.max_row + 1)}
         self.assertIn("'GST items'!", formulas["G1"])
         self.assertTrue(formulas["9"].startswith("="))
+        self.assertIn("'PAYG withholding'!", formulas["W2"])
+        rows = {bas.cell(r, 1).value: r for r in range(1, bas.max_row + 1)}
+        self.assertEqual(formulas["8A"], f"=C{rows['1A']}+C{rows['4']}")
+        self.assertEqual(formulas["9"], f"=C{rows['8A']}-C{rows['8B']}")
 
     def test_gst_items_add_up_to_the_dashboard(self):
         sheet = self.book["GST items"]
