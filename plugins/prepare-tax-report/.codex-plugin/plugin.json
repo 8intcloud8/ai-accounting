@@ -1,6 +1,6 @@
 {
   "name": "prepare-tax-report",
-  "version": "0.1.55",
+  "version": "0.1.56",
   "description": "Produce a local bookkeeping trial balance and income/expense workpaper for annual tax review.",
   "interface": {
     "displayName": "Tax Report",
