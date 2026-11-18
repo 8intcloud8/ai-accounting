@@ -39,7 +39,7 @@ def build(root, output):
             core / "local_server.py",
             root / f"plugins/{skill}/skills/{skill}/scripts/local_server.py",
         )
-    modules = sorted(core.glob("*.py"))
+    modules = sorted(core.glob("*.py")) + sorted(core.glob("*.html"))  # .html: inline BAS view
     if not modules:
         raise ValueError("Canonical runtime missing")
     # Validate every plugin before changing bundles or creating archives.

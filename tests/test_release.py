@@ -117,7 +117,7 @@ class ReleaseTests(unittest.TestCase):
             plugin = marker.parent
             skills = list((plugin / "skills").glob("*/SKILL.md"))
             self.assertEqual(len(skills), 1)
-            for source in (ROOT / "accounting_core").glob("*.py"):
+            for source in [*(ROOT / "accounting_core").glob("*.py"), *(ROOT / "accounting_core").glob("*.html")]:
                 self.assertEqual(
                     source.read_bytes(),
                     (skills[0].parent / "scripts" / source.name).read_bytes(),

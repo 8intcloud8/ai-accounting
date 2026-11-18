@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BAS</title>
+<style>
+:root{--bg:#fff;--card:#fff;--side:#f5f7f8;--ink:#101a24;--muted:#5d6b78;--faint:#8a97a3;--line:#e3e8ec;
+--accent:#0f7a63;--accent-ink:#fff;--accent-soft:#e5f4ef;--todo:#b26b00;--todo-soft:#fff4e0;--late:#b42318;--late-soft:#fdecea;
+--block:#6b7785;--block-soft:#e9edf0;--display:"Avenir Next","Segoe UI",system-ui,sans-serif;--body:-apple-system,"Segoe UI",system-ui,sans-serif}
+:root[data-theme=dark]{color-scheme:dark;--bg:#131b23;--card:#172029;--side:#0f161d;--ink:#e8eef3;--muted:#9eadb9;--faint:#6e7f8d;--line:#263342;
+--accent:#3ccfa6;--accent-ink:#062018;--accent-soft:#103429;--todo:#f2b450;--todo-soft:#33260f;--late:#ff8a80;--late-soft:#3a1714;--block:#93a1ae;--block-soft:#1c2631}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#131b23;--card:#172029;--side:#0f161d;--ink:#e8eef3;--muted:#9eadb9;--faint:#6e7f8d;--line:#263342;
+--accent:#3ccfa6;--accent-ink:#062018;--accent-soft:#103429;--todo:#f2b450;--todo-soft:#33260f;--late:#ff8a80;--late-soft:#3a1714;--block:#93a1ae;--block-soft:#1c2631}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--body)}
+main{padding:16px;display:grid;gap:12px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.eyebrow{font:700 11px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+h1{margin:0;font:800 20px/1.2 var(--display);letter-spacing:-.02em}
+.chip{font:600 12px var(--body);padding:2px 9px;border-radius:99px;background:var(--block-soft);color:var(--block);white-space:nowrap}
+.chip.warn{background:var(--todo-soft);color:var(--todo)}.chip.late{background:var(--late-soft);color:var(--late)}
+.tabs{display:flex;gap:4px;background:var(--side);padding:3px;border-radius:10px}
+.tabs button{border:0;background:transparent;padding:5px 12px;border-radius:8px;font:600 13px var(--body);color:var(--muted);cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px #0002}
+.card{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--card)}
+#next{display:grid;gap:6px;background:linear-gradient(160deg,var(--accent-soft),var(--card) 70%);border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+#next .eyebrow{color:var(--accent)}
+#next.you{background:linear-gradient(160deg,var(--todo-soft),var(--card) 70%);border-color:color-mix(in srgb,var(--todo) 35%,var(--line))}
+#next.you .eyebrow{color:var(--todo)}
+#next h2{margin:0;font:800 17px/1.3 var(--display)}
+#next p{margin:0;color:var(--muted);font-size:13px}
+button.act{font:600 13px var(--body);border-radius:9px;padding:7px 14px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+button.act:hover{background:var(--side)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent}
+button.primary:hover{filter:brightness(1.07);background:var(--accent)}
+button:focus-visible,input:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:1.1fr 1fr;gap:12px}
+.big{font:800 30px/1.05 var(--display);letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin:4px 0 2px}
+.note{color:var(--faint);font-size:12px}
+.labels{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;border-top:1px dashed var(--line);margin-top:10px;padding-top:8px}
+.labels button{all:unset;cursor:pointer;display:grid;border-radius:6px;padding:2px 4px;margin:-2px -4px}
+.labels button:hover{background:var(--side)}
+.labels b{font:700 10.5px var(--body);color:var(--faint);letter-spacing:.04em}
+.labels strong{font:700 14px var(--display);font-variant-numeric:tabular-nums}
+.stack{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--block-soft);margin:10px 0 8px}
+.stack i{display:block;height:100%;transition:flex-grow .5s}
+.k1{background:var(--accent)}.k2{background:var(--todo)}.k3{background:var(--block)}
+.legend{display:grid;gap:2px;font-size:12.5px;color:var(--muted)}
+.legend button{all:unset;cursor:pointer;display:flex;align-items:center;gap:8px;border-radius:6px;padding:1px 4px;margin:0 -4px}
+.legend button:hover{background:var(--side)}
+.legend b{color:var(--ink);min-width:3ch;text-align:right;font-variant-numeric:tabular-nums}
+.legend em{width:9px;height:9px;border-radius:3px}
+ul.todo{list-style:none;margin:6px 0 0;padding:0}
+ul.todo li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+ul.todo li:first-child{border-top:0}
+ul.todo li span{display:flex;gap:8px;align-items:baseline}
+ul.todo li span::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--todo);flex:none;transform:translateY(-1px)}
+ul.todo button{padding:3px 10px;font-size:12px}
+.filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.filters button{padding:4px 10px;font-size:12px;border-radius:99px}
+.filters button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+input[type=search]{flex:1;min-width:160px;font:inherit;padding:6px 10px;border-radius:9px;border:1px solid var(--line);background:var(--side);color:var(--ink)}
+.tablewrap{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{position:sticky;top:0;background:var(--side);text-align:left;font-weight:700;color:var(--muted);padding:7px 8px;border-bottom:1px solid var(--line)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr:hover td{background:var(--side)}
+tr{cursor:pointer}
+.st{font:600 11px var(--body);padding:1px 7px;border-radius:99px;white-space:nowrap}
+.st.Classified{background:var(--accent-soft);color:var(--accent)}.st.Proposed{background:var(--todo-soft);color:var(--todo)}
+.st[class~="Not"]{background:var(--late-soft);color:var(--late)}
+.flash{animation:flash 1s ease-out}
+@keyframes flash{from{opacity:.35;transform:translateY(2px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.flash,.stack i{animation:none;transition:none}}
+@media(max-width:560px){.grid{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+#err{color:var(--late)}
+</style></head><body>
+<main>
+  <div class="row">
+    <div><span class="eyebrow" id="biz">BAS</span><h1 id="title">Loading your BAS…</h1></div>
+    <div class="row"><span class="chip" id="due"></span><div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="overview">Overview</button>
+      <button role="tab" aria-selected="false" data-tab="tx">Transactions</button></div></div>
+  </div>
+  <p id="err" hidden></p>
+  <section id="overview" class="pane">
+    <div class="card" id="next" aria-live="polite"><span class="eyebrow" id="who">Next</span><h2 id="question"></h2><p id="detail"></p>
+      <div><button class="act primary" id="go" type="button">Do it</button></div></div>
+    <div class="grid" style="margin-top:12px">
+      <div class="card"><span class="eyebrow" id="moneyLabel">Amount to pay</span><div class="big" id="net"></div><span class="note" id="netNote"></span>
+        <div class="labels" id="labels"></div></div>
+      <div class="card"><span class="eyebrow">Bank transactions</span><div class="big" id="txTotal"></div>
+        <div class="stack" id="stack" aria-hidden="true"></div><div class="legend" id="legend"></div></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div class="row"><span class="eyebrow">Still to do</span><span class="note" id="updated"></span></div><ul class="todo" id="todo"></ul></div>
+    <div class="row" style="margin-top:10px"><span class="note">Every number is worked out in your BAS workbook.</span>
+      <button class="act" id="workbook" type="button">Open BAS workbook</button></div>
+  </section>
+  <section id="tx" class="pane" hidden>
+    <div class="filters" id="filters"></div>
+    <div class="tablewrap" style="margin-top:10px"><table><thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th><th>Status</th><th>Category</th><th class="num">GST</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <p class="note" id="txNote"></p>
+  </section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const node=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e};
+const money=n=>(n<0?'-$':'$')+Math.abs(n).toLocaleString('en-AU');
+const cents=n=>n==null?'':(n<0?'-$':'$')+Math.abs(n).toLocaleString('en-AU',{minimumFractionDigits:2,maximumFractionDigits:2});
+const month=d=>new Date(d+'T00:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'});
+const days=d=>Math.round((new Date(d+'T00:00:00')-new Date(new Date().toDateString()))/864e5);
+const ask=q=>q.replace(/^Shall I /,'').replace(/ now\?$|\?$/,'').replace(/^./,c=>c.toUpperCase());
+let args={},data=null,rows=null,filter='Not classified',search='',last={};
+
+// MCP Apps bridge: JSON-RPC over postMessage with the host (Codex).
+let nextId=1;const waiting=new Map();
+function rpc(method,params){const id=nextId++;window.parent.postMessage({jsonrpc:'2.0',id,method,params},'*');
+  return new Promise((ok,fail)=>{waiting.set(id,{ok,fail});setTimeout(()=>{if(waiting.delete(id))fail(new Error('No answer from Codex'))},30000)})}
+const notify=(method,params)=>window.parent.postMessage({jsonrpc:'2.0',method,params},'*');
+window.addEventListener('message',e=>{const m=e.data;if(!m||m.jsonrpc!=='2.0')return;
+  if(m.id!=null&&!m.method){const w=waiting.get(m.id);if(!w)return;waiting.delete(m.id);m.error?w.fail(new Error(m.error.message)):w.ok(m.result);return}
+  if(m.method==='ui/notifications/tool-input')args=(m.params&&m.params.arguments)||{};
+  else if(m.method==='ui/notifications/tool-result'){const r=m.params||{};if(r.isError)showError(r);else if(r.structuredContent)draw(r.structuredContent)}
+  else if(m.method==='ui/notifications/host-context-changed')theme(m.params);
+  if(m.id!=null&&m.method)window.parent.postMessage({jsonrpc:'2.0',id:m.id,result:{}},'*');
+});
+function theme(ctx){if(ctx&&ctx.theme)document.documentElement.dataset.theme=ctx.theme}
+function showError(r){const t=(r.content||[]).map(c=>c.text).join(' ');$('err').textContent=t||'Could not read the BAS.';$('err').hidden=false}
+// Send a message into the chat, as if the user typed it.
+async function say(text){try{const r=await rpc('ui/message',{role:'user',content:[{type:'text',text}]});if(r&&r.isError)throw 0}
+  catch{$('err').textContent='Could not send to the chat. Type: '+text;$('err').hidden=false}}
+function put(id,text){const n=$(id);if(last[id]!==undefined&&last[id]!==text){n.classList.remove('flash');void n.offsetWidth;n.classList.add('flash')}n.textContent=text;last[id]=text}
+
+function draw(d){
+  data=d;$('err').hidden=true;
+  put('biz',d.business);put('title',`BAS ${month(d.start)} – ${month(d.end)}`);
+  const left=days(d.due);$('due').className='chip'+(left<0?' late':left<=14?' warn':'');
+  put('due',left<0?`Overdue ${-left} days`:left===0?'Due today':`Due in ${left} days`);
+  const you=d.next.who==='user';$('next').className='card'+(you?' you':'');
+  put('who',you?'Needs you':'Next');put('question',ask(d.next.question));put('detail',d.next.detail);
+  $('go').textContent=you?'Answer now':'Do it';
+  const L=d.labels,net=L['9']??0;put('moneyLabel',net<0?'Refund due (label 9)':'Amount to pay (label 9)');put('net',money(Math.abs(net)));
+  put('netNote',d.labels_final?'Ready for the BAS':'Figures so far');
+  $('labels').replaceChildren(...[['G1','Total sales'],['1A','GST on sales'],['1B','GST credits'],['W2','Tax withheld']].map(([k,name])=>{
+    const b=node('button');b.type='button';b.title='Ask Codex what makes up '+k;b.append(node('b','',`${k} ${name}`),node('strong','',money(L[k]??0)));
+    b.onclick=()=>say(`Show me what makes up ${k} (${name}) on my BAS for ${d.start} to ${d.end}, line by line.`);return b}));
+  const t=d.transactions;put('txTotal',t.total.toLocaleString('en-AU'));
+  $('stack').replaceChildren(...[['k1',t.classified],['k2',t.proposed],['k3',t.uncategorised]].map(([k,v])=>{const i=node('i',k);i.style.flexGrow=v;return i}));
+  $('legend').replaceChildren(...[['k1',t.classified,'categorised','Classified'],['k2',t.proposed,'waiting for your OK','Proposed'],['k3',t.uncategorised,'still need a category','Not classified']]
+    .map(([k,v,label,status])=>{const b=node('button');b.type='button';b.append(node('em',k),node('b','',v.toLocaleString('en-AU')),label);b.onclick=()=>{filter=status;tab('tx')};return b}));
+  const todo=[...new Set(d.todo)];
+  $('todo').replaceChildren(...(todo.length?todo:['Nothing left. Ready for the BAS draft.']).map(x=>{const li=node('li');li.append(node('span','',x));
+    if(todo.length){const b=node('button','act','Fix');b.type='button';b.onclick=()=>say(`Sort this out for my BAS ${d.start} to ${d.end}: ${x}`);li.append(b)}return li}));
+  put('updated','Updated '+new Date(d.read_at).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'}));
+  $('workbook').hidden=!(d.files&&d.files.workbook);
+  rows=null;if(!$('tx').hidden)loadRows();
+  resize();
+}
+$('go').onclick=()=>data&&say(data.next.request.replace(/^\$[\w-]+\s+/,'')+(data.next.who==='user'?'':' Keep going until you need me.'));
+$('workbook').onclick=()=>data&&rpc('ui/open-link',{url:'file://'+encodeURI(data.files.workbook)}).catch(()=>say('Open my BAS workbook.'));
+
+function tab(name){document.querySelectorAll('[role=tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
+  $('overview').hidden=name!=='overview';$('tx').hidden=name!=='tx';if(name==='tx')loadRows();resize()}
+document.querySelectorAll('[role=tab]').forEach(b=>b.onclick=()=>tab(b.dataset.tab));
+async function loadRows(){if(rows){drawRows();return}
+  $('txNote').textContent='Loading…';
+  try{const r=await rpc('tools/call',{name:'bas_transactions',arguments:args});rows=r.structuredContent.rows;drawRows()}
+  catch(e){$('txNote').textContent='Could not load the transactions: '+e.message}}
+function drawRows(){
+  const counts={};rows.forEach(r=>counts[r.Status]=(counts[r.Status]||0)+1);
+  if(filter!=='All'&&!counts[filter])filter='All';
+  const box=$('filters');box.replaceChildren(...['All','Not classified','Proposed','Classified'].map(s=>{
+    const b=node('button','act',`${s} ${s==='All'?rows.length:(counts[s]||0)}`);b.type='button';b.setAttribute('aria-pressed',filter===s);b.onclick=()=>{filter=s;drawRows()};return b}));
+  const q=node('input');q.type='search';q.placeholder='Search description or category';q.value=search;
+  q.oninput=()=>{search=q.value;drawTable()};box.append(q);
+  drawTable();
+}
+function drawTable(){
+  const s=search.toLowerCase();
+  const shown=rows.filter(r=>(filter==='All'||r.Status===filter)&&(!s||String(r.Description).toLowerCase().includes(s)||String(r.Category).toLowerCase().includes(s)));
+  $('rows').replaceChildren(...shown.slice(0,500).map(r=>{const tr=node('tr');tr.title='Ask Codex about this transaction';
+    const amount=r['Money in']?r['Money in']:-(r['Money out']||0);
+    tr.append(node('td','',r.Date),node('td','',String(r.Description).replace(/^'/,'')),node('td','num',cents(amount)));
+    const st=node('td');st.append(node('span','st '+r.Status,r.Status));tr.append(st,node('td','',r.Category||''),node('td','num',cents(r['GST $'])));
+    tr.onclick=()=>say(`About transaction #${r.ID} on ${r.Date} (${String(r.Description).replace(/^'/,'')}, ${cents(amount)}): what is it and how should it be treated for GST?`);
+    return tr}));
+  $('txNote').textContent=`${shown.length} shown${shown.length>500?', first 500 listed':''}. Click a row to ask Codex about it.`;
+  resize();
+}
+function resize(){notify('ui/notifications/size-changed',{height:Math.ceil(document.documentElement.scrollHeight)})}
+new ResizeObserver(resize).observe(document.body);
+
+// Keep the numbers current while the view is on screen.
+async function refresh(){if(document.hidden||!data)return;
+  try{const r=await rpc('tools/call',{name:'show_bas',arguments:args});if(r&&r.structuredContent)draw(r.structuredContent)}catch{}}
+setInterval(refresh,15000);
+rpc('ui/initialize',{appInfo:{name:'bas',version:'1.0.0'},appCapabilities:{},protocolVersion:'2026-01-26'})
+  .then(r=>{theme(r&&r.hostContext);notify('ui/notifications/initialized',{})})
+  .catch(()=>notify('ui/notifications/initialized',{}));
+</script></body></html>

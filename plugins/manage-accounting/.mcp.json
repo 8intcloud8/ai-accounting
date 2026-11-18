@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "bas": {
+      "command": "/bin/sh",
+      "args": [
+        "bas-mcp.sh"
+      ],
+      "cwd": "."
+    }
+  }
+}
