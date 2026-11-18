@@ -169,7 +169,7 @@ function draw(d){
   resize();
 }
 $('go').onclick=()=>data&&say(data.next.request.replace(/^\$[\w-]+\s+/,'')+(data.next.who==='user'?'':' Keep going until you need me.'));
-$('workbook').onclick=()=>data&&rpc('ui/open-link',{url:'file://'+encodeURI(data.files.workbook)}).catch(()=>say('Open my BAS workbook.'));
+$('workbook').onclick=()=>data&&say(`Open my BAS workbook in Excel: ${data.files.workbook}`);
 
 function tab(name){document.querySelectorAll('[role=tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===name));
   $('overview').hidden=name!=='overview';$('tx').hidden=name!=='tx';if(name==='tx')loadRows();resize()}
