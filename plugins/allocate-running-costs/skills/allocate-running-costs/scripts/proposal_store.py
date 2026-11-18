@@ -337,6 +337,39 @@ def transaction_rows(db, start, end, ids=None):
     return result
 
 
+def transaction_sheets(book, rows, summary_title, payee_last=False):
+    """Add a by-payee summary and a Transactions sheet (one row each) to `book`."""
+    import workbook_style as style
+
+    def payee_sheet():
+        summary = book.create_sheet(summary_title)
+        summary.append(["Payee group", "Transactions", "Money out", "Money in", "Not classified"])
+        groups_by = {}
+        for row in rows:
+            g = groups_by.setdefault(payee(str(row[3]).lstrip("'")), [row[3], 0, 0, 0, 0])
+            g[1] += 1
+            g[2] += row[4] or 0
+            g[3] += row[5] or 0
+            g[4] += row[6] == "Not classified"
+        for g in sorted(groups_by.values(), key=lambda g: -(g[2] + g[3])):
+            summary.append([g[0], g[1], round(g[2], 2), round(g[3], 2), g[4]])
+        style.as_table(summary, "PayeeSummary", money=("Money out", "Money in"), widths={
+            "Payee group": 48, "Transactions": 13, "Money out": 14, "Money in": 14, "Not classified": 15})
+
+    if not payee_last:
+        payee_sheet()
+    sheet = book.create_sheet("Transactions")
+    sheet.append(TRANSACTION_HEADERS)
+    for row in rows:
+        sheet.append(row)
+    letter = style.as_table(sheet, "Transactions", money=("Money out", "Money in", "GST $"), wrap=("Why",), widths={
+        "ID": 8, "Date": 12, "Bank account": 18, "Description": 46, "Money out": 13, "Money in": 13,
+        "Status": 15, "Category": 26, "GST label": 11, "GST $": 10, "Why": 50, "Purpose": 14})
+    style.colour_status(sheet, letter["Status"], sheet.max_row)
+    if payee_last:
+        payee_sheet()
+
+
 def export_transactions(path, start, end, output, connect, ids=None):
     """Excel view of transactions, classified or not: a Summary by payee and one row each."""
     from openpyxl import Workbook
@@ -345,30 +378,10 @@ def export_transactions(path, start, end, output, connect, ids=None):
     with closing(connect(path)) as db:
         rows = transaction_rows(db, start, end, ids)
     book = Workbook()
-    summary = book.active
-    summary.title = "Summary"
-    summary.append(["Payee group", "Transactions", "Money out", "Money in", "Not classified"])
-    groups_by = {}
-    for row in rows:
-        g = groups_by.setdefault(payee(str(row[3]).lstrip("'")), [row[3], 0, 0, 0, 0])
-        g[1] += 1
-        g[2] += row[4] or 0
-        g[3] += row[5] or 0
-        g[4] += row[6] == "Not classified"
-    for g in sorted(groups_by.values(), key=lambda g: -(g[2] + g[3])):
-        summary.append([g[0], g[1], round(g[2], 2), round(g[3], 2), g[4]])
-    sheet = book.create_sheet("Transactions")
-    sheet.append(TRANSACTION_HEADERS)
-    for row in rows:
-        sheet.append(row)
+    book.remove(book.active)
+    transaction_sheets(book, rows, "Summary")
     import workbook_style as style
 
-    style.as_table(summary, "PayeeSummary", money=("Money out", "Money in"),
-                   widths={"Payee group": 48, "Transactions": 13, "Money out": 14, "Money in": 14, "Not classified": 15})
-    letter = style.as_table(sheet, "Transactions", money=("Money out", "Money in", "GST $"), wrap=("Why",), widths={
-        "ID": 8, "Date": 12, "Bank account": 18, "Description": 46, "Money out": 13, "Money in": 13,
-        "Status": 15, "Category": 26, "GST label": 11, "GST $": 10, "Why": 50, "Purpose": 14})
-    style.colour_status(sheet, letter["Status"], sheet.max_row)
     count = lambda s: sum(r[6] == s for r in rows)  # noqa: E731
     style.overview(book, "Bank transactions", f"{start} to {end}", [
         ("Transactions", len(rows), False), ("Classified", count("Classified"), False),

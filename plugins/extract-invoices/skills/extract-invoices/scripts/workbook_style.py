@@ -13,6 +13,8 @@ STATUS_FILLS = {  # status text -> (fill, font colour)
     "Classified": ("E5F4EF", "0F5A49"),
     "Proposed": ("FFF4E0", "8A5300"),
     "Not classified": ("FDECEA", "9B1C13"),
+    "Counted": ("E5F4EF", "0F5A49"),
+    "Pending": ("FFF4E0", "8A5300"),
 }
 
 

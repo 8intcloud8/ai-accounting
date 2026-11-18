@@ -223,18 +223,19 @@ def live_folder(db_path, start, end):
 def refresh_live(db_path, start, end):
     """Rewrite the period's dashboard and workbook in one fixed folder. The dashboard
     reloads itself, so an open page follows every change to the books."""
-    import proposal_store
-
     folder = live_folder(db_path, start, end)
     folder.mkdir(parents=True, exist_ok=True)
     dashboard = folder / "Dashboard.html"
     temp = folder / ".Dashboard.html.tmp"
     temp.write_text(render(snapshot(db_path, start, end)))
     temp.replace(dashboard)
-    workbook = folder / "Transactions.xlsx"
-    staged = folder / ".Transactions.tmp.xlsx"
-    proposal_store.export_transactions(db_path, start, end, staged, read_only)  # never writes the books
+    import master_workbook
+
+    workbook = folder / "BAS workbook.xlsx"
+    staged = folder / ".BAS workbook.tmp.xlsx"
+    master_workbook.build(db_path, start, end, staged)
     staged.replace(workbook)
+    (folder / "Transactions.xlsx").unlink(missing_ok=True)  # Replaced by the master workbook.
     return {"dashboard": dashboard, "workbook": workbook}
 
 

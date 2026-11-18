@@ -30,10 +30,10 @@ Keep each message short: what you did, what needs the user, then the questions. 
 
 ## BAS dashboard and workbook
 
-Every command that changes the books rewrites two files for the period in `<workspace>/output/BAS live/<start> to <end>/`: `Dashboard.html` (next action, GST to pay, transactions, what is still to do) and `Transactions.xlsx`. The paths come back in `next_step.live`.
+Every command that changes the books rewrites two files for the period in `<workspace>/output/BAS live/<start> to <end>/`: `Dashboard.html` (next action, GST to pay, transactions, what is still to do) and `BAS workbook.xlsx`, the master workbook: its BAS sheet works out every dashboard figure as a formula over the GST items sheet, then Transactions and By payee. The paths come back in `next_step.live`.
 
 - When the user asks for "the dashboard" or "where am I up to", run `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end>`, open the `dashboard_file` it prints, and say once: "Your BAS dashboard: [link]. It updates by itself as I work." Do not open it unasked. Do not mention servers or sandboxes.
-- Whenever the user wants to see transactions in Excel, link the live `Transactions.xlsx` and say it is rewritten after every change; if it is already open in Excel, close and reopen it to see the latest.
+- Whenever the user wants to see transactions in Excel, link the live `BAS workbook.xlsx` and say it is rewritten after every change; if it is already open in Excel, close and reopen it to see the latest.
 - The page's **Copy for Codex** button gives the user a message to paste here. Treat a pasted message as a normal request.
 - Never restate the dashboard's contents in chat unless asked.
 
@@ -110,7 +110,7 @@ by release generation to synchronise bundled copies, never in per-run output.
 
 ## Showing transactions
 
-Whenever you show the user bank transactions (any list: "show me these", a payee group, the unclassified ones), run `export-transactions --start --end` with `--ids 12,15,...` for just those transactions (for the whole period, link the live `output/BAS live/<start> to <end>/Transactions.xlsx` instead: every change rewrites it). It writes an Excel workbook in `output/` with a Summary by payee and one row per transaction showing its status (Classified, Proposed, Not classified), category and GST. Give the user the workbook link, plus a short grouped summary in chat (count and total per payee group). Never paste a table of more than 10 transactions in chat. For proposals the user will approve in Excel, use `export-proposals` instead: its Decision column can be applied back.
+Whenever you show the user bank transactions (any list: "show me these", a payee group, the unclassified ones), run `export-transactions --start --end` with `--ids 12,15,...` for just those transactions (for the whole period, link the live `output/BAS live/<start> to <end>/BAS workbook.xlsx` instead: every change rewrites it). It writes an Excel workbook in `output/` with a Summary by payee and one row per transaction showing its status (Classified, Proposed, Not classified), category and GST. Give the user the workbook link, plus a short grouped summary in chat (count and total per payee group). Never paste a table of more than 10 transactions in chat. For proposals the user will approve in Excel, use `export-proposals` instead: its Decision column can be applied back.
 
 ## Keep working; stop only when you need the user
 

@@ -48,6 +48,7 @@ button:focus-visible,a:focus-visible{outline:3px solid color-mix(in srgb,var(--a
 .legend{display:grid;gap:4px;font-size:13px;color:var(--muted)}
 .legend span{display:flex;align-items:center;gap:8px}.legend b{color:var(--ink);min-width:3ch;text-align:right;font-variant-numeric:tabular-nums}
 .legend em{width:10px;height:10px;border-radius:3px}
+.how2{margin:4px 0 0;color:var(--muted);max-width:52ch}
 a.open{display:inline-block;margin-top:12px;color:var(--accent);font-weight:700;text-decoration:none}
 a.open:hover{text-decoration:underline}
 ul.todo{list-style:none;margin:10px 0 0;padding:0;display:grid}
@@ -73,8 +74,11 @@ ul.todo li::before{content:"";width:7px;height:7px;border-radius:50%;background:
       <div class="labels" id="labels"></div><div class="labels" id="basTotals"></div><span class="note">BAS total before existing ATO credits or payments</span></section>
     <section class="card"><span class="eyebrow">Bank transactions</span><div class="big" id="txTotal"></div>
       <div class="stack" id="stack" aria-hidden="true"></div><div class="legend" id="legend"></div><div class="legend" id="purposes" style="margin-top:12px"></div>
-      <a class="open" id="workbook" href="Transactions.xlsx">Open the transactions in Excel →</a></section>
+      </section>
   </div>
+  <section class="card check" id="check"><div class="row"><div><span class="eyebrow">Check any number</span>
+    <p class="how2">Every figure here is in <b>BAS workbook.xlsx</b>, next to this page: the BAS sheet shows how each is worked out, and the GST items sheet lists every line behind it.</p></div>
+    <a class="open" href="BAS workbook.xlsx">Open BAS workbook.xlsx →</a></div></section>
   <section class="card"><div class="row"><span class="eyebrow">Still to do</span><span class="note" id="todoCount"></span></div><ul class="todo" id="todo"></ul></section>
   <input id="manual" hidden readonly aria-label="Message to copy">
 </main>
@@ -111,7 +115,7 @@ function draw(d){
   $('stack').replaceChildren(...[['k1',t.classified],['k2',t.proposed],['k3',t.uncategorised]].map(([k,v])=>{const i=node('i',k);i.style.flexGrow=v;return i}));
   $('legend').replaceChildren(...[['k1',t.classified,'categorised'],['k2',t.proposed,'waiting for your OK'],['k3',t.uncategorised,'still need a category']].map(([k,v,label])=>{const s=node('span');s.append(node('em',k),node('b','',v.toLocaleString('en-AU')),label);return s}));
   $('purposes').replaceChildren(...Object.entries(d.purpose_counts||{}).map(([label,v])=>{const s=node('span');s.append(node('b','',v.toLocaleString('en-AU')),label);return s}));
-  $('workbook').hidden=live;
+  $('check').hidden=live;
   const todo=[...new Set(d.todo)];$('todoCount').textContent=todo.length?`${todo.length} item${todo.length===1?'':'s'}`:'';
   $('todo').replaceChildren(...(todo.length?todo:['Nothing left. Ready for the BAS draft.']).map(x=>node('li','',x)));
   const at=new Date(d.read_at).toLocaleTimeString('en-AU',{hour:'numeric',minute:'2-digit'});

@@ -64,7 +64,7 @@ class BasDashboardTests(unittest.TestCase):
     def test_live_files_are_rewritten_in_one_fixed_place(self):
         first = bas_dashboard.refresh_live(self.db, START, END)
         self.assertEqual(first["dashboard"].name, "Dashboard.html")
-        self.assertEqual(first["workbook"].name, "Transactions.xlsx")
+        self.assertEqual(first["workbook"].name, "BAS workbook.xlsx")
         self.assertEqual(first["dashboard"].parent.name, f"{START} to {END}")
         again = bas_dashboard.refresh_live(self.db, START, END)
         self.assertEqual(first, again)
