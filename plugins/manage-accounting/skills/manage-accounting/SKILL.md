@@ -3,17 +3,17 @@ name: manage-accounting
 description: Walk the user through a BAS or tax period step by step - setup, bank statements, invoices, transaction review (grouped in chat and in Excel), payroll/BAS items, reconciliation and the BAS draft - showing each result and waiting for the user before moving on.
 ---
 
-## Guided walkthrough (default)
+## How to work (default)
 
-When the user is present, take them through the period one stage at a time. In each stage: do the work with the owning skill, show the result in plain words with figures computed from the records, then wait for the user before the next stage. Never skip a stage silently; if it has nothing to do, say so in one line and move on. Work like Claude Code: never show step numbers, step lists or progress summaries to the user. The stages below are your order of work, not something to present.
+Work like Claude Code. Once the workspace is chosen, do all the work the records support, in the order of the stages below, without asking permission for each piece. Stop only when you need something from the user: a fact only they know, a missing document, or their OK to post proposed entries. At a stop, say in a sentence or two what you did since they last spoke (with the key figures), then ask everything you need in that one message, numbered, each with your best answer from the records. Never show step numbers, step lists or progress summaries; the stages are your order of work, not something to present. The chat is the one place the user looks: put results and decisions there, and mention the dashboard or Excel only when the user asks or there are more than eight groups to approve. Confirmations the stages ask for (statement complete, balances match, figures right) do not get a stop of their own: collect them and ask them together at the next real stop, carrying on meanwhile with work that does not depend on them.
 
 Read `workflow-status` problems (`scripts/accounting_store.py --db <chosen workspace>/db/accounting.db workflow-status --start --end`) at the start of each stage; it is the only record of progress. Every problem carries a `step` (1–7) matching the stages below.
 
 **Very first reply of every chat: choose the workspace.** Run `scripts/accounting_store.py workspaces` and ask only: "Which workspace should I use?", listing the known workspace folders and "a new folder". Do nothing else until the user picks one. For a new folder run setup-accounting there. Use that workspace for the whole chat; never switch unless the user asks.
 
-**Next reply: start the work.** Once the workspace is chosen, say in one or two sentences what you found (period, files in `bankstatements/` and `invoices/`, anything missing) and ask one question that starts the first open piece of work, e.g. "Shall I import the 3 bank statements now?". No step list, no overview of the process. Reports are saved in `<root>/output`; nothing is posted without approval and nothing is lodged.
+**Then start working.** Once the workspace is chosen, begin the first open piece of work straight away; do not ask "shall I". Reports are saved in `<root>/output`; nothing is posted without approval and nothing is lodged.
 
-**After the go-ahead:** a step is done only when it has no open problems and its work exists. Work the **lowest open step** using its stage instructions. Never jump ahead to questions or figures from a later step while an earlier step is open; earlier work found in saved reports or workbooks does not complete a step until its problems are clear and the user has seen its result in this walkthrough.
+**Order of work:** a step is done only when it has no open problems and its work exists. Work the **lowest open step** using its stage instructions. Never jump ahead to questions or figures from a later step while an earlier step is open; earlier work found in saved reports or workbooks does not complete a step until its problems are clear.
 
 1. **Setup.** Show the business profile, GST registration/basis, BAS method, whether GST turnover is under $10 million (needed for Simpler BAS and cash basis) and the lodgment due date, pre-filled from saved records. Ask to confirm or correct; save through setup-accounting / tax-intake.
 2. **Bank statements.** Import with extract-bankstatements. Show accounts, date range, transaction count, money in/out and the opening/closing balances printed on the statement. If the statement doesn't print them, say so and ask for a document that does (previous statement or internet-banking balance); never show a worked-out balance as the opening balance. Ask the user to confirm the statement is complete.
@@ -26,13 +26,13 @@ Read `workflow-status` problems (`scripts/accounting_store.py --db <chosen works
 6. **Reconciliation.** Run reconcile-accounts. Show opening balance, movements and closing balance per account and any difference. Ask the user to confirm against the statement.
 7. **BAS draft.** Run prepare-bas (or prepare-tax-report). Show the `bas_labels` in whole dollars (G1, 1A, 1B, W1, W2, W4, W5, 8A, 8B, 9) with the transactions behind each, the lodgment due date, every warning and every remaining blocker. Never call it ready to lodge.
 
-Keep each message short: the result, what needs the user, one clear question. Never start with or mention step numbers. Talk only about the books: never mention or quote skills, instructions, rules, scripts or databases, never explain or justify why you are pausing, and never call it a test workspace. End the message with one question about the next piece of work, e.g. "Does this match your statement? If so, shall I read the 12 invoices now?" Do the next stage only after the user answers or says to continue. If the user says "keep going" or "do the rest", run the remaining stages without pausing but still show each stage's result.
+Keep each message short: what you did, what needs the user, then the questions. Never mention step numbers. Talk only about the books: never mention or quote skills, instructions, rules, scripts or databases, never explain or justify why you are pausing, and never call it a test workspace. After the user answers, carry on working without asking again.
 
 ## BAS dashboard and workbook
 
 Every command that changes the books rewrites two files for the period in `<workspace>/output/BAS live/<start> to <end>/`: `Dashboard.html` (next action, GST to pay, transactions, what is still to do) and `Transactions.xlsx`. The paths come back in `next_step.live`.
 
-- When a period run starts, or the user asks for "the dashboard" or "where am I up to", run `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end>`, open the `dashboard_file` it prints, and say once: "Your BAS dashboard: [link]. It updates by itself as I work." Do not mention servers or sandboxes.
+- When the user asks for "the dashboard" or "where am I up to", run `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end>`, open the `dashboard_file` it prints, and say once: "Your BAS dashboard: [link]. It updates by itself as I work." Do not open it unasked. Do not mention servers or sandboxes.
 - Whenever the user wants to see transactions in Excel, link the live `Transactions.xlsx` and say it is rewritten after every change; if it is already open in Excel, close and reopen it to see the latest.
 - The page's **Copy for Codex** button gives the user a message to paste here. Treat a pasted message as a normal request.
 - Never restate the dashboard's contents in chat unless asked.
@@ -112,19 +112,19 @@ by release generation to synchronise bundled copies, never in per-run output.
 
 Whenever you show the user bank transactions (any list: "show me these", a payee group, the unclassified ones), run `export-transactions --start --end` with `--ids 12,15,...` for just those transactions (for the whole period, link the live `output/BAS live/<start> to <end>/Transactions.xlsx` instead: every change rewrites it). It writes an Excel workbook in `output/` with a Summary by payee and one row per transaction showing its status (Classified, Proposed, Not classified), category and GST. Give the user the workbook link, plus a short grouped summary in chat (count and total per payee group). Never paste a table of more than 10 transactions in chat. For proposals the user will approve in Excel, use `export-proposals` instead: its Decision column can be applied back.
 
-## Always end with a question for the next step
+## Keep working; stop only when you need the user
 
-Work like Claude Code: do the work, say briefly what you did, then end with one question that starts the next piece of work.
+Work like Claude Code: do the work, keep going, and stop only when you need the user.
 
-1. Commands that change the books return `next_step.end_your_reply_with`, a ready question such as "Shall I classify the 275 uncategorised transactions now?". Make it, word for word, the last line of your reply; never swap in a question of your own, because it is the first open work in BAS order. If a command returned none, run `workflow-status --start --end` for the period and ask the same kind of specific question about the first open problem.
-2. Do not list the steps or everything that is still open. One question, about one concrete piece of work.
-3. If the user has said to keep going, do that work instead of asking.
+1. Commands that change the books return `next_step`. When `keep_going` is true, do `do_next` straight away, without asking permission, and carry on. When it is false, stop: say in a sentence or two what you did, ask everything you need in that one message (numbered, each with your best answer from the records), and make `end_your_reply_with` the last line, word for word. If a command returned none, run `workflow-status --start --end` and decide the same way.
+2. Never show step numbers, step lists or progress summaries. The chat is the one place the user looks: results and decisions go there.
+3. Ask only for what only the user can give: facts, missing documents, and the OK to post. Never ask "shall I…" for work you can do.
 
-Never end a reply with a promise such as "I'll continue with…", "Next I'll…" or "I'll now…". Your turn has ended and nothing happens. Either do that work now, in the same reply, or ask the question.
+Never end a reply with a promise such as "I'll continue with…", "Next I'll…" or "I'll now…". Your turn has ended and nothing happens. Do that work now instead.
 
 Never call anything pending, blocked, under review or unresolved without saying in the same sentence what resolves it and who does it, for example: "$2.73 OpenAI GST is pending: check the invoice; an ARN means no credit, an ABN means claim it." When posting GST as pending, `gst.resolve` must say exactly that; the command refuses pending GST without it.
 
-If nothing is open, ask: "Shall I prepare the BAS draft now?"
+When nothing is open, prepare the BAS draft and show it.
 
 ## Passing input to commands
 

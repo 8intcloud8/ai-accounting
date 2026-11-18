@@ -15,6 +15,8 @@ sys.path.insert(0, str(CORE))
 from accounting_store import connect, import_approved
 from product_store import setup
 import next_step
+from contextlib import closing
+from unittest.mock import patch
 
 PROFILE = {"business_id": "example", "legal_name": "Example", "entity_type": "company",
            "gst_registered": True, "gst_basis": "cash"}
@@ -49,15 +51,29 @@ class NextStepTests(unittest.TestCase):
         self.assertEqual(next_step.active_period(self.db, "2026-10-01", "2026-12-31"),
                          ("2026-10-01", "2026-12-31"))
 
-    def test_guidance_is_one_specific_question(self):
+    def test_codex_keeps_going_on_its_own_work(self):
         self.add_transaction()
+        with closing(connect(self.db)) as db:
+            db.execute("INSERT OR REPLACE INTO reporting_scope VALUES (1,'simpler','[\"bank\"]','test')")
         guide = next_step.guidance(self.db)
         self.assertEqual(guide["period"], "2026-07-01 to 2026-09-30")
-        ending = guide["end_your_reply_with"]
-        self.assertRegex(ending, r"^Shall I .+\?$")
-        self.assertNotIn("\n", ending)
-        self.assertNotIn("Step ", ending)
-        self.assertIn("Do not list", guide["instruction"])
+        if guide["keep_going"]:
+            self.assertNotIn("end_your_reply_with", guide)
+            self.assertIn("do not ask permission", guide["instruction"])
+        else:
+            self.assertIn("end_your_reply_with", guide)
+
+    def test_user_work_stops_with_one_ending(self):
+        problem = {"code": "proposals_awaiting_approval", "count": 3, "text": "3 proposals", "who": "user", "step": 4}
+        with patch.object(next_step, "first_problem", return_value=problem):
+            guide = next_step.guidance(self.db)
+        self.assertFalse(guide["keep_going"])
+        self.assertEqual(guide["end_your_reply_with"], "Approve these, or tell me which to change?")
+        worker = {"code": "transactions_unclassified", "count": 13, "text": "13", "who": "worker", "step": 4}
+        with patch.object(next_step, "first_problem", return_value=worker):
+            guide = next_step.guidance(self.db)
+        self.assertTrue(guide["keep_going"])
+        self.assertEqual(guide["do_next"], "Classify the 13 uncategorised transactions")
 
     def test_question_names_the_work(self):
         self.assertEqual(next_step.question({"code": "transactions_unclassified", "count": 275, "text": ""}),
@@ -98,7 +114,7 @@ class NextStepTests(unittest.TestCase):
                              capture_output=True, text=True, check=True)
         result = json.loads(out.stdout)
         self.assertIn("next_step", result)
-        self.assertTrue(result["next_step"]["end_your_reply_with"].startswith("Shall I"))
+        self.assertIn("keep_going", result["next_step"])
         self.assertTrue(Path(result["next_step"]["live"]["dashboard"]).exists())
         self.assertTrue(Path(result["next_step"]["live"]["workbook"]).exists())
 

@@ -70,9 +70,9 @@ ul.todo li::before{content:"";width:7px;height:7px;border-radius:50%;background:
   </section>
   <div class="pair">
     <section class="card hero"><span class="eyebrow" id="moneyLabel">GST to pay</span><strong id="net"></strong><span class="note" id="netNote"></span>
-      <div class="labels" id="labels"></div></section>
+      <div class="labels" id="labels"></div><div class="labels" id="basTotals"></div><span class="note">BAS total before existing ATO credits or payments</span></section>
     <section class="card"><span class="eyebrow">Bank transactions</span><div class="big" id="txTotal"></div>
-      <div class="stack" id="stack" aria-hidden="true"></div><div class="legend" id="legend"></div>
+      <div class="stack" id="stack" aria-hidden="true"></div><div class="legend" id="legend"></div><div class="legend" id="purposes" style="margin-top:12px"></div>
       <a class="open" id="workbook" href="Transactions.xlsx">Open the transactions in Excel →</a></section>
   </div>
   <section class="card"><div class="row"><span class="eyebrow">Still to do</span><span class="note" id="todoCount"></span></div><ul class="todo" id="todo"></ul></section>
@@ -103,12 +103,14 @@ function draw(d){
   const you=d.next.who==='user';$('next').className='card'+(you?' you':'');
   $('who').textContent=you?'Needs you':'Next';$('question').textContent=ask(d.next.question);$('detail').textContent=d.next.detail;
   $('go').onclick=()=>copy(d.next.request);
-  const net=d.labels['9']??0;$('moneyLabel').textContent=net<0?'GST refund':'GST to pay';$('net').textContent=money(Math.abs(net));
+  const net=(d.labels['1A']??0)-(d.labels['1B']??0);$('moneyLabel').textContent=net<0?'GST refund':'GST to pay';$('net').textContent=money(Math.abs(net));
   $('netNote').textContent=d.labels_final?'Ready for the BAS':'Estimate so far';
   $('labels').replaceChildren(...[['G1 Sales',d.labels.G1],['1A On sales',d.labels['1A']],['1B Credits',d.labels['1B']]].map(([k,v])=>{const f=node('div');f.append(node('b','',k),node('strong','',money(v??0)));return f}));
+  $('basTotals').replaceChildren(...[['PAYG withheld (4)',d.payg_recorded?d.labels['4']:null],[d.payg_recorded?(d.labels['9']<0?'Draft BAS refund':'Draft BAS payable'):'GST subtotal',d.payg_recorded?Math.abs(d.labels['9']):net]].map(([k,v])=>{const f=node('div');f.append(node('b','',k),node('strong','',v===null?'Not recorded':money(v)));return f}));
   const t=d.transactions;$('txTotal').textContent=t.total.toLocaleString('en-AU');
   $('stack').replaceChildren(...[['k1',t.classified],['k2',t.proposed],['k3',t.uncategorised]].map(([k,v])=>{const i=node('i',k);i.style.flexGrow=v;return i}));
   $('legend').replaceChildren(...[['k1',t.classified,'categorised'],['k2',t.proposed,'waiting for your OK'],['k3',t.uncategorised,'still need a category']].map(([k,v,label])=>{const s=node('span');s.append(node('em',k),node('b','',v.toLocaleString('en-AU')),label);return s}));
+  $('purposes').replaceChildren(...Object.entries(d.purpose_counts||{}).map(([label,v])=>{const s=node('span');s.append(node('b','',v.toLocaleString('en-AU')),label);return s}));
   $('workbook').hidden=live;
   const todo=[...new Set(d.todo)];$('todoCount').textContent=todo.length?`${todo.length} item${todo.length===1?'':'s'}`:'';
   $('todo').replaceChildren(...(todo.length?todo:['Nothing left. Ready for the BAS draft.']).map(x=>node('li','',x)));

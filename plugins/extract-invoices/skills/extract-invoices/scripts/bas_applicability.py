@@ -311,6 +311,11 @@ def ledger_digest(db):
         ]
         for table in tables
     }
+    for table in ("supplier_bank_links", "transaction_purposes"):
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name=? AND type='table'", (table,)).fetchone():
+            rows = [list(row) for row in db.execute(f"SELECT * FROM {table} ORDER BY rowid")]
+            if rows:
+                data[table] = rows
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 

@@ -11,14 +11,13 @@ from pathlib import Path
 START = "<!-- ai-accounting:start -->"
 END = "<!-- ai-accounting:end -->"
 BLOCK = f"""{START}
-## Accounting: always end with a question for the next step
+## Accounting: keep working; stop only when you need the user
 
-Work like Claude Code: do the work, say briefly what you did, then end with one question that starts the next piece of work, for example: "Shall I classify the 275 uncategorised transactions now?"
+Work like Claude Code: do all the work the records support without asking permission, and stop only for a fact only the user knows, a missing document, or their OK to post.
 
-- Commands that change the books return `next_step.end_your_reply_with`: make it, word for word, the last line of your reply. Never swap in your own question.
-- Do not list the steps or everything still open. One specific question only.
-- Never end with only a summary, or with a promise such as "I'll continue with…": do the work or ask.
-- If the user has said to keep going, do that work instead of asking.
+- Commands that change the books return `next_step`: when `keep_going` is true, do `do_next` now; when false, ask everything you need in one message and end with `end_your_reply_with`.
+- Never show step numbers, step lists or progress summaries. Results and decisions go in the chat.
+- Never ask "shall I…" for work you can do, and never end with a promise such as "I'll continue with…".
 {END}
 """
 

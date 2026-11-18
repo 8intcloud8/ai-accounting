@@ -1,4 +1,4 @@
-"""The open BAS steps and the one question to ask next, returned with every change.
+"""What happens after every change: keep working, or stop and ask the user.
 
 Skill instructions are read only when a skill starts, and AGENTS.md only when the chat
 is opened in the workspace. The command result is the one thing Codex always sees right
@@ -24,13 +24,23 @@ WRITE_COMMANDS = frozenset({
     "decide-proposals", "apply-proposals-workbook", "save-payg-withholding",
 })
 LINE_LIMIT = 320
-INSTRUCTION = (
-    "Make end_your_reply_with, word for word, the last line of your reply to the user, even after "
-    "a short correction. Never swap in a question of your own: it is the first open work in BAS "
-    "order, worked out from the books. Do not list the steps or what is still open. Never end with only a summary of "
-    "what changed, and never with a promise such as \"I'll continue with...\": do that work now "
-    "or ask. If the user said to keep going, do that work instead of asking."
+KEEP_GOING = (
+    "Do not stop and do not ask permission: do do_next now, then keep working through the rest "
+    "of the period in BAS order. Stop only when you need a fact only the user knows, a missing "
+    "document, or the user's OK to post. Never end a reply with a promise such as \"I'll continue "
+    "with...\": do the work instead. Never show step numbers, step lists or progress summaries."
 )
+STOP = (
+    "You need the user now. Say in one or two sentences what you did since they last spoke, then "
+    "ask everything you need in this one message (numbered if more than one, each with your best "
+    "answer from the records), and make end_your_reply_with, word for word, the last line. "
+    "Never show step numbers, step lists or progress summaries."
+)
+# The user's own work: what to put in front of them when everything else is waiting on it.
+USER_ENDINGS = {
+    "intake_question": "Answer what you can and I'll carry on.",
+    "proposals_awaiting_approval": "Approve these, or tell me which to change?",
+}
 # One question per kind of open work. {n} is the count, {s} the plural ending.
 QUESTIONS = {
     "intake_question": "Shall I ask you the {n} open setup question{s} now?",
@@ -104,11 +114,23 @@ def first_problem(db_path, start, end):
     return min(problems, key=lambda p: (p["step"], order.get(p["code"], 99)), default=None)
 
 
+def action(problem):
+    """`question(problem)` as an instruction: "Classify the 13 uncategorised transactions"."""
+    text = question(problem).removeprefix("Shall I ").removesuffix("?").removesuffix(" now")
+    return text[:1].upper() + text[1:]
+
+
 def guidance(db_path, start=None, end=None):
+    """Keep working on Codex's own work; stop and ask only when the next item is the user's."""
     start, end = active_period(db_path, start, end)
     first = first_problem(db_path, start, end)
-    return {"end_your_reply_with": question(first), "instruction": INSTRUCTION,
-            "period": f"{start} to {end}", "next_work": clean(first["text"]) if first else "BAS draft"}
+    period = f"{start} to {end}"
+    if first is not None and first["who"] == "user":
+        return {"keep_going": False, "period": period, "instruction": STOP,
+                "needs_user": clean(first["text"]),
+                "end_your_reply_with": USER_ENDINGS.get(first["code"], question(first))}
+    return {"keep_going": True, "period": period, "instruction": KEEP_GOING,
+            "do_next": action(first) if first else "Prepare the BAS draft and show it to the user"}
 
 
 def safe_guidance(db_path, start=None, end=None):

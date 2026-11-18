@@ -13,6 +13,8 @@ from contextlib import closing
 from datetime import date
 from pathlib import Path
 import bas_labels
+import supplier_links
+import transaction_purpose
 from bas_applicability import (
     BAS_APPLICABILITY_SCHEMA,
     checklist,
@@ -93,7 +95,7 @@ CREATE TABLE IF NOT EXISTS report_snapshots (
  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
 """
 
-PRODUCT_SCHEMA += BAS_APPLICABILITY_SCHEMA
+PRODUCT_SCHEMA += BAS_APPLICABILITY_SCHEMA + supplier_links.SCHEMA + transaction_purpose.SCHEMA
 
 CHART = [
     ("1000", "Bank clearing", "asset"),
@@ -512,6 +514,10 @@ def post_journal(path, payload, connect):
         transaction = payload.get("transaction_id")
         if transaction is not None:
             integer(transaction, "Transaction ID", True)
+            if transaction in transaction_purpose.outside_ids(db):
+                raise ValueError("Review outside-BAS purpose before posting a bank journal")
+            if db.execute("SELECT 1 FROM supplier_bank_links WHERE transaction_id=?", (transaction,)).fetchone():
+                raise ValueError("Unlink existing supplier evidence before posting a bank journal")
             t = db.execute(
                 "SELECT * FROM transactions WHERE id=?", (transaction,)
             ).fetchone()
@@ -965,6 +971,11 @@ def state_digest(db):
         table: [list(r) for r in db.execute(f"SELECT * FROM {table} ORDER BY rowid")]
         for table in tables
     }
+    for table in ("supplier_bank_links", "transaction_purposes"):
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name=? AND type='table'", (table,)).fetchone():
+            rows = [list(row) for row in db.execute(f"SELECT * FROM {table} ORDER BY rowid")]
+            if rows:
+                data[table] = rows
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
@@ -1192,7 +1203,7 @@ def pending_text(db, start, end, count):
 def status_report(db, start, end):
     p = profile(db)
     unclassified = db.execute(
-        "SELECT count(*) FROM transactions t WHERE date BETWEEN ? AND ? AND NOT EXISTS(SELECT 1 FROM journals j WHERE j.transaction_id=t.id)",
+        "SELECT count(*) FROM transactions t WHERE date BETWEEN ? AND ? AND NOT " + supplier_links.classified_sql(db),
         (start, end),
     ).fetchone()[0]
     unreviewed = db.execute(
@@ -1605,6 +1616,8 @@ def add_commands(sub):
         "save-proposals",
         "decide-proposals",
         "save-payg-withholding",
+        "link-supplier-payments",
+        "review-transaction-purpose",
     ):
         cmd = sub.add_parser(name)
         cmd.add_argument("--request", type=Path, required=True)
@@ -1649,10 +1662,16 @@ COMMANDS = {
     "export-transactions",
     "apply-proposals-workbook",
     "save-payg-withholding",
+    "link-supplier-payments",
+    "review-transaction-purpose",
 }
 
 
 def dispatch(args, connect):
+    if args.command == "review-transaction-purpose":
+        return transaction_purpose.record(args.db, read_request(args.request), connect, audit)
+    if args.command == "link-supplier-payments":
+        return supplier_links.record(args.db, read_request(args.request), connect, audit)
     if args.command == "complete-bas-task":
         return complete_task(
             args.db, read_request(args.request), connect, audit

@@ -1,6 +1,8 @@
 """Classification proposals awaiting user approval. Approval posts the saved journal."""
 
 import json
+import supplier_links
+import transaction_purpose
 from contextlib import closing
 
 PROPOSAL_SCHEMA = """
@@ -109,7 +111,7 @@ def open_count(db, start, end):
     return db.execute(
         "SELECT count(*) FROM proposals p JOIN transactions t ON t.id=p.transaction_id "
         "WHERE p.status='proposed' AND t.date BETWEEN ? AND ? "
-        "AND NOT EXISTS(SELECT 1 FROM journals j WHERE j.transaction_id=t.id)",
+        "AND NOT " + supplier_links.classified_sql(db),
         (start, end),
     ).fetchone()[0]
 
@@ -186,7 +188,7 @@ def groups(path, start, end, connect):
         rows = db.execute(
             "SELECT t.id,t.date,t.description,t.debit_cents,t.credit_cents,p.id,p.journal_json,p.reason "
             "FROM transactions t LEFT JOIN proposals p ON p.transaction_id=t.id AND p.status='proposed' "
-            "WHERE t.date BETWEEN ? AND ? AND NOT EXISTS(SELECT 1 FROM journals j WHERE j.transaction_id=t.id) "
+            "WHERE t.date BETWEEN ? AND ? AND NOT " + supplier_links.classified_sql(db) + " "
             "ORDER BY t.date,t.id",
             (start, end),
         ).fetchall()
@@ -239,7 +241,7 @@ def export_workbook(path, start, end, output, connect):
             "SELECT p.id,t.date,t.description,t.debit_cents,t.credit_cents,p.journal_json,p.reason "
             "FROM proposals p JOIN transactions t ON t.id=p.transaction_id "
             "WHERE p.status='proposed' AND t.date BETWEEN ? AND ? "
-            "AND NOT EXISTS(SELECT 1 FROM journals j WHERE j.transaction_id=t.id) ORDER BY t.date,p.id",
+            "AND NOT " + supplier_links.classified_sql(db) + " ORDER BY t.date,p.id",
             (start, end),
         ).fetchall()
     book = Workbook()
@@ -285,7 +287,7 @@ def export_workbook(path, start, end, output, connect):
 
 
 TRANSACTION_HEADERS = ["ID", "Date", "Bank account", "Description", "Money out", "Money in", "Status",
-                       "Category", "GST label", "GST $", "Why"]
+                       "Category", "GST label", "GST $", "Why", "Purpose"]
 
 
 def transaction_rows(db, start, end, ids=None):
@@ -298,6 +300,9 @@ def transaction_rows(db, start, end, ids=None):
         "LEFT JOIN journals j ON j.transaction_id=t.id LEFT JOIN gst_items g ON g.journal_id=j.id "
         "LEFT JOIN proposals p ON p.transaction_id=t.id AND p.status='proposed' "
         "WHERE t.date BETWEEN ? AND ? ORDER BY t.date,t.id", (start, end)).fetchall()
+    purposes = transaction_purpose.reviewed(db)
+    linked = supplier_links.linked_ids(db)
+    link_rows = supplier_links.valid_links(db)
     wanted = set(ids) if ids else None
     result = []
     for tid, day, account, text, out, into, jid, glabel, gcents, proposal, reason in rows:
@@ -308,6 +313,14 @@ def transaction_rows(db, start, end, ids=None):
                 "SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (jid,))
                 if c not in CONTROL_ACCOUNTS), "")
             status, why = "Classified", ""
+        elif tid in purposes and purposes[tid]["outside_bas"]:
+            code, status, glabel, gcents = "", "Classified", "excluded", 0
+            why = f"Shared {purposes[tid]['category']}; retained outside this BAS. Business percentage not determined; no current-period expense or GST claim." if purposes[tid]["purpose"] == "Shared" else "User-reviewed purpose; retained outside this BAS. No new expense/GST."
+        elif tid in linked:
+            links = [r for r in link_rows if r["transaction_id"] == tid]
+            code = next((c for (c,) in db.execute("SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (links[0]["journal_id"],)) if c not in CONTROL_ACCOUNTS), "")
+            status, glabel, gcents = "Classified", "excluded", 0
+            why = "Verified personal-card supplier payment; expense/GST already recorded in journal(s) " + ", ".join(str(r["journal_id"]) for r in links) + ". No company reimbursement or additional GST."
         elif proposal:
             journal = json.loads(proposal)
             code, gst = main_account(journal), journal.get("gst") or {}
@@ -315,10 +328,12 @@ def transaction_rows(db, start, end, ids=None):
             status, why = "Proposed", reason
         else:
             code, status, why = "", "Not classified", ""
+        purpose = purposes[tid]["purpose"] if tid in purposes else ("Business" if tid in linked or (jid and code and code != "3000") else "Personal" if jid and code == "3000" else "")
+        category = purposes[tid]["category"] if tid in purposes and purposes[tid]["outside_bas"] else label(code)
         # Every text column can carry bank or proposal text: escape them all, not a chosen few.
         result.append([cell(v) for v in (tid, day, account, text, out / 100 or None, into / 100 or None,
-                                         status, label(code), glabel,
-                                         gcents / 100 if isinstance(gcents, int) else None, why)])
+                                         status, category, glabel,
+                                         gcents / 100 if isinstance(gcents, int) else None, why, purpose)])
     return result
 
 
@@ -352,7 +367,7 @@ def export_transactions(path, start, end, output, connect, ids=None):
                    widths={"Payee group": 48, "Transactions": 13, "Money out": 14, "Money in": 14, "Not classified": 15})
     letter = style.as_table(sheet, "Transactions", money=("Money out", "Money in", "GST $"), wrap=("Why",), widths={
         "ID": 8, "Date": 12, "Bank account": 18, "Description": 46, "Money out": 13, "Money in": 13,
-        "Status": 15, "Category": 26, "GST label": 11, "GST $": 10, "Why": 50})
+        "Status": 15, "Category": 26, "GST label": 11, "GST $": 10, "Why": 50, "Purpose": 14})
     style.colour_status(sheet, letter["Status"], sheet.max_row)
     count = lambda s: sum(r[6] == s for r in rows)  # noqa: E731
     style.overview(book, "Bank transactions", f"{start} to {end}", [

@@ -88,3 +88,27 @@ class BasDashboardTests(unittest.TestCase):
             with self.assertRaises(HTTPError) as error:
                 urlopen(request)
             self.assertEqual(error.exception.code, 403)
+
+class PaygDashboardTests(BasDashboardTests):
+    def test_saved_payg_is_included_in_bas_total(self):
+        import bas_labels
+        from accounting_store import connect
+        from product_store import audit
+        payload={'start':START,'end':END,'runs':[{'pay_date':'2026-07-31','gross_cents':323077,'withheld_cents':103100,'net_cents':219977,'evidence':'Synthetic payroll','transaction_ids':[]}],'evidence':'Synthetic quarterly payroll','w3_cents':0,'w4_cents':0}
+        bas_labels.save_payg(self.db,payload,connect,audit)
+        before=self.db.read_bytes()
+        data=bas_dashboard.snapshot(self.db,START,END)
+        self.assertTrue(data['payg_recorded'])
+        self.assertEqual(data['labels']['4'],1031)
+        self.assertEqual(data['labels']['9'],data['labels']['1A']-data['labels']['1B']+1031)
+        self.assertEqual(before,self.db.read_bytes())
+        page=bas_dashboard.render(data)
+        self.assertIn('PAYG withheld (4)',page)
+        self.assertIn('Draft BAS payable',page)
+        self.assertIn('before existing ATO credits or payments',page)
+    def test_absent_payroll_is_not_displayed_as_zero_confirmed(self):
+        data=bas_dashboard.snapshot(self.db,START,END)
+        self.assertFalse(data['payg_recorded'])
+        page=bas_dashboard.render(data)
+        self.assertIn('Not recorded',page)
+        self.assertIn('GST subtotal',page)

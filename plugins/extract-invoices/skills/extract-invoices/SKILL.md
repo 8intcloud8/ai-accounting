@@ -144,19 +144,19 @@ Use match-payments to record confirmed payment ownership, claim approval and rei
 
 Whenever you show the user bank transactions (any list: "show me these", a payee group, the unclassified ones), run `export-transactions --start --end` with `--ids 12,15,...` for just those transactions (for the whole period, link the live `output/BAS live/<start> to <end>/Transactions.xlsx` instead: every change rewrites it). It writes an Excel workbook in `output/` with a Summary by payee and one row per transaction showing its status (Classified, Proposed, Not classified), category and GST. Give the user the workbook link, plus a short grouped summary in chat (count and total per payee group). Never paste a table of more than 10 transactions in chat. For proposals the user will approve in Excel, use `export-proposals` instead: its Decision column can be applied back.
 
-## Always end with a question for the next step
+## Keep working; stop only when you need the user
 
-Work like Claude Code: do the work, say briefly what you did, then end with one question that starts the next piece of work.
+Work like Claude Code: do the work, keep going, and stop only when you need the user.
 
-1. Commands that change the books return `next_step.end_your_reply_with`, a ready question such as "Shall I classify the 275 uncategorised transactions now?". Make it, word for word, the last line of your reply; never swap in a question of your own, because it is the first open work in BAS order. If a command returned none, run `workflow-status --start --end` for the period and ask the same kind of specific question about the first open problem.
-2. Do not list the steps or everything that is still open. One question, about one concrete piece of work.
-3. If the user has said to keep going, do that work instead of asking.
+1. Commands that change the books return `next_step`. When `keep_going` is true, do `do_next` straight away, without asking permission, and carry on. When it is false, stop: say in a sentence or two what you did, ask everything you need in that one message (numbered, each with your best answer from the records), and make `end_your_reply_with` the last line, word for word. If a command returned none, run `workflow-status --start --end` and decide the same way.
+2. Never show step numbers, step lists or progress summaries. The chat is the one place the user looks: results and decisions go there.
+3. Ask only for what only the user can give: facts, missing documents, and the OK to post. Never ask "shall I…" for work you can do.
 
-Never end a reply with a promise such as "I'll continue with…", "Next I'll…" or "I'll now…". Your turn has ended and nothing happens. Either do that work now, in the same reply, or ask the question.
+Never end a reply with a promise such as "I'll continue with…", "Next I'll…" or "I'll now…". Your turn has ended and nothing happens. Do that work now instead.
 
 Never call anything pending, blocked, under review or unresolved without saying in the same sentence what resolves it and who does it, for example: "$2.73 OpenAI GST is pending: check the invoice; an ARN means no credit, an ABN means claim it." When posting GST as pending, `gst.resolve` must say exactly that; the command refuses pending GST without it.
 
-If nothing is open, ask: "Shall I prepare the BAS draft now?"
+When nothing is open, prepare the BAS draft and show it.
 
 ## Passing input to commands
 

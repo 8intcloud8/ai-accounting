@@ -19,6 +19,7 @@ import bas_dashboard_page
 import bas_labels
 import local_server
 import product_store
+import supplier_links
 from local_server import LocalHandler
 
 STEP_NAMES = ("Setup", "Bank statements", "Invoices", "Transactions",
@@ -140,6 +141,7 @@ def snapshot(db_path, start, end):
         profile = product_store.profile(db)
         status = product_store.status_report(db, start, end)
         _rows, cents = product_store.gst_subtotals(db, start, end)
+        payg = bas_labels.payg_labels(db, start, end)
         transactions = db.execute(
             "SELECT count(*) FROM transactions WHERE date BETWEEN ? AND ?", (start, end)).fetchone()[0]
     period = f"{start} to {end}"
@@ -147,7 +149,12 @@ def snapshot(db_path, start, end):
     upcoming = next_action(db_path, start, end)
     counts = transaction_counts(db_path, start, end)
     labels = {k: bas_labels.whole_dollars(v) for k, v in cents.items()}
-    labels["9"] = labels["1A"] - labels["1B"]
+    if payg:
+        labels.update(payg["labels"])
+    labels["4"] = labels.get("W5", 0)
+    labels["8A"] = labels["1A"] + labels["4"]
+    labels["8B"] = labels["1B"]
+    labels["9"] = labels["8A"] - labels["8B"]
     return {
         "business": profile["legal_name"],
         "start": start, "end": end,
@@ -162,8 +169,10 @@ def snapshot(db_path, start, end):
             "invoices_to_review": status["invoices_needing_review"],
         },
         "labels": labels,
+        "payg_recorded": payg is not None,
         "next": upcoming,
         "transactions": counts,
+        "purpose_counts": purpose_counts(db_path, start, end),
         "todo": [plain_line for s in steps if s["state"] == "todo" for plain_line in s["lines"]],
         "labels_final": steps[-1]["state"] == "ready",
         "continue_request": CONTINUE.format(period=period),
@@ -171,13 +180,22 @@ def snapshot(db_path, start, end):
     }
 
 
+def purpose_counts(db_path, start, end):
+    """Business/Personal/Shared purpose is separate from tax allocation."""
+    import proposal_store
+    with closing(read_only(db_path)) as db:
+        rows = proposal_store.transaction_rows(db, start, end)
+    return {purpose: sum(r[-1] == purpose for r in rows) for purpose in ("Business", "Personal", "Shared")}
+
+
 def transaction_counts(db_path, start, end):
     """Bank transactions in the period by where they stand."""
     with closing(read_only(db_path)) as db:
+        classified = supplier_links.classified_sql(db)
         total, classified, proposed = db.execute(
             "SELECT count(*),"
-            " sum(EXISTS(SELECT 1 FROM journals j WHERE j.transaction_id=t.id)),"
-            " sum(NOT EXISTS(SELECT 1 FROM journals j WHERE j.transaction_id=t.id) AND"
+            " sum(" + classified + "),"
+            " sum(NOT " + classified + " AND"
             "     EXISTS(SELECT 1 FROM proposals p WHERE p.transaction_id=t.id AND p.status='proposed'))"
             " FROM transactions t WHERE t.date BETWEEN ? AND ?", (start, end)).fetchone()
     total, classified, proposed = total or 0, classified or 0, proposed or 0
