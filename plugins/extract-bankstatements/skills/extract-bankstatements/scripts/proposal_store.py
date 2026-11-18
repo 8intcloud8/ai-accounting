@@ -1,6 +1,7 @@
 """Classification proposals awaiting user approval. Approval posts the saved journal."""
 
 import json
+import chart
 import supplier_links
 import transaction_purpose
 from contextlib import closing
@@ -159,7 +160,7 @@ def decide(path, payload, connect, post_journal):
     return {"approved": approve, "rejected": reject, "posted": posted}
 
 
-CONTROL_ACCOUNTS = ("1000", "1200", "2100")
+CONTROL_ACCOUNTS = chart.CONTROL_ACCOUNTS
 DECISIONS = ("Approve", "Reject", "Change")
 
 
@@ -173,7 +174,8 @@ def payee(description):
 
 
 def main_account(journal):
-    return next((l["account"] for l in journal.get("lines", []) if l["account"] not in CONTROL_ACCOUNTS), "")
+    return next((l["account"] for l in journal.get("lines", [])
+                 if chart.current(l["account"]) not in CONTROL_ACCOUNTS), "")
 
 
 def treatment(journal):
@@ -311,14 +313,14 @@ def transaction_rows(db, start, end, ids=None):
         if jid:
             code = next((c for (c,) in db.execute(
                 "SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (jid,))
-                if c not in CONTROL_ACCOUNTS), "")
+                if chart.current(c) not in CONTROL_ACCOUNTS), "")
             status, why = "Classified", ""
         elif tid in purposes and purposes[tid]["outside_bas"]:
             code, status, glabel, gcents = "", "Classified", "excluded", 0
             why = f"Shared {purposes[tid]['category']}; retained outside this BAS. Business percentage not determined; no current-period expense or GST claim." if purposes[tid]["purpose"] == "Shared" else "User-reviewed purpose; retained outside this BAS. No new expense/GST."
         elif tid in linked:
             links = [r for r in link_rows if r["transaction_id"] == tid]
-            code = next((c for (c,) in db.execute("SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (links[0]["journal_id"],)) if c not in CONTROL_ACCOUNTS), "")
+            code = next((c for (c,) in db.execute("SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (links[0]["journal_id"],)) if chart.current(c) not in CONTROL_ACCOUNTS), "")
             status, glabel, gcents = "Classified", "excluded", 0
             why = "Verified personal-card supplier payment; expense/GST already recorded in journal(s) " + ", ".join(str(r["journal_id"]) for r in links) + ". No company reimbursement or additional GST."
         elif proposal:
@@ -328,7 +330,7 @@ def transaction_rows(db, start, end, ids=None):
             status, why = "Proposed", reason
         else:
             code, status, why = "", "Not classified", ""
-        purpose = purposes[tid]["purpose"] if tid in purposes else ("Business" if tid in linked or (jid and code and code != "3000") else "Personal" if jid and code == "3000" else "")
+        purpose = purposes[tid]["purpose"] if tid in purposes else ("Business" if tid in linked or (jid and code and chart.current(code) not in chart.OWNER_ACCOUNTS) else "Personal" if jid and chart.current(code) in chart.OWNER_ACCOUNTS else "")
         category = purposes[tid]["category"] if tid in purposes and purposes[tid]["outside_bas"] else label(code)
         # Every text column can carry bank or proposal text: escape them all, not a chosen few.
         result.append([cell(v) for v in (tid, day, account, text, out / 100 or None, into / 100 or None,

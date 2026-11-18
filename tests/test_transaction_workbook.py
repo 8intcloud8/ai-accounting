@@ -20,8 +20,8 @@ SOURCE = {"url": "https://www.ato.gov.au/businesses-and-organisations/gst-excise
 def journal(tid, reference, account, amount):
     gst = amount // 11
     return {"date": "2026-07-0%d" % tid, "reference": reference, "description": reference, "transaction_id": tid,
-            "lines": [{"account": "1000", "debit_cents": amount}, {"account": account, "credit_cents": amount - gst},
-                      {"account": "2100", "credit_cents": gst}],
+            "lines": [{"account": "090", "debit_cents": amount}, {"account": account, "credit_cents": amount - gst},
+                      {"account": "820", "credit_cents": gst}],
             "gst": {"label": "sale", "gross_cents": amount, "gst_cents": gst, "status": "reviewed",
                     "attribution_date": "2026-07-0%d" % tid, "evidence": "Invoice", "source": SOURCE}}
 
@@ -39,8 +39,8 @@ class TransactionWorkbookTests(unittest.TestCase):
             {"date": "01/07/2026", "description": "Customer A", "credit": "110.00"},
             {"date": "02/07/2026", "description": "Customer B", "credit": "220.00"},
             {"date": "03/07/2026", "description": "=HYPERLINK(\"http://x\")", "debit": "33.00"}]})
-        post_journal(self.db, journal(1, "sale-1", "4000", 11000), connect)
-        proposal_store.save(self.db, {"proposals": [{"journal": journal(2, "sale-2", "4900", 22000),
+        post_journal(self.db, journal(1, "sale-1", "200", 11000), connect)
+        proposal_store.save(self.db, {"proposals": [{"journal": journal(2, "sale-2", "260", 22000),
                                                      "reason": "Looks like other income"}]}, connect)
         self.output = self.root / "out.xlsx"
 
@@ -57,10 +57,10 @@ class TransactionWorkbookTests(unittest.TestCase):
         self.assertEqual(result["rows"], 3)
         rows = {r["ID"]: r for r in self.rows()}
         self.assertEqual(rows[1]["Status"], "Classified")
-        self.assertEqual(rows[1]["Category"], "4000 Sales")
+        self.assertEqual(rows[1]["Category"], "200 Sales")
         self.assertEqual(rows[1]["GST $"], 10.0)
         self.assertEqual(rows[2]["Status"], "Proposed")
-        self.assertEqual(rows[2]["Category"], "4900 Other income")
+        self.assertEqual(rows[2]["Category"], "260 Other Revenue")
         self.assertEqual(rows[2]["Why"], "Looks like other income")
         self.assertEqual(rows[3]["Status"], "Not classified")
         self.assertEqual(rows[3]["Money out"], 33.0)
@@ -71,7 +71,7 @@ class TransactionWorkbookTests(unittest.TestCase):
         self.assertTrue(description.startswith("'="))
 
     def test_proposal_text_cannot_become_a_formula(self):
-        bad = journal(3, "bad", "5000", 3300)
+        bad = journal(3, "bad", "429", 3300)
         bad["gst"]["label"] = "purchase"
         proposal_store.save(self.db, {"proposals": [{"journal": bad, "reason": "=cmd|' /C calc'!A0"}]}, connect)
         proposal_store.export_transactions(self.db, "2026-07-01", "2026-09-30", self.output, connect)

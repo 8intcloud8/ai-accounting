@@ -15,6 +15,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+import chart
 import check_environment
 
 # Packages installed privately by the setup check (pdfplumber, openpyxl).
@@ -124,8 +125,10 @@ def connect(path: Path) -> sqlite3.Connection:
     try:
         db.execute("PRAGMA foreign_keys=ON")
         version = db.execute("PRAGMA user_version").fetchone()[0]
-        if version not in (0, 1, 2, 3, 4, 5):
+        if version not in (0, 1, 2, 3, 4, 5, chart.VERSION):
             raise ValueError("Unsupported accounting database version")
+        if version < chart.VERSION and chart.needs_migration(db):
+            backup_before_chart_migration(path)
         db.executescript(
             "BEGIN IMMEDIATE;\n"
             + SCHEMA
@@ -137,13 +140,28 @@ def connect(path: Path) -> sqlite3.Connection:
             + expense_claims.SCHEMA
             + PROPOSAL_SCHEMA
             + BAS_LABELS_SCHEMA
-            + "\nPRAGMA user_version=5;\nCOMMIT;"
         )
+        chart.migrate(db)  # same transaction as the schema: all or nothing
+        db.execute(f"PRAGMA user_version={chart.VERSION}")
+        db.commit()
         path.chmod(0o600)
     except Exception:
+        if db.in_transaction:
+            db.rollback()
         db.close()
         raise
     return db
+
+
+def backup_before_chart_migration(path: Path) -> Path:
+    """Snapshot the workspace before renumbering accounts, so the old books stay restorable."""
+    from product_store import backup, root_for
+
+    folder = root_for(path) / "backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    output = folder / f"before-xero-chart-{datetime.now().strftime('%Y%m%d-%H%M%S-%f')}.zip"
+    backup(path, output)
+    return output
 
 
 def import_approved(path: Path, source: Path, account: str, payload: dict) -> dict:

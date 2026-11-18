@@ -18,10 +18,10 @@ START, END = "2026-07-01", "2026-09-30"
 
 
 def journal(tid, ref, label, gross, gst, status="reviewed", **extra):
-    lines = ([{"account": "1000", "debit_cents": gross}, {"account": "4000", "credit_cents": gross - gst},
-              {"account": "2100", "credit_cents": gst}] if label == "sale" else
-             [{"account": "5000", "debit_cents": gross - gst}, {"account": "1200", "debit_cents": gst},
-              {"account": "1000", "credit_cents": gross}])
+    lines = ([{"account": "090", "debit_cents": gross}, {"account": "200", "credit_cents": gross - gst},
+              {"account": "820", "credit_cents": gst}] if label == "sale" else
+             [{"account": "429", "debit_cents": gross - gst}, {"account": "820", "debit_cents": gst},
+              {"account": "090", "credit_cents": gross}])
     return {"date": "2026-07-0%d" % tid, "reference": ref, "description": ref, "transaction_id": tid, "lines": lines,
             "gst": {"label": label, "gross_cents": gross, "gst_cents": gst, "status": status,
                     "attribution_date": "2026-07-0%d" % tid, "evidence": "Invoice", **extra}}

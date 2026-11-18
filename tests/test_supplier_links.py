@@ -20,9 +20,9 @@ class SupplierLinkTests(unittest.TestCase):
         with connect(self.path) as c:
             c.execute("insert into payment_sources values ('example','Personal','personal','9206')")
             c.execute("insert into journals(id,business_id,date,reference,description) values(1,'example','2026-07-01','bill','Supplier invoice')")
-            c.execute("insert into journal_lines values (1,1,'5000',2000,0)")
-            c.execute("insert into journal_lines values (1,2,'1200',200,0)")
-            c.execute("insert into journal_lines values (1,3,'2000',0,2200)")
+            c.execute("insert into journal_lines values (1,1,'429',2000,0)")
+            c.execute("insert into journal_lines values (1,2,'820',200,0)")
+            c.execute("insert into journal_lines values (1,3,'800',0,2200)")
             c.execute("insert into gst_items(journal_id,attribution_date,label,gross_cents,gst_cents,evidence,status) values(1,'2026-07-01','purchase',2200,200,'Fixture','reviewed')")
         self.req={'business_id':'example','account_id':'personal-9206','source_nickname':'Personal','confirmed_by':'user','reason':'User approved exact supplier evidence','links':[{'transaction_id':1,'journal_id':1,'amount_cents':1100}]}
     def tearDown(self): self.tmp.cleanup()

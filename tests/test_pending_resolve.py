@@ -15,7 +15,7 @@ from product_store import post_journal, setup, status_report
 
 def purchase(**gst):
     return {"date": "2026-07-01", "reference": "openai-1", "description": "OpenAI", "transaction_id": 1,
-            "lines": [{"account": "5000", "debit_cents": 3000}, {"account": "1000", "credit_cents": 3000}],
+            "lines": [{"account": "429", "debit_cents": 3000}, {"account": "090", "credit_cents": 3000}],
             "gst": {"label": "purchase", "gross_cents": 3000, "gst_cents": 273, "status": "pending",
                     "attribution_date": "2026-07-01", "evidence": "Offshore supplier invoice", **gst}}
 

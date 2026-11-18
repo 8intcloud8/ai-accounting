@@ -39,7 +39,7 @@ class WorkflowReviewTests(unittest.TestCase):
     def recognition(self):
         p = self.purchase()
         p.pop("transaction_id")
-        p["lines"][0] = {"account": "2000", "credit_cents": 5500}
+        p["lines"][0] = {"account": "800", "credit_cents": 5500}
         return p
 
     def test_unposted_verified_document_blocks(self):
@@ -228,8 +228,8 @@ class WorkflowReviewTests(unittest.TestCase):
         )
         p = self.purchase("settlement")
         p["lines"] = [
-            {"account": "2000", "debit_cents": 5500},
-            {"account": "1000", "credit_cents": 5500},
+            {"account": "800", "debit_cents": 5500},
+            {"account": "090", "credit_cents": 5500},
         ]
         p["gst"].update(label="excluded", gross_cents=0, gst_cents=0)
         post_journal(self.db, p, connect)
@@ -237,7 +237,7 @@ class WorkflowReviewTests(unittest.TestCase):
         with closing(connect(self.db)) as db:
             self.assertEqual(
                 db.execute(
-                    "SELECT SUM(debit_cents-credit_cents) FROM journal_lines WHERE account_code='2000'"
+                    "SELECT SUM(debit_cents-credit_cents) FROM journal_lines WHERE account_code='800'"
                 ).fetchone()[0],
                 0,
             )
@@ -247,8 +247,8 @@ class WorkflowReviewTests(unittest.TestCase):
         self.supplier_invoice()
         p = self.purchase()
         p["lines"] = [
-            {"account": "2000", "debit_cents": 5500},
-            {"account": "1000", "credit_cents": 5500},
+            {"account": "800", "debit_cents": 5500},
+            {"account": "090", "credit_cents": 5500},
         ]
         p["gst"].update(label="excluded", gross_cents=0, gst_cents=0)
         with self.assertRaisesRegex(ValueError, "Recognise the document"):
@@ -259,8 +259,8 @@ class WorkflowReviewTests(unittest.TestCase):
         self.supplier_invoice()
         p = self.recognition()
         p["lines"] = [
-            {"account": "5000", "debit_cents": 100},
-            {"account": "2000", "credit_cents": 100},
+            {"account": "429", "debit_cents": 100},
+            {"account": "800", "credit_cents": 100},
         ]
         p["gst"].update(gross_cents=100, gst_cents=0)
         with self.assertRaisesRegex(ValueError, "partial accrual"):
@@ -295,9 +295,9 @@ class WorkflowReviewTests(unittest.TestCase):
         p["invoice_ids"] = [1]
         p["gst"]["label"] = "sale_refund"
         p["lines"] = [
-            {"account": "1100", "credit_cents": 11000},
-            {"account": "4000", "debit_cents": 10000},
-            {"account": "2100", "debit_cents": 1000},
+            {"account": "610", "credit_cents": 11000},
+            {"account": "200", "debit_cents": 10000},
+            {"account": "820", "debit_cents": 1000},
         ]
         with self.assertRaisesRegex(ValueError, "source credit note"):
             post_journal(self.db, p, connect)

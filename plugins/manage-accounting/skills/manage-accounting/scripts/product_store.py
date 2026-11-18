@@ -13,6 +13,8 @@ from contextlib import closing
 from datetime import date
 from pathlib import Path
 import bas_labels
+import chart
+from chart import BANK, GST, PAYABLES, RECEIVABLES
 import supplier_links
 import transaction_purpose
 from bas_applicability import (
@@ -97,22 +99,7 @@ CREATE TABLE IF NOT EXISTS report_snapshots (
 
 PRODUCT_SCHEMA += BAS_APPLICABILITY_SCHEMA + supplier_links.SCHEMA + transaction_purpose.SCHEMA
 
-CHART = [
-    ("1000", "Bank clearing", "asset"),
-    ("1100", "Receivables", "asset"),
-    ("1200", "GST receivable", "asset"),
-    ("1500", "Equipment", "asset"),
-    ("2000", "Payables", "liability"),
-    ("2100", "GST payable", "liability"),
-    ("2200", "Loans", "liability"),
-    ("3000", "Capital and drawings", "equity"),
-    ("4000", "Sales", "income"),
-    ("4900", "Other income", "income"),
-    ("5000", "General expenses", "expense"),
-    ("5100", "Utilities", "expense"),
-    ("5200", "Travel", "expense"),
-    ("5300", "Insurance", "expense"),
-]
+CHART = chart.CHART
 
 
 def text(value, label):
@@ -484,7 +471,7 @@ def post_journal(path, payload, connect):
         ):
             raise ValueError("GST registration and basis must be established")
         if status == "reviewed" and label not in ("excluded", "settlement"):
-            control = "2100" if sale_label else "1200"
+            control = GST
             control_amount = sum(
                 ((c - d if sale_label else d - c) * (-1 if refund else 1))
                 for a, d, c in parsed
@@ -494,19 +481,13 @@ def post_journal(path, payload, connect):
                 raise ValueError(
                     "GST metadata does not reconcile to GST control account"
                 )
-            opposite = "1200" if sale_label else "2100"
-            if any(a == opposite for a, d, c in parsed):
-                raise ValueError("One journal cannot mix sales and purchase GST")
-        if label == "excluded" and any(a in ("1200", "2100") for a, d, c in parsed):
+        if label == "excluded" and any(a == GST for a, d, c in parsed):
             raise ValueError(
                 "Excluded movement cannot alter GST controls; use explicit settlement for ATO settlement"
             )
         if label == "settlement" and (
-            not any(a in ("1200", "2100") for a, d, c in parsed)
-            or any(
-                a in ("4000", "4900", "5000", "5100", "5200", "5300")
-                for a, d, c in parsed
-            )
+            not any(a == GST for a, d, c in parsed)
+            or any(a in chart.PROFIT_AND_LOSS for a, d, c in parsed)
         ):
             raise ValueError(
                 "GST settlement must affect a GST control and cannot book income/expenses"
@@ -527,7 +508,7 @@ def post_journal(path, payload, connect):
                 raise ValueError("Cash transaction journal date must match bank date")
             if p["gst_basis"] == "cash" and attribution != t["date"]:
                 raise ValueError("Cash GST attribution must match payment date")
-            cash = sum(d - c for account, d, c in parsed if account == "1000")
+            cash = sum(d - c for account, d, c in parsed if account == BANK)
             if cash != t["credit_cents"] - t["debit_cents"]:
                 raise ValueError("Bank clearing line does not reconcile to payment")
             incoming = label in ("sale", "purchase_refund")
@@ -603,7 +584,7 @@ def post_journal(path, payload, connect):
                         "Per-document gross allocations must reconcile to journal gross"
                     )
             if transaction is None:
-                control = "1100" if sale_label else "2000"
+                control = RECEIVABLES if sale_label else PAYABLES
                 control_total = sum(
                     (d - c if sale_label else c - d) * (-1 if refund else 1)
                     for a, d, c in parsed
@@ -657,9 +638,9 @@ def post_journal(path, payload, connect):
                         "Accrual document already recognised; settle or reverse before replacement"
                     )
             if label == "excluded" and evidence_ids:
-                control = "1100" if role == "sale" else "2000"
+                control = RECEIVABLES if role == "sale" else PAYABLES
                 if transaction is None or any(
-                    a not in ("1000", control) for a, d, c in parsed
+                    a not in (BANK, control) for a, d, c in parsed
                 ):
                     raise ValueError(
                         "Document settlement must link bank and receivable/payable only"
@@ -773,7 +754,7 @@ def post_journal(path, payload, connect):
                 ).fetchone()[0]
                 for iid in evidence_ids
             )
-            if matched != abs(sum(d - c for a, d, c in parsed if a == "1000")):
+            if matched != abs(sum(d - c for a, d, c in parsed if a == BANK)):
                 raise ValueError(
                     "Settlement bank amount must equal linked confirmed matches"
                 )
@@ -781,7 +762,7 @@ def post_journal(path, payload, connect):
             net_sales = sum(
                 (c - d) * (-1 if refund else 1)
                 for a, d, c in parsed
-                if a in ("4000", "4900")
+                if a in chart.INCOME_ACCOUNTS
             )
             if gross != net_sales + gst:
                 raise ValueError(

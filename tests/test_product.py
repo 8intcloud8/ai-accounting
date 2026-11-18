@@ -70,9 +70,9 @@ class ProductTests(unittest.TestCase):
             "description": "Example sale",
             "transaction_id": 1,
             "lines": [
-                {"account": "1000", "debit_cents": 11000},
-                {"account": "4000", "credit_cents": 10000},
-                {"account": "2100", "credit_cents": 1000},
+                {"account": "090", "debit_cents": 11000},
+                {"account": "200", "credit_cents": 10000},
+                {"account": "820", "credit_cents": 1000},
             ],
             "gst": {
                 "label": "sale",
@@ -183,7 +183,7 @@ class ProductTests(unittest.TestCase):
         purchase = {
             "date": "2026-07-02", "reference": "supplier-1", "description": "Supplier",
             "transaction_id": 2,
-            "lines": [{"account": "5000", "debit_cents": 5500}, {"account": "1000", "credit_cents": 5500}],
+            "lines": [{"account": "429", "debit_cents": 5500}, {"account": "090", "credit_cents": 5500}],
             "gst": {"label": "excluded", "gross_cents": 0, "gst_cents": 0, "status": "reviewed",
                     "attribution_date": "2026-07-02", "evidence": "No tax invoice"},
         }
@@ -192,7 +192,7 @@ class ProductTests(unittest.TestCase):
             {"journal": self.cited(purchase, verified=False, note="Not checked"), "reason": "Supplier payment"}]}, connect)
         groups = proposal_store.groups(self.db, "2026-07-01", "2026-09-30", connect)
         self.assertEqual({1}, {g["count"] for g in groups})
-        self.assertIn("5000", [g for g in groups if g["money_out"]][0]["treatment"])
+        self.assertIn("429", [g for g in groups if g["money_out"]][0]["treatment"])
         out = self.root / "review.xlsx"
         proposal_store.export_workbook(self.db, "2026-07-01", "2026-09-30", out, connect)
         book = load_workbook(out)
@@ -208,12 +208,12 @@ class ProductTests(unittest.TestCase):
             if row[2].value == "Customer":
                 row[decision].value = "Approve"
             else:
-                row[decision].value, row[new_account].value = "Change", "5100"
+                row[decision].value, row[new_account].value = "Change", "445"
         book.save(out)
         result = proposal_store.apply_workbook(self.db, out, connect, post_journal)
         self.assertEqual(2, len(result["posted"]))
         with closing(sqlite3.connect(self.db)) as db:
-            self.assertEqual(1, db.execute("SELECT count(*) FROM journal_lines WHERE account_code='5100'").fetchone()[0])
+            self.assertEqual(1, db.execute("SELECT count(*) FROM journal_lines WHERE account_code='445'").fetchone()[0])
         # Applying the same workbook again changes nothing: rows are no longer open.
         self.assertEqual(2, len(proposal_store.apply_workbook(self.db, out, connect, post_journal)["skipped_stale"]))
 
@@ -348,7 +348,7 @@ class ProductTests(unittest.TestCase):
         with closing(sqlite3.connect(self.db)) as db, db:
             db.execute("PRAGMA user_version=4")
         with closing(connect(self.db)) as db, db:
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
             self.assertEqual(
                 db.execute("SELECT count(*) FROM transactions").fetchone()[0], 2
             )
@@ -414,9 +414,9 @@ class ProductTests(unittest.TestCase):
                 "description": "Customer refund",
                 "transaction_id": 3,
                 "lines": [
-                    {"account": "1000", "credit_cents": 1100},
-                    {"account": "4000", "debit_cents": 1000},
-                    {"account": "2100", "debit_cents": 100},
+                    {"account": "090", "credit_cents": 1100},
+                    {"account": "200", "debit_cents": 1000},
+                    {"account": "820", "debit_cents": 100},
                 ],
                 "gst": {
                     "label": "sale_refund",
@@ -468,9 +468,9 @@ class ProductTests(unittest.TestCase):
             "transaction_id": transaction,
             "invoice_ids": [1],
             "lines": [
-                {"account": "1000", "credit_cents": 5500},
-                {"account": "5000", "debit_cents": 5000},
-                {"account": "1200", "debit_cents": 500},
+                {"account": "090", "credit_cents": 5500},
+                {"account": "429", "debit_cents": 5000},
+                {"account": "820", "debit_cents": 500},
             ],
             "gst": {
                 "label": "purchase",
@@ -645,9 +645,9 @@ class ProductTests(unittest.TestCase):
         too_much = self.purchase("p2", 2)
         too_much.pop("invoice_ids")
         too_much["gst"]["gst_cents"] = 600
-        too_much["lines"] = [{"account": "1000", "credit_cents": 5500},
-                             {"account": "5000", "debit_cents": 4900},
-                             {"account": "1200", "debit_cents": 600}]
+        too_much["lines"] = [{"account": "090", "credit_cents": 5500},
+                             {"account": "429", "debit_cents": 4900},
+                             {"account": "820", "debit_cents": 600}]
         reverse_journal(self.db, {"id": 1, "reason": "test"}, connect)
         with self.assertRaisesRegex(ValueError, "1/11"):
             post_journal(self.db, too_much, connect)
@@ -680,9 +680,9 @@ class ProductTests(unittest.TestCase):
                                       "gst_turnover_under_10m": False, "evidence": "ATO turnover"}, connect)
         self.assertTrue(any("cash basis is not available" in t for t in codes()))
         sale = self.sale()
-        sale["lines"] = [{"account": "1000", "debit_cents": 11000},
-                         {"account": "4000", "credit_cents": 10001},
-                         {"account": "2100", "credit_cents": 999}]
+        sale["lines"] = [{"account": "090", "debit_cents": 11000},
+                         {"account": "200", "credit_cents": 10001},
+                         {"account": "820", "credit_cents": 999}]
         sale["gst"]["gst_cents"] = 999
         post_journal(self.db, sale, connect)
         self.assertEqual("2026-10-28", bas_labels.due_date("2026-07-01", "2026-09-30"))
@@ -764,10 +764,10 @@ class ProductTests(unittest.TestCase):
         p = self.purchase()
         p["gst"]["gst_cents"] = 250
         p["lines"] = [
-            {"account": "1000", "credit_cents": 5500},
-            {"account": "5100", "debit_cents": 2500},
-            {"account": "1200", "debit_cents": 250},
-            {"account": "3000", "debit_cents": 2750},
+            {"account": "090", "credit_cents": 5500},
+            {"account": "445", "debit_cents": 2500},
+            {"account": "820", "debit_cents": 250},
+            {"account": "880", "debit_cents": 2750},
         ]
         post_journal(self.db, p, connect)
         self.assertEqual(
@@ -797,7 +797,7 @@ class ProductTests(unittest.TestCase):
                 ).fetchone()[0],
                 "AUD",
             )
-            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 5)
+            self.assertEqual(db.execute("PRAGMA user_version").fetchone()[0], 6)
 
 
 if __name__ == "__main__":
