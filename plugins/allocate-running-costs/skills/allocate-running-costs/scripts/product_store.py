@@ -410,6 +410,14 @@ def correct(path, payload, connect):
     }
 
 
+def personal_source(db, account_id):
+    """True when the imported account is a confirmed personal card or account."""
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE name='payment_sources'").fetchone():
+        return False
+    return any(account_id.endswith(s) for (s,) in db.execute(
+        "SELECT suffix FROM payment_sources WHERE owner='personal' AND suffix<>''"))
+
+
 def post_journal(path, payload, connect):
     lines = payload.get("lines")
     if not isinstance(lines, list) or len(lines) < 2:
@@ -508,9 +516,14 @@ def post_journal(path, payload, connect):
                 raise ValueError("Cash transaction journal date must match bank date")
             if p["gst_basis"] == "cash" and attribution != t["date"]:
                 raise ValueError("Cash GST attribution must match payment date")
-            cash = sum(d - c for account, d, c in parsed if account == BANK)
+            # A personal card is not a business account: the business owes the owner instead,
+            # so its lines clear through the owner's loan / funds-introduced account, not 090.
+            clearing = (chart.LOAN, chart.FUNDS_INTRODUCED) if personal_source(db, t["account_id"]) else (BANK,)
+            cash = sum(d - c for account, d, c in parsed if account in clearing)
             if cash != t["credit_cents"] - t["debit_cents"]:
-                raise ValueError("Bank clearing line does not reconcile to payment")
+                raise ValueError("Bank clearing line does not reconcile to payment"
+                                 + (" (personal card: clear through 900 Loan or 881 Funds Introduced)"
+                                    if clearing != (BANK,) else ""))
             incoming = label in ("sale", "purchase_refund")
             if label not in ("excluded", "settlement") and (
                 (incoming and not t["credit_cents"])
@@ -1605,7 +1618,7 @@ def add_commands(sub):
     cmd = sub.add_parser("apply-proposals-workbook")
     cmd.add_argument("--workbook", type=Path, required=True)
     for name in ("workflow-status", "prepare-bas", "tax-report", "bas-applicability", "proposals",
-                 "proposal-groups", "export-proposals", "export-transactions"):
+                 "proposal-groups", "export-proposals", "export-transactions", "suggest-purpose"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--start", required=True)
         cmd.add_argument("--end", required=True)
@@ -1645,10 +1658,15 @@ COMMANDS = {
     "save-payg-withholding",
     "link-supplier-payments",
     "review-transaction-purpose",
+    "suggest-purpose",
 }
 
 
 def dispatch(args, connect):
+    if args.command == "suggest-purpose":
+        import purpose_signals
+
+        return purpose_signals.suggest(args.db, *period(args.start, args.end), connect)
     if args.command == "review-transaction-purpose":
         return transaction_purpose.record(args.db, read_request(args.request), connect, audit)
     if args.command == "link-supplier-payments":
