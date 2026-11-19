@@ -17,7 +17,7 @@
     "expense_claims.py": "7cac7734543a496f872c6645a7b03c35ce0fd0a1535d03784b77479543f0a6e4",
     "invoice_store.py": "6ab5a34e9271ea7e2a3f1ab1b26dfe11aee17b7c1624e3e00e08c181319ca705",
     "local_server.py": "94e917d92b51e2b041d256da555fbabafbf6b54d301a0c7626fff1b0fa7c20cc",
-    "master_workbook.py": "6fe642ccec6388f561b50e0c01698e99fc1a27a94a3bd5083c1bec0bf2fdf924",
+    "master_workbook.py": "1314518e6511d728fc65088f3e3909c8da992d286080505bffd34aaa8a923bb8",
     "memory_store.py": "5591905fca61fe97260d8a8a015159065fe7159ce8ccc9e13a771ba5e4a03c3c",
     "next_step.py": "aa202238698841383cb57bae0a6f545bd44e0f17a581ce4497dde20df65d7d85",
     "payment_store.py": "6e0611d45e3363e6c199716cd8781f59ee2177821521393aad7083bb6d8e7d53",
@@ -30,6 +30,6 @@
     "transaction_purpose.py": "51bac25b514f80b522eff409d6506e920c3d0cde4dcd1109a03c331626699213",
     "workbook_style.py": "2ffa00cf4e20e4f802b5cb214ca7cd749c16aa7ef4dea2675fb28971995e6882",
     "workspace_instructions.py": "242bd4a0a3d6946a0bb4e862d0fd272cb7ec16a70c89b04a0d99ce9987562654",
-    "bas_view.html": "df541da7d5ad919f244207273be0105ac52c21778bb638ca95cb9107de777080"
+    "bas_view.html": "432b8abdaa36f24db33922404366b8c3ef4e741e6bacfb704698c7844dc5f2e4"
   }
 }

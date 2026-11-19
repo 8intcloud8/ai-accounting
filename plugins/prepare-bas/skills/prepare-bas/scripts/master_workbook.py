@@ -75,20 +75,20 @@ def bas_sheet(book, data, gst):
         if bold:
             sheet.cell(row, 3).font = Font(bold=True, size=13)
 
+    # Plain numbers, not formulas: previewers (Quick Look, mail) show formulas as blank.
+    amount = {k: data["labels"].get(k, 0) for k in ("G1", "1A", "1B", "W1", "W2", "W5", "4", "8A", "8B", "9")}
     for label, what in (("G1", "Total sales, including GST"), ("1A", "GST on sales"), ("1B", "GST on purchases")):
-        column = SUM_COLUMN[label]
-        add(label, what, f"=TRUNC(SUM('GST items'!{column}:{column}))",
+        add(label, what, amount[label],
             f"Column {label} of the GST items sheet: counted lines only, whole dollars")
-    add("W1", "Total wages paid", "=TRUNC(SUM('PAYG withholding'!B:B))", "Gross column of the PAYG withholding sheet")
-    add("W2", "Tax withheld from wages", "=TRUNC(SUM('PAYG withholding'!C:C))",
-        "Withheld column of the PAYG withholding sheet")
+    add("W1", "Total wages paid", amount["W1"], "Gross column of the PAYG withholding sheet")
+    add("W2", "Tax withheld from wages", amount["W2"], "Withheld column of the PAYG withholding sheet")
     add("W3", "Other amounts withheld", payg["W3"], "Saved with the pay runs")
     add("W4", "Withheld where no ABN quoted", payg["W4"], "Saved with the pay runs")
-    add("W5", "Total amounts withheld", f"={rows['W2']}+{rows['W3']}+{rows['W4']}", "W2 + W3 + W4")
-    add("4", "PAYG tax withheld", f"={rows['W5']}", "Same as W5")
-    add("8A", "Amounts you owe", f"={rows['1A']}+{rows['4']}", "1A + 4")
-    add("8B", "Amounts the ATO owes you", f"={rows['1B']}", "1B")
-    add("9", "Amount to pay (a minus amount is a refund)", f"={rows['8A']}-{rows['8B']}", "8A - 8B", bold=True)
+    add("W5", "Total amounts withheld", amount["W5"], "W2 + W3 + W4")
+    add("4", "PAYG tax withheld", amount["4"], "Same as W5")
+    add("8A", "Amounts you owe", amount["8A"], "1A + 4")
+    add("8B", "Amounts the ATO owes you", amount["8B"], "1B")
+    add("9", "Amount to pay (a minus amount is a refund)", amount["9"], "8A - 8B", bold=True)
     sheet.append([])
     pending = [r for r in gst if r[4] == "Pending"]
     line = sheet.max_row + 1

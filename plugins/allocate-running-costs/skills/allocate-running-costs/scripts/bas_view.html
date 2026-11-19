@@ -212,6 +212,7 @@ const kindOf=code=>(accounts.find(a=>a.code===code)||{}).kind;
 const nameOf=code=>{const a=accounts.find(a=>a.code===code);return a?`${a.code} ${a.name}`:code};
 function categoryCell(r){
   const td=node('td');const now=String(r.Category||'').replace(/^'/,'');
+  if(purpose(r)==='Personal')return td;  // personal: no business category
   if(!accounts.length||(r.Status==='Classified'&&!r.Code&&r.Edit!=='table')){td.textContent=now;return td}
   const sel=node('select','cat'+(r.Status==='Classified'?'':' pend'));sel.setAttribute('aria-label','Category for '+String(r.Description).replace(/^'/,''));
   const first=node('option','',r.Status==='Not classified'?'Needs a category':(r.Status==='Proposed'?'To approve: ':'')+now);first.value='';sel.append(first);
