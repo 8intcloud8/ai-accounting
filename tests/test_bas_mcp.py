@@ -61,6 +61,23 @@ class BasMcpTests(unittest.TestCase):
         amounts = [r[2] for r in load_workbook(folder / "BAS workbook.xlsx")["BAS"].iter_rows(min_row=5, max_row=16, values_only=True)]
         self.assertTrue(all(isinstance(v, int) for v in amounts), amounts)
 
+    def test_show_bas_works_without_openpyxl(self):
+        from unittest import mock
+
+        with mock.patch.dict(sys.modules, {"openpyxl": None, "master_workbook": None}):
+            result = self.call("tools/call", {"name": "show_bas", "arguments": {
+                "workspace": str(self.db.parent.parent), "start": "2026-07-01", "end": "2026-09-30"}})["result"]
+        self.assertNotIn("isError", result)
+        self.assertIn("9", result["structuredContent"]["labels"])
+
+    def test_unexpected_errors_are_tool_errors_not_a_dead_server(self):
+        from unittest import mock
+
+        with mock.patch.object(bas_mcp.bas_dashboard, "snapshot", side_effect=RuntimeError("boom")):
+            result = self.call("tools/call", {"name": "show_bas", "arguments": {
+                "workspace": str(self.db.parent.parent)}})["result"]
+        self.assertTrue(result["isError"])
+
     def test_errors_come_back_as_tool_errors(self):
         result = self.call("tools/call", {"name": "show_bas", "arguments": {"workspace": "/nope"}})["result"]
         self.assertTrue(result["isError"])

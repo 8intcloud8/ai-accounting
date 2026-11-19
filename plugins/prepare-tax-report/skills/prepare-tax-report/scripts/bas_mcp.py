@@ -15,6 +15,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import check_environment  # noqa: E402
+
+check_environment.activate()  # Privately installed packages (openpyxl, for the workbook).
+
 import bas_dashboard  # noqa: E402
 import next_step  # noqa: E402
 import proposal_store  # noqa: E402
@@ -96,8 +100,8 @@ def show_bas(args):
     folder = bas_dashboard.live_folder(db, start, end)
     try:  # Rewrite the derived files (never the books), so a workbook from an older version is not left behind.
         bas_dashboard.refresh_live(db, start, end)
-    except OSError:
-        pass  # A read-only workspace still gets the inline view.
+    except (OSError, ImportError):
+        pass  # A read-only workspace, or one without openpyxl, still gets the inline view.
     data["files"] = {name: str(folder / file) for name, file in
                      (("dashboard", "Dashboard.html"), ("workbook", "BAS workbook.xlsx")) if (folder / file).exists()}
     data["workspace"] = str(db.parent.parent)
@@ -132,7 +136,7 @@ def save_edits(args):
     if result["saved"]:
         try:
             bas_dashboard.refresh_live(db, start, end)
-        except OSError:
+        except (OSError, ImportError):
             pass  # The books are saved; the live files catch up on the next change.
     text = (f"Saved {len(result['saved'])} category change(s); {len(result['for_codex'])} need Codex; "
             f"{len(result['errors'])} could not be saved.")
@@ -162,8 +166,8 @@ def handle(message):
                 raise KeyError(f"Unknown tool {params.get('name')}")
             try:
                 result = handler(params.get("arguments") or {})
-            except (ValueError, OSError, sqlite3.Error) as error:
-                result = {"content": [{"type": "text", "text": str(error)}], "isError": True}
+            except Exception as error:  # noqa: BLE001 - a tool error, never a dead server
+                result = {"content": [{"type": "text", "text": f"{type(error).__name__}: {error}"}], "isError": True}
         elif method == "resources/list":
             result = {"resources": [{"uri": UI_URI, "name": "BAS view", "mimeType": UI_MIME}]}
         elif method == "resources/read":
