@@ -5,43 +5,48 @@ Do your bookkeeping and BAS by chatting with Codex. Give it your bank statements
 - Your files stay on your computer.
 - It never lodges anything. You or your accountant check it and lodge.
 
-**You need:** a Mac, the internet, and about 10 minutes.
+**You need:** a Mac, the internet, and about 5 minutes.
 
 ## Install
 
 ### 1. Get Codex
 
-Download the Codex app from [openai.com/codex](https://openai.com/codex/). Open it and sign in.
+Download the Codex app from [openai.com/codex](https://openai.com/codex/) (or use the ChatGPT desktop app with Codex). Open it and sign in.
 
-### 2. Open Terminal
+### 2. Add AI Accounting
 
-Press `⌘ Command` + `Space`, type **Terminal**, press `Return`. A window with text opens. That's normal.
+1. In Codex, open **Plugins**.
+2. Click **Add marketplace**.
+3. Paste this and save:
 
-### 3. Paste this line and press `Return`
+   ```
+   https://github.com/8intcloud8/ai-accounting.git
+   ```
 
-```sh
-curl -fsSL https://raw.githubusercontent.com/8intcloud8/ai-accounting/main/scripts/install.sh | sh
-```
+4. Choose **AI Accounting** in the plugin list. If its plugins are not installed already, click **Install** on each one.
 
-To copy it, click the copy button on the box above, or select the line and press `⌘ Command` + `C`. Paste it with `⌘ Command` + `V`.
+### 3. Start
 
-Wait until you see **Done**.
-
-**If you see one of these messages instead:**
-
-| Message | What to do |
-|---|---|
-| A window asks to install **developer tools** | Click **Install**, wait for it to finish, then do step 3 again. |
-| **Install Python** | Go to [python.org/downloads](https://www.python.org/downloads/), click the yellow Download button, open the file and click **Continue** until it finishes. |
-| **Codex was not found** | Do step 1, then step 3 again. |
-
-### 4. Start
-
-1. Quit Codex completely: click on Codex, then press `⌘ Command` + `Q`.
+1. Quit Codex completely: press `⌘ Command` + `Q`.
 2. Open Codex again and start a new chat.
 3. Type: **Set up my accounting**
 
-Codex asks a few questions about your business, then guides you.
+Codex asks a few questions about your business, then guides you. If it needs anything else on your Mac, it asks you first and installs it.
+
+<details>
+<summary>Can't find Plugins? Install with Terminal instead</summary>
+
+1. Press `⌘ Command` + `Space`, type **Terminal**, press `Return`.
+2. Paste this line and press `Return`:
+
+   ```sh
+   curl -fsSL https://raw.githubusercontent.com/8intcloud8/ai-accounting/main/scripts/install.sh | sh
+   ```
+
+3. Wait for **Done**. If a window asks to install **developer tools**, click **Install**, then paste the line again. If it says **Install Python**, get it from [python.org/downloads](https://www.python.org/downloads/).
+4. Go to step 3 above.
+
+</details>
 
 ## Using it
 
@@ -55,7 +60,7 @@ Codex keeps working by itself and only stops when it needs you.
 
 ## Update
 
-Do step 3 again, then quit and reopen Codex.
+In **Plugins**, update the AI Accounting marketplace, then quit and reopen Codex.
 
 ## Help
 
