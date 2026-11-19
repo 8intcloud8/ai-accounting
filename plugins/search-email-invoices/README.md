@@ -1,13 +1,13 @@
 # Search Email Invoices
 
-A local MCP data tool and assistant skill for collecting Gmail bill candidates into a standalone browser checklist. The assistant searches connected Gmail accounts; this server receives metadata and does not connect to Gmail itself. The tool advertises no inline MCP App or UI resource, so the host is not instructed to render a checklist in chat.
+A local MCP tool and assistant skill for collecting Gmail bill candidates into a checklist shown inline in the chat (an MCP App). The assistant searches connected Gmail accounts; this server receives metadata and does not connect to Gmail itself.
 
 ## Requirements
 
 - Node.js 22 or newer and npm.
 - macOS or Linux for the bundled shell launcher.
 - An MCP-capable assistant with a connected Gmail search tool.
-- Local HTML hosting and browser tools for the standalone checklist.
+- Local HTML hosting and browser tools only for hosts that cannot show inline views (fallback checklist page).
 - The separate **save-invoices** plugin is required to download selections. This repository contains no saving or Xero integration.
 
 ## Install from source
@@ -42,7 +42,7 @@ On Windows, launch `node` directly with the absolute path to `mcp-server/dist/se
 
 ## Use
 
-Ask: “Find business bills from my connected Gmail accounts for 1 July to 30 September 2026.” Supply category and dates when missing. The assistant opens the standalone browser checklist and returns a report link in chat. Review the candidates, then use **Copy save request** and paste the request into chat; saving requires the separate saving plugin. After updating an already connected server, reconnect it or open a new chat so cached tool registrations are refreshed.
+Ask: “Find business bills from my connected Gmail accounts for 1 July to 30 September 2026.” Supply category and dates when missing. The checklist appears inline in the chat. Untick what you don't want and click **Save selected**: the save request is sent into the chat; saving requires the separate saving plugin. After updating an already connected server, reconnect it or open a new chat so cached tool registrations are refreshed.
 
 ## Personal-vendor filter
 

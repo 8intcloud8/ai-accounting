@@ -1,6 +1,6 @@
 # MCP server
 
-Exposes `search_email_invoices(category, date_from, date_to, candidates)` and the checklist UI resource. It consolidates host-supplied Gmail metadata; saving belongs to a separate plugin.
+Exposes `search_email_invoices(category, date_from, date_to, candidates, accounts?, destination?)` and the inline checklist UI resource (`ui://email-invoices/checklist.html`, from `checklist-app.html`). It consolidates host-supplied Gmail metadata; saving belongs to a separate plugin.
 
 Build: `npm ci && npm run typecheck && npm run build`.
 Run stdio: `./launch.sh --stdio` after building.

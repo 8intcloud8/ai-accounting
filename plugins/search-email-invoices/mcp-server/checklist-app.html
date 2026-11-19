@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice checklist</title>
+<style>
+:root{color-scheme:light dark;--bg:#fff;--soft:#f5f5f4;--ink:#242424;--muted:#6b6b6b;--line:#e3e3e1;--accent:#16724b;--accent-ink:#fff;--picked:#f0f8f3;--ring:#378cbd;--warn:#a64225;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px}
+:root[data-theme=dark]{--bg:#202020;--soft:#292929;--ink:#ededed;--muted:#aaa;--line:#3e3e3e;--accent:#71cda1;--accent-ink:#14281d;--picked:#25392f;--ring:#8bb9ee;--warn:#f19b80}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#202020;--soft:#292929;--ink:#ededed;--muted:#aaa;--line:#3e3e3e;--accent:#71cda1;--accent-ink:#14281d;--picked:#25392f;--ring:#8bb9ee;--warn:#f19b80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink)}
+main{padding:16px;display:flex;flex-direction:column;gap:12px}
+h1{font-size:17px;font-weight:600;margin:0}.sub{margin:3px 0 0;color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+label.all{display:flex;gap:7px;align-items:center;font-size:13px}#count{font-weight:600;font-size:13px}
+input[type=text]{font:inherit;font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink)}
+#filter{margin-left:auto;width:200px;max-width:100%}#root{flex:1;min-width:220px}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);margin:0;cursor:pointer}
+.wrap{border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:440px}
+table{border-collapse:collapse;width:100%;font-size:13px;text-align:left}
+th{position:sticky;top:0;background:var(--soft);font-weight:600;white-space:nowrap;z-index:1}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:last-child td{border-bottom:0}
+tr.on{background:var(--picked)}td.c{width:32px;text-align:center}td.d{white-space:nowrap;color:var(--muted);font-size:12px}
+.v{font-weight:500}.e{display:block;color:var(--muted);font-size:11px;overflow-wrap:anywhere}.f{overflow-wrap:anywhere;font-size:12px}
+.inline{color:var(--muted);font-size:12px}
+a,.link{color:var(--accent);font-size:12px;text-decoration:none;background:none;border:0;padding:0;cursor:pointer;font-family:inherit;white-space:nowrap}a:hover,.link:hover{text-decoration:underline}
+button.go{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer;white-space:nowrap}
+button.go:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
+#status{font-size:12.5px;color:var(--muted)}#status.bad{color:var(--warn)}
+textarea{width:100%;height:70px;font:inherit;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--bg);color:var(--ink)}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+@media(max-width:560px){#filter{margin-left:0;width:100%}th.s,td.s{display:none}}
+</style></head>
+<body><main>
+  <header><h1 id="title">Invoices</h1><p class="sub" id="period"></p><p class="sub" id="totals"></p></header>
+  <div class="bar"><label class="all"><input type="checkbox" id="all" checked> Select all</label><span id="count"></span>
+    <input type="text" id="filter" placeholder="Filter" aria-label="Filter invoices"></div>
+  <div class="wrap"><table><thead><tr><th></th><th>Date</th><th>Vendor</th><th class="s">Subject</th><th>Documents</th><th></th></tr></thead>
+    <tbody id="rows"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div>
+  <div class="bar"><input type="text" id="root" placeholder="Folder to save to" aria-label="Folder to save to">
+    <button class="go" id="save" type="button" disabled>Save selected</button></div>
+  <div id="status" role="status"></div>
+  <textarea id="fallback" readonly hidden aria-label="Save request to paste into the chat"></textarea>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const node=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n};
+let data=null,boxes=[];
+
+// MCP Apps bridge: JSON-RPC over postMessage with the host (Codex).
+let nextId=1;const waiting=new Map();
+function rpc(method,params){const id=nextId++;window.parent.postMessage({jsonrpc:'2.0',id,method,params},'*');
+  return new Promise((ok,fail)=>{waiting.set(id,{ok,fail});setTimeout(()=>{if(waiting.delete(id))fail(new Error('No answer'))},30000)})}
+const notify=(method,params)=>window.parent.postMessage({jsonrpc:'2.0',method,params},'*');
+window.addEventListener('message',e=>{const m=e.data;if(!m||m.jsonrpc!=='2.0')return;
+  if(m.id!=null&&!m.method){const w=waiting.get(m.id);if(!w)return;waiting.delete(m.id);m.error?w.fail(new Error(m.error.message)):w.ok(m.result);return}
+  if(m.method==='ui/notifications/tool-result'){const r=m.params||{};if(r.isError)fail((r.content||[]).map(c=>c.text).join(' '));else if(r.structuredContent)draw(r.structuredContent)}
+  else if(m.method==='ui/notifications/host-context-changed')theme(m.params);
+  if(m.id!=null&&m.method)window.parent.postMessage({jsonrpc:'2.0',id:m.id,result:{}},'*');
+});
+function theme(ctx){if(ctx&&ctx.theme)document.documentElement.dataset.theme=ctx.theme}
+function fail(text){$('rows').replaceChildren(row1(text||'Could not build the checklist.'))}
+function row1(text){const tr=node('tr'),td=node('td','empty',text);td.colSpan=6;tr.append(td);return tr}
+
+// Only Gmail links, opened in the mailbox that was searched.
+function gmail(url,accounts){
+  let u;try{u=new URL(url)}catch{return ''}
+  if(u.protocol!=='https:'||u.hostname!=='mail.google.com')return '';
+  if(accounts.length===1&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(accounts[0])&&u.hash)
+    return 'https://mail.google.com/mail/?authuser='+encodeURIComponent(accounts[0])+u.hash;
+  return u.href;
+}
+async function open(url){try{const r=await rpc('ui/open-link',{url});if(r&&r.isError)throw 0}catch{window.open(url,'_blank','noopener')}}
+
+const fmt=d=>{const x=new Date(d+'T00:00:00');return isNaN(x)?d:x.toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})};
+function draw(d){
+  data=d;const bills=d.bills||[],accounts=d.accounts||[];
+  $('title').textContent={business:'Business invoices',personal:'Personal invoices'}[d.category]||'Bills';
+  $('period').textContent=fmt(d.dateFrom)+' – '+fmt(d.dateTo)+(accounts.length?' · '+accounts.join(' · '):'');
+  const att=bills.filter(b=>b.attachments.length).length;
+  $('totals').textContent=bills.length+' found · '+att+' with files · '+(bills.length-att)+' in the email body';
+  if(!$('root').value)$('root').value=d.destination||'';
+  const body=$('rows');body.replaceChildren();boxes=[];
+  if(!bills.length)body.append(row1('No invoices found for this period.'));
+  for(const b of bills){
+    const tr=node('tr','on'),c=node('td','c'),box=node('input');box.type='checkbox';box.checked=true;
+    box.dataset.thread=b.threadId;box.dataset.message=b.messageId;box.setAttribute('aria-label','Select '+b.vendor+' '+b.date);
+    box.onchange=()=>{tr.classList.toggle('on',box.checked);update()};c.append(box);boxes.push(box);
+    const v=node('td');v.append(node('span','v',b.vendor),node('span','e',b.sender.email));
+    const f=node('td');if(b.attachments.length)b.attachments.forEach(n=>f.append(node('div','f',n)));else f.append(node('span','inline','In the email'));
+    const l=node('td'),url=gmail(b.gmailLink,accounts);
+    if(url){const a=node('button','link','Open in Gmail');a.type='button';a.onclick=()=>open(url);l.append(a)}
+    tr.append(c,node('td','d',fmt(b.date)),v,node('td','s',b.subject),f,l);body.append(tr);
+  }
+  update();
+}
+function picked(){return boxes.filter(b=>b.checked)}
+function request(){
+  const sel=picked(),root=$('root').value.trim().replace(/\/+$/,'')||($('root').value.trim().startsWith('/')?'/':'');
+  if(!sel.length||!root||!data)return '';
+  return 'Save these '+sel.length+' bill(s) to root folder '+JSON.stringify(root)+' (category: '+data.category+
+    ', date range: '+data.dateFrom+' to '+data.dateTo+', thread ids: '+sel.map(b=>b.dataset.thread).join(', ')+
+    ', message ids: '+sel.map(b=>b.dataset.message).join(', ')+')';
+}
+function update(){
+  const n=picked().length,shown=boxes.filter(b=>!b.closest('tr').hidden);
+  $('count').textContent=n+' of '+boxes.length+' selected';
+  $('all').checked=shown.length>0&&shown.every(b=>b.checked);$('all').indeterminate=!$('all').checked&&shown.some(b=>b.checked);
+  $('save').disabled=!request();$('save').textContent=n?'Save '+n+' selected':'Save selected';
+}
+$('all').onchange=e=>{boxes.forEach(b=>{if(!b.closest('tr').hidden){b.checked=e.target.checked;b.closest('tr').classList.toggle('on',b.checked)}});update()};
+$('filter').oninput=e=>{const q=e.target.value.toLowerCase();boxes.forEach(b=>{const tr=b.closest('tr');tr.hidden=!tr.textContent.toLowerCase().includes(q)});update()};
+$('root').oninput=update;
+$('save').onclick=async()=>{
+  const text=request();if(!text)return;$('save').disabled=true;
+  try{const r=await rpc('ui/message',{role:'user',content:[{type:'text',text}]});if(r&&r.isError)throw 0;
+    $('status').className='';$('status').textContent='Sent to the chat. Saving starts there.'}
+  catch{$('status').className='bad';$('status').textContent='Could not send to the chat. Copy this and paste it there:';
+    $('fallback').value=text;$('fallback').hidden=false;$('fallback').select()}
+  update();
+};
+new ResizeObserver(()=>notify('ui/notifications/size-changed',{height:Math.ceil(document.documentElement.scrollHeight)})).observe(document.body);
+rpc('ui/initialize',{appInfo:{name:'email-invoices',version:'1.0.0'},appCapabilities:{},protocolVersion:'2026-01-26'})
+  .then(r=>{theme(r&&r.hostContext);notify('ui/notifications/initialized',{})})
+  .catch(()=>notify('ui/notifications/initialized',{}));
+</script></body></html>
