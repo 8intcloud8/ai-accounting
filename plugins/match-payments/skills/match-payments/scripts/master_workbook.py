@@ -2,7 +2,7 @@
 number on the dashboard can be checked.
 
 BAS: the figures as Excel formulas over the GST items sheet, then what is next.
-GST items: every GST line, counted or pending, with its G1, 1A and 1B amounts.
+GST items: every Business or Shared GST line (Personal left out), counted or pending, with its G1, 1A and 1B amounts.
 Transactions and By payee: every bank transaction and where it stands.
 Reads the books only.
 """
@@ -14,7 +14,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 
 import bas_dashboard
+import chart
 import proposal_store
+import transaction_purpose
 import workbook_style as style
 from proposal_store import cell
 
@@ -26,21 +28,36 @@ TREATMENT = {"sale": "Sale", "sale_refund": "Sale refund", "purchase": "Purchase
 SUM_COLUMN = {"G1": "H", "1A": "I", "1B": "J"}
 
 
+def personal(db, journal_id, transaction_id, purposes):
+    """True when the line is Personal, by the same rule as the Purpose column of Transactions."""
+    if transaction_id in purposes:
+        return purposes[transaction_id]["purpose"] == "Personal"
+    code = next((c for (c,) in db.execute(
+        "SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (journal_id,))
+        if chart.current(c) not in proposal_store.CONTROL_ACCOUNTS), "")
+    return bool(code) and chart.current(code) in chart.OWNER_ACCOUNTS
+
+
 def gst_rows(db, start, end):
-    """Every GST line in the period that is not reversed, counted or pending, in dollars."""
+    """Every Business or Shared GST line in the period that is not reversed, counted or pending,
+    in dollars. Personal lines are left out unless they carry a counted BAS amount."""
+    purposes = transaction_purpose.reviewed(db)
     rows = []
     for r in db.execute(
             "SELECT g.attribution_date,j.reference,j.description,g.label,g.status,g.gross_cents,g.gst_cents,"
-            "res.resolve,s.url,s.note FROM gst_items g JOIN journals j ON j.id=g.journal_id "
+            "res.resolve,s.url,s.note,j.id,j.transaction_id FROM gst_items g JOIN journals j ON j.id=g.journal_id "
             "LEFT JOIN gst_resolutions res ON res.journal_id=g.journal_id "
             "LEFT JOIN gst_sources s ON s.journal_id=g.journal_id "
             "WHERE g.attribution_date BETWEEN ? AND ? "
             "AND NOT EXISTS(SELECT 1 FROM journals x WHERE x.reverses_id=j.id) "
             "ORDER BY g.attribution_date,j.id", (start, end)):
-        day, ref, text, label, status, gross, gst, resolve, url, note = r
+        day, ref, text, label, status, gross, gst, resolve, url, note, jid, tid = r
         counted = status == "reviewed"
         sign = -1 if label.endswith("_refund") else 1
         sale, purchase = label in ("sale", "sale_refund"), label in ("purchase", "purchase_refund")
+        # Never drop a counted BAS amount: the sheet must still add up to the BAS figures.
+        if personal(db, jid, tid, purposes) and not (counted and (sale or purchase)):
+            continue
         rows.append([cell(v) for v in (
             day, ref, text, TREATMENT.get(label, label), "Counted" if counted else "Pending",
             gross / 100, (gst or 0) / 100,

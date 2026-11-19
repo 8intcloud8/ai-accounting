@@ -47,6 +47,20 @@ class BasMcpTests(unittest.TestCase):
             "workspace": workspace, "start": "2026-07-01", "end": "2026-09-30"}})["result"]["structuredContent"]["rows"]
         self.assertEqual(len(rows), data["transactions"]["total"])
 
+    def test_show_bas_replaces_an_old_formula_workbook(self):
+        from openpyxl import Workbook, load_workbook
+
+        folder = bas_mcp.bas_dashboard.live_folder(self.db, "2026-07-01", "2026-09-30")
+        folder.mkdir(parents=True, exist_ok=True)
+        old = Workbook()
+        old.active.title = "BAS"
+        old.active["C5"] = "=TRUNC(SUM('GST items'!H:H))"
+        old.save(folder / "BAS workbook.xlsx")
+        self.call("tools/call", {"name": "show_bas", "arguments": {
+            "workspace": str(self.db.parent.parent), "start": "2026-07-01", "end": "2026-09-30"}})
+        amounts = [r[2] for r in load_workbook(folder / "BAS workbook.xlsx")["BAS"].iter_rows(min_row=5, max_row=16, values_only=True)]
+        self.assertTrue(all(isinstance(v, int) for v in amounts), amounts)
+
     def test_errors_come_back_as_tool_errors(self):
         result = self.call("tools/call", {"name": "show_bas", "arguments": {"workspace": "/nope"}})["result"]
         self.assertTrue(result["isError"])

@@ -39,11 +39,17 @@ class MasterWorkbookTests(unittest.TestCase):
         import_approved(self.db, source, "bank", {"decision": "approved", "rows": [
             {"date": "01/07/2026", "description": "Customer", "credit": "1100.55"},
             {"date": "02/07/2026", "description": "Supplier", "debit": "55.00"},
-            {"date": "03/07/2026", "description": "OpenAI", "debit": "30.00"}]})
+            {"date": "03/07/2026", "description": "OpenAI", "debit": "30.00"},
+            {"date": "04/07/2026", "description": "Groceries", "debit": "80.00"}]})
         post_journal(self.db, journal(1, "sale-1", "sale", 110055, 10005), connect)
         post_journal(self.db, journal(2, "buy-1", "purchase", 5500, 500), connect)
         post_journal(self.db, journal(3, "openai", "purchase", 3000, 273, status="pending",
                                       resolve="Check the invoice: ARN means no credit"), connect)
+        post_journal(self.db, {"date": "2026-07-04", "reference": "groceries", "description": "Groceries",
+                               "transaction_id": 4,
+                               "lines": [{"account": "880", "debit_cents": 8000}, {"account": "090", "credit_cents": 8000}],
+                               "gst": {"label": "excluded", "gross_cents": 0, "gst_cents": 0, "status": "reviewed",
+                                       "attribution_date": "2026-07-04", "evidence": "Owner drawings"}}, connect)
         self.path = self.root / "BAS workbook.xlsx"
         master_workbook.build(self.db, START, END, self.path)
         self.book = load_workbook(self.path)
@@ -73,6 +79,12 @@ class MasterWorkbookTests(unittest.TestCase):
         pending = next(r for r in rows if r["Status"] == "Pending")
         self.assertIsNone(pending["1B"])
         self.assertIn("ARN", pending["How to resolve"])
+
+    def test_gst_items_leave_out_personal_lines(self):
+        refs = [r[1] for r in self.book["GST items"].iter_rows(min_row=2, values_only=True)]
+        self.assertEqual(refs, ["sale-1", "buy-1", "openai"])
+        purposes = {r[3]: r[11] for r in self.book["Transactions"].iter_rows(min_row=2, values_only=True)}
+        self.assertEqual(purposes["Groceries"], "Personal")
 
     def test_live_refresh_writes_the_master_workbook(self):
         live = bas_dashboard.refresh_live(self.db, START, END)

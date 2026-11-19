@@ -93,7 +93,11 @@ def show_bas(args):
     db = database(args.get("workspace"))
     start, end = period(db, args)
     data = bas_dashboard.snapshot(db, start, end)
-    folder = bas_dashboard.live_folder(db, start, end)  # Written by every change; never by this view.
+    folder = bas_dashboard.live_folder(db, start, end)
+    try:  # Rewrite the derived files (never the books), so a workbook from an older version is not left behind.
+        bas_dashboard.refresh_live(db, start, end)
+    except OSError:
+        pass  # A read-only workspace still gets the inline view.
     data["files"] = {name: str(folder / file) for name, file in
                      (("dashboard", "Dashboard.html"), ("workbook", "BAS workbook.xlsx")) if (folder / file).exists()}
     data["workspace"] = str(db.parent.parent)
