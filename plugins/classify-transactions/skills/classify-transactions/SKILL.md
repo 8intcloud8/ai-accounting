@@ -39,6 +39,14 @@ For non-cash GST, verify the actual attribution date, source recognition and pay
 
 Review current official ATO guidance before final tax treatment. Use `reverse-journal --request <JSON>` with id/reason for correction, then post replacement with a new reference. Print what was posted and what remains unresolved.
 
+## Bank rules (like Xero)
+
+Before classifying a period, run `scripts/accounting_store.py --db <db> apply-bank-rules --start <start> --end <end>`. Every open bank line an active rule matches gets a proposal coded like the rule's journal and scaled to its amount; show them grouped by rule for one OK, as Xero shows "rule applied". Lines in `skipped` (money the other way) are classified normally.
+
+When the user says a confirmed transaction should always be coded that way ("always do Telstra like this", "make it a rule"), post or approve that journal first, then run `save-bank-rule --request '{"journal_id": <id>, "match": "<word on the bank line>", "note": "<why>"}'`. Use the shortest distinctive word or name on the line (the payee, not reference numbers); it matches whole words only. `bank-rules` lists them; `end-bank-rule --request '{"id": <n>, "reason": "..."}'` stops one ("Telstra is personal now": end it, then code the next one and make a new rule). Never edit or delete a rule otherwise. A purpose-only fact with no confirmed journal yet ("Aldi is always personal") stays in case memory as `supplier.<name>.purpose`.
+
+Tax rates are shown with Xero's names (GST on Income, GST Free Income, GST on Expenses, GST Free Expenses, BAS Excluded; assets take the expense rates, as in Xero's Simpler BAS); use these names with the user.
+
 ## Review workbook
 
 Continue the user's latest Excel review when one exists. Read the saved workbook and its baseline/support records before changing it; preserve user edits, source values, stable transaction IDs/accounts, confirmations and exclusions. Do not launch a replacement HTML table or expose an Evidence column. Keep tax sources and reasons in supporting records keyed by ID/account, with concise treatment and actual missing evidence in the workbook Notes.

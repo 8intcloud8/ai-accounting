@@ -4,6 +4,8 @@ number on the dashboard can be checked.
 BAS: the figures as Excel formulas over the GST items sheet, then what is next.
 GST items: every Business or Shared GST line (Personal left out), counted or pending, with its G1, 1A and 1B amounts.
 Transactions and By payee: every bank transaction and where it stands.
+GST Audit, Profit and Loss, Balance Sheet, Trial Balance: Xero's standard reports (reports.py).
+Bank rules: every rule, when there are any.
 Reads the books only.
 """
 
@@ -13,19 +15,21 @@ from datetime import date
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font
 
+import bank_rules
 import bas_dashboard
 import chart
 import proposal_store
+import reports
 import transaction_purpose
 import workbook_style as style
+import xero_tax
 from proposal_store import cell
 
-GST_HEADERS = ["Date", "Reference", "Description", "Treatment", "Status", "Gross", "GST",
+GST_HEADERS = ["Date", "Reference", "Description", "Treatment", "Xero tax rate", "Status", "Gross", "GST",
                "G1", "1A", "1B", "How to resolve", "ATO source"]
 TREATMENT = {"sale": "Sale", "sale_refund": "Sale refund", "purchase": "Purchase",
              "purchase_refund": "Purchase refund", "excluded": "No GST", "settlement": "GST payment"}
-# Columns of GST_HEADERS the BAS formulas add up.
-SUM_COLUMN = {"G1": "H", "1A": "I", "1B": "J"}
+STATUS, GST_AMOUNT = GST_HEADERS.index("Status"), GST_HEADERS.index("GST")
 
 
 def personal(db, journal_id, transaction_id, purposes):
@@ -58,8 +62,10 @@ def gst_rows(db, start, end):
         # Never drop a counted BAS amount: the sheet must still add up to the BAS figures.
         if personal(db, jid, tid, purposes) and not (counted and (sale or purchase)):
             continue
+        accounts = [c for (c,) in db.execute("SELECT account_code FROM journal_lines WHERE journal_id=?", (jid,))]
         rows.append([cell(v) for v in (
-            day, ref, text, TREATMENT.get(label, label), "Counted" if counted else "Pending",
+            day, ref, text, TREATMENT.get(label, label), xero_tax.rate(label, gst, status, accounts)[0],
+            "Counted" if counted else "Pending",
             gross / 100, (gst or 0) / 100,
             sign * gross / 100 if counted and sale else None,
             sign * (gst or 0) / 100 if counted and sale else None,
@@ -107,11 +113,11 @@ def bas_sheet(book, data, gst):
     add("8B", "Amounts the ATO owes you", amount["8B"], "1B")
     add("9", "Amount to pay (a minus amount is a refund)", amount["9"], "8A - 8B", bold=True)
     sheet.append([])
-    pending = [r for r in gst if r[4] == "Pending"]
+    pending = [r for r in gst if r[STATUS] == "Pending"]
     line = sheet.max_row + 1
     if pending:
         sheet.cell(line, 1, f"Not counted yet: {len(pending)} pending GST line{'s' if len(pending) != 1 else ''}, "
-                            f"${sum(r[6] for r in pending):,.2f} GST. See Status = Pending on the GST items sheet.")
+                            f"${sum(r[GST_AMOUNT] for r in pending):,.2f} GST. See Status = Pending on the GST items sheet.")
         sheet.cell(line, 1).font = Font(color="8A5300", bold=True)
         line += 2
     sheet.cell(line, 1, "Next").font = Font(bold=True)
@@ -160,10 +166,21 @@ def gst_sheet(book, gst):
         sheet.append(row)
     letter = style.as_table(sheet, "GSTItems", money=("Gross", "GST", "G1", "1A", "1B"),
                             wrap=("How to resolve",), widths={
-                                "Date": 12, "Reference": 16, "Description": 40, "Treatment": 15, "Status": 11,
+                                "Date": 12, "Reference": 16, "Description": 40, "Treatment": 15, "Xero tax rate": 18, "Status": 11,
                                 "Gross": 13, "GST": 11, "G1": 13, "1A": 11, "1B": 11, "How to resolve": 44,
                                 "ATO source": 40})
     style.colour_status(sheet, letter["Status"], sheet.max_row)
+
+
+def rules_sheet(book, rules):
+    """Bank rules, as Xero lists them: what each matches and how it codes the line."""
+    sheet = book.create_sheet("Bank rules")
+    sheet.append(["Rule", "When the bank line contains", "Account", "Xero tax rate", "Status", "Since", "Note"])
+    for r in rules:
+        sheet.append([cell(v) for v in (r["id"], r["match"], ", ".join(r["accounts"]), r["tax_rate"],
+                                        r["status"], r["ended"] or r["created"], r["note"] or r["ended_reason"] or "")])
+    style.as_table(sheet, "BankRules", widths={"Rule": 8, "When the bank line contains": 30, "Account": 32,
+                                                "Xero tax rate": 18, "Status": 10, "Since": 12, "Note": 40})
 
 
 def build(db_path, start, end, output):
@@ -173,12 +190,21 @@ def build(db_path, start, end, output):
         gst = gst_rows(db, start, end)
         runs, data["payg"] = payg_runs(db, start, end)
         transactions = proposal_store.transaction_rows(db, start, end)
+        rules = bank_rules.rows(db) if db.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='bank_rules'").fetchone() else []
     book = Workbook()
     book.remove(book.active)
     bas_sheet(book, data, gst)
     gst_sheet(book, gst)
+    reports.gst_audit_sheet(book, gst, GST_HEADERS)
     payg_sheet(book, runs)
     proposal_store.transaction_sheets(book, transactions, "By payee", payee_last=True)
+    if rules:
+        rules_sheet(book, rules)
+    with closing(bas_dashboard.read_only(db_path)) as db:
+        reports.pnl_sheet(book, db, start, end)
+        reports.balance_sheet_sheet(book, db, end)
+        reports.trial_balance_sheet(book, db, end)
     book.active = 0
     output.parent.mkdir(parents=True, exist_ok=True)
     book.save(output)

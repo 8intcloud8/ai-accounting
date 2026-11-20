@@ -14,6 +14,7 @@ from datetime import date
 from pathlib import Path
 import bas_labels
 import chart
+import lock_date
 from chart import BANK, GST, PAYABLES, RECEIVABLES
 import supplier_links
 import transaction_purpose
@@ -471,6 +472,9 @@ def post_journal(path, payload, connect):
     with closing(connect(path)) as db, db:
         db.row_factory = sqlite3.Row
         db.execute("BEGIN IMMEDIATE")
+        lock_date.check(db, posting_day)
+        if isinstance(tax.get("attribution_date"), str):
+            lock_date.check(db, tax["attribution_date"], "GST attribution")
         p = profile(db)
         if (
             status == "reviewed"
@@ -836,6 +840,7 @@ def reverse_journal(path, payload, connect):
         row = db.execute("SELECT * FROM journals WHERE id=?", (ident,)).fetchone()
         if row is None or row["reverses_id"] is not None:
             raise ValueError("Original journal required")
+        lock_date.check(db, row["date"], "reversal")
         if db.execute(
             "SELECT 1 FROM journals WHERE reverses_id=?", (ident,)
         ).fetchone():
@@ -1612,13 +1617,21 @@ def add_commands(sub):
         "save-payg-withholding",
         "link-supplier-payments",
         "review-transaction-purpose",
+        "save-bank-rule",
+        "end-bank-rule",
+        "set-lock-date",
+        "recode",
+        "xero-link-bank",
+        "xero-mark-pushed",
     ):
         cmd = sub.add_parser(name)
         cmd.add_argument("--request", type=Path, required=True)
+    sub.add_parser("bank-rules", help="List bank rules, active and ended")
     cmd = sub.add_parser("apply-proposals-workbook")
     cmd.add_argument("--workbook", type=Path, required=True)
     for name in ("workflow-status", "prepare-bas", "tax-report", "bas-applicability", "proposals",
-                 "proposal-groups", "export-proposals", "export-transactions", "suggest-purpose"):
+                 "proposal-groups", "export-proposals", "export-transactions", "suggest-purpose",
+                 "apply-bank-rules", "xero-push-plan"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--start", required=True)
         cmd.add_argument("--end", required=True)
@@ -1659,10 +1672,41 @@ COMMANDS = {
     "link-supplier-payments",
     "review-transaction-purpose",
     "suggest-purpose",
+    "save-bank-rule",
+    "end-bank-rule",
+    "bank-rules",
+    "apply-bank-rules",
+    "set-lock-date",
+    "recode",
+    "xero-link-bank",
+    "xero-mark-pushed",
+    "xero-push-plan",
 }
 
 
 def dispatch(args, connect):
+    if args.command in ("xero-link-bank", "xero-mark-pushed", "xero-push-plan"):
+        import xero_push
+
+        if args.command == "xero-push-plan":
+            return xero_push.plan(args.db, *period(args.start, args.end), connect)
+        handler = xero_push.link_bank if args.command == "xero-link-bank" else xero_push.mark_pushed
+        return handler(args.db, read_request(args.request), connect)
+    if args.command == "recode":
+        import recode
+
+        return recode.recode(args.db, read_request(args.request), connect, post_journal, reverse_journal)
+    if args.command == "set-lock-date":
+        return lock_date.set_lock(args.db, read_request(args.request), connect, audit)
+    if args.command in ("save-bank-rule", "end-bank-rule", "bank-rules", "apply-bank-rules"):
+        import bank_rules
+
+        if args.command == "bank-rules":
+            return bank_rules.listing(args.db, connect)
+        if args.command == "apply-bank-rules":
+            return bank_rules.apply(args.db, *period(args.start, args.end), connect)
+        handler = bank_rules.save_rule if args.command == "save-bank-rule" else bank_rules.end_rule
+        return handler(args.db, read_request(args.request), connect)
     if args.command == "suggest-purpose":
         import purpose_signals
 

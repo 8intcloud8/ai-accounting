@@ -29,6 +29,12 @@ Run `scripts/accounting_store.py prepare-bas --start YYYY-MM-DD --end YYYY-MM-DD
 
 Present `bas_labels` (whole dollars with cents dropped, as the ATO requires; G1 includes GST), `lodgment_due` (standard self-lodger date; registered tax/BAS agents may have later dates), `warnings`, pending items, reconciliation status and source references. Purchase GST over $82.50 is only counted with a valid tax invoice; GST errors from earlier periods are not corrected here. Always identify output as a draft workpaper. `ready_for_review` means internal checks passed, not that a return has been lodged or professionally certified. Full BAS completion, special GST schemes and electronic lodgement are outside this version. Never turn partial subtotals into a final amount payable.
 
+## Lock date and recoding (like Xero)
+
+When the user says a BAS is lodged, offer once to lock the books to the period end: `scripts/accounting_store.py --db <db> set-lock-date --request '{"date": "<period end>", "reason": "<period> BAS lodged"}'`. Posting or reversing anything dated on or before the lock date is then refused. If a change to a locked period is truly needed, explain that it may mean revising the lodged BAS, and move the lock (`"date": null` or an earlier date, with a reason) only on the user's OK.
+
+For "move all X from account A to B" (Xero's find and recode), run `recode --request '{"from_account": "493", "to_account": "494", "match": "<word, optional>", "start": "...", "end": "..."}'` to list what would change, show the list, then repeat with `"confirm": true, "reason": "..."` on the user's OK. Each journal is reversed and posted again with the new account; GST, sources and invoice links are kept.
+
 ## Show the review table in Codex
 
 Open the generated draft BAS CSV returned by the reporting helper. State its draft/not-ready status and blockers in chat before interpreting any subtotals. Zero reviewed subtotals must not be described as a nil BAS when classifications or evidence are incomplete.

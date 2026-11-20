@@ -58,7 +58,8 @@ class MasterWorkbookTests(unittest.TestCase):
         self.temp.cleanup()
 
     def test_sheets_in_order(self):
-        self.assertEqual(self.book.sheetnames, ["BAS", "GST items", "PAYG withholding", "Transactions", "By payee"])
+        self.assertEqual(self.book.sheetnames, ["BAS", "GST items", "GST Audit", "PAYG withholding", "Transactions", "By payee",
+                                                "Profit and Loss", "Balance Sheet", "Trial Balance"])
 
     def test_bas_figures_are_plain_numbers_matching_the_dashboard(self):
         bas = self.book["BAS"]
@@ -79,6 +80,15 @@ class MasterWorkbookTests(unittest.TestCase):
         pending = next(r for r in rows if r["Status"] == "Pending")
         self.assertIsNone(pending["1B"])
         self.assertIn("ARN", pending["How to resolve"])
+
+    def test_lines_show_xero_tax_rates(self):
+        sheet = self.book["GST items"]
+        header = [c.value for c in sheet[1]]
+        rates = {r[1]: r[header.index("Xero tax rate")] for r in sheet.iter_rows(min_row=2, values_only=True)}
+        self.assertEqual(rates["sale-1"], "GST on Income")
+        self.assertEqual(rates["openai"], "Not decided yet")  # still pending
+        txn = self.book["Transactions"]
+        self.assertIn("Xero tax rate", [c.value for c in txn[1]])
 
     def test_gst_items_leave_out_personal_lines(self):
         refs = [r[1] for r in self.book["GST items"].iter_rows(min_row=2, values_only=True)]

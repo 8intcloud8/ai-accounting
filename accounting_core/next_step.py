@@ -22,6 +22,7 @@ WRITE_COMMANDS = frozenset({
     "reconcile-account", "repair-sources", "complete-step", "configure-reporting", "review-document",
     "save-bas-applicability", "save-bas-registrations", "complete-bas-task", "save-proposals",
     "decide-proposals", "apply-proposals-workbook", "save-payg-withholding",
+    "save-bank-rule", "end-bank-rule", "apply-bank-rules", "set-lock-date", "recode",
 })
 LINE_LIMIT = 320
 KEEP_GOING = (

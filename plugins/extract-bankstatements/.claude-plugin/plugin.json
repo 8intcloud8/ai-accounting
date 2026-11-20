@@ -1,6 +1,6 @@
 {
   "name": "extract-bankstatements",
   "displayName": "Bank Statement Extractor",
-  "version": "1.3.67",
+  "version": "1.3.68",
   "description": "Extract and validate bank statements into CSV and local SQLite storage."
 }

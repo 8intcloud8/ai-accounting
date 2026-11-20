@@ -1,6 +1,6 @@
 ---
 name: manage-accounting
-description: Walk the user through a BAS or tax period step by step - setup, bank statements, invoices, transaction review (grouped in chat and in Excel), payroll/BAS items, reconciliation and the BAS draft - showing each result and waiting for the user before moving on. Also saves lasting facts the user asks to remember, such as a supplier always being personal.
+description: Walk the user through a BAS or tax period step by step - setup, bank statements, invoices, transaction review (grouped in chat and in Excel), payroll/BAS items, reconciliation and the BAS draft - showing each result and waiting for the user before moving on. Also saves lasting facts the user asks to remember, such as a supplier always being personal, Xero-style reports (Profit and Loss, Balance Sheet), locking a lodged period, and sending the books to the user's Xero.
 ---
 
 ## How to work (default)
@@ -30,13 +30,23 @@ Keep each message short: what you did, what needs the user, then the questions. 
 
 ## BAS dashboard and workbook
 
-Every command that changes the books rewrites two files for the period in `<workspace>/output/BAS live/<start> to <end>/`: `Dashboard.html` (next action, GST to pay, transactions, what is still to do) and `BAS workbook.xlsx`, the master workbook: its BAS sheet shows every dashboard figure as a plain amount with where it comes from, its GST items sheet lists the Business and Shared GST lines behind them, then Transactions and By payee. The paths come back in `next_step.live`. `show_bas` rewrites both files too, so after showing it the workbook is current.
+Every command that changes the books rewrites two files for the period in `<workspace>/output/BAS live/<start> to <end>/`: `Dashboard.html` (next action, GST to pay, transactions, what is still to do) and `BAS workbook.xlsx`, the master workbook: its BAS sheet shows every dashboard figure as a plain amount with where it comes from, its GST items sheet lists the Business and Shared GST lines behind them, then GST Audit (lines grouped by Xero tax rate), Transactions, By payee, Bank rules, and Xero's Profit and Loss, Balance Sheet and Trial Balance. Use these for "show my P&L" or "balance sheet" questions. The paths come back in `next_step.live`. `show_bas` rewrites both files too, so after showing it the workbook is current.
 
 - When the user asks "where am I up to", "show my BAS", "the dashboard" or for the figures, call the `show_bas` tool (from the bas MCP server, with the workspace and period). It shows an interactive BAS view inline in the chat: amount to pay, G1/1A/1B/W2, transactions by status with a searchable table, what is next and still to do; its buttons send messages to this chat. After calling it, add at most one sentence; never repeat its numbers. Show it again when you present the BAS draft. Only if `show_bas` is unavailable, run `python3 scripts/bas_dashboard.py --db <workspace>/db/accounting.db --start <start> --end <end> --chat` and paste its `markdown` as given.
 - Whenever the user wants to see transactions in Excel, link the live `BAS workbook.xlsx` and say it is rewritten after every change; if it is already open in Excel, close and reopen it to see the latest.
 - The view's Transactions tab is editable: the user picks a category and presses Save. Same-kind swaps (expense to expense, income to income) save straight to the books: a posted journal is reversed and reposted to the new account, a proposal is approved with it; GST is unchanged. Every other change arrives here as a message "Change the category of these transactions as I chose in the BAS view…": make each change through the owning skills, working out the GST from the evidence and current ATO guidance (reverse and repost a posted journal; never edit it), then show the view again.
 - The page's **Copy for Codex** button gives the user a message to paste here. Treat a pasted message as a normal request.
 - Never restate the dashboard's contents in chat unless asked.
+
+## Lock date and recoding (like Xero)
+
+When the user says a BAS is lodged, offer once to lock the books to the period end: `scripts/accounting_store.py --db <db> set-lock-date --request '{"date": "<period end>", "reason": "<period> BAS lodged"}'`. Posting or reversing anything dated on or before the lock date is then refused. If a change to a locked period is truly needed, explain that it may mean revising the lodged BAS, and move the lock (`"date": null` or an earlier date, with a reason) only on the user's OK.
+
+For "move all X from account A to B" (Xero's find and recode), run `recode --request '{"from_account": "493", "to_account": "494", "match": "<word, optional>", "start": "...", "end": "..."}'` to list what would change, show the list, then repeat with `"confirm": true, "reason": "..."` on the user's OK. Each journal is reversed and posted again with the new account; GST, sources and invoice links are kept.
+
+## Push to Xero
+
+When the user wants the books in their own Xero ("send this to Xero", "move to Xero"), read `references/push-to-xero.md` and follow it. Coded bank lines go across as Spend and Receive Money with Xero account codes and tax rates; each is sent once.
 
 ## Autopilot (testing or on request only)
 

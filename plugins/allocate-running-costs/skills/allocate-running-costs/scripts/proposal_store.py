@@ -4,6 +4,7 @@ import json
 import chart
 import supplier_links
 import transaction_purpose
+import xero_tax
 from contextlib import closing
 
 PROPOSAL_SCHEMA = """
@@ -178,6 +179,15 @@ def main_account(journal):
                  if chart.current(l["account"]) not in CONTROL_ACCOUNTS), "")
 
 
+def journal_rate(journal):
+    """Xero tax rate name of a proposed journal."""
+    gst = journal.get("gst") or {}
+    if not gst.get("label"):
+        return ""
+    return xero_tax.rate(gst["label"], gst.get("gst_cents"), gst.get("status", "pending"),
+                         [l["account"] for l in journal.get("lines", [])])[0]
+
+
 def treatment(journal):
     gst = journal.get("gst") or {}
     return f"{main_account(journal)} · GST {gst.get('label', '?')}" + (
@@ -254,14 +264,14 @@ def export_workbook(path, start, end, output, connect):
         summary.append([cell(g["example"]), g["count"], g["money_out"], g["money_in"], cell(g["treatment"]),
                         cell("; ".join(g["reasons"])[:300])])
     review = book.create_sheet("Review")
-    headers = ["Proposal", "Date", "Description", "Money out", "Money in", "Account", "GST label",
+    headers = ["Proposal", "Date", "Description", "Money out", "Money in", "Account", "Xero tax rate",
                "GST $", "Why", "ATO source", "Decision", "New account", "Note", "check"]
     review.append(headers)
     for pid, day, text, out, into, journal_json, reason in rows:
         journal = json.loads(journal_json)
         gst = journal.get("gst") or {}
         review.append([pid, day, cell(text), out / 100 or None, into / 100 or None, cell(main_account(journal)),
-                       cell(gst.get("label")), (gst["gst_cents"] / 100) if isinstance(gst.get("gst_cents"), int) else None,
+                       cell(journal_rate(journal)), (gst["gst_cents"] / 100) if isinstance(gst.get("gst_cents"), int) else None,
                        cell(reason), cell(source_text(journal)), None, None, None, digest(journal_json)])
     letter = {name: get_column_letter(i + 1) for i, name in enumerate(headers)}
     choice = DataValidation(type="list", formula1='"' + ",".join(DECISIONS) + '"', allow_blank=True)
@@ -273,7 +283,7 @@ def export_workbook(path, start, end, output, connect):
         "Payee group": 44, "Transactions": 13, "Money out": 14, "Money in": 14, "Proposed treatment": 24, "Why": 60})
     style.as_table(review, "Review", money=("Money out", "Money in", "GST $"), wrap=("Why", "ATO source"), widths={
         "Proposal": 10, "Date": 12, "Description": 44, "Money out": 13, "Money in": 13, "Account": 10,
-        "GST label": 11, "GST $": 10, "Why": 46, "ATO source": 40, "Decision": 12, "New account": 13, "Note": 30})
+        "Xero tax rate": 18, "GST $": 10, "Why": 46, "ATO source": 40, "Decision": 12, "New account": 13, "Note": 30})
     edit = PatternFill("solid", fgColor="FFF2CC")
     first, last = headers.index("Decision") + 1, headers.index("Note") + 1
     for row in review.iter_rows(min_row=2, min_col=first, max_col=last):
@@ -289,7 +299,7 @@ def export_workbook(path, start, end, output, connect):
 
 
 TRANSACTION_HEADERS = ["ID", "Date", "Bank account", "Description", "Money out", "Money in", "Status",
-                       "Category", "GST label", "GST $", "Why", "Purpose"]
+                       "Category", "Xero tax rate", "GST $", "Why", "Purpose"]
 
 
 def transaction_rows(db, start, end, ids=None):
@@ -298,7 +308,7 @@ def transaction_rows(db, start, end, ids=None):
     label = lambda code: f"{code} {names.get(code, '')}".strip() if code else ""  # noqa: E731
     rows = db.execute(
         "SELECT t.id,t.date,t.account_id,t.description,t.debit_cents,t.credit_cents,j.id,"
-        "g.label,g.gst_cents,p.journal_json,p.reason FROM transactions t "
+        "g.label,g.gst_cents,p.journal_json,p.reason,g.status FROM transactions t "
         "LEFT JOIN journals j ON j.transaction_id=t.id LEFT JOIN gst_items g ON g.journal_id=j.id "
         "LEFT JOIN proposals p ON p.transaction_id=t.id AND p.status='proposed' "
         "WHERE t.date BETWEEN ? AND ? ORDER BY t.date,t.id", (start, end)).fetchall()
@@ -307,34 +317,38 @@ def transaction_rows(db, start, end, ids=None):
     link_rows = supplier_links.valid_links(db)
     wanted = set(ids) if ids else None
     result = []
-    for tid, day, account, text, out, into, jid, glabel, gcents, proposal, reason in rows:
+    for tid, day, account, text, out, into, jid, glabel, gcents, proposal, reason, gstatus in rows:
         if wanted is not None and tid not in wanted:
             continue
+        rate = ""
         if jid:
-            code = next((c for (c,) in db.execute(
-                "SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (jid,))
-                if chart.current(c) not in CONTROL_ACCOUNTS), "")
+            accounts = [c for (c,) in db.execute(
+                "SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (jid,))]
+            code = next((c for c in accounts if chart.current(c) not in CONTROL_ACCOUNTS), "")
             status, why = "Classified", ""
+            rate = xero_tax.rate(glabel, gcents, gstatus, accounts)[0] if glabel else xero_tax.BAS_EXCLUDED[0]
         elif tid in purposes and purposes[tid]["outside_bas"]:
             code, status, glabel, gcents = "", "Classified", "excluded", 0
+            rate = xero_tax.BAS_EXCLUDED[0]
             why = f"Shared {purposes[tid]['category']}; retained outside this BAS. Business percentage not determined; no current-period expense or GST claim." if purposes[tid]["purpose"] == "Shared" else "User-reviewed purpose; retained outside this BAS. No new expense/GST."
         elif tid in linked:
             links = [r for r in link_rows if r["transaction_id"] == tid]
             code = next((c for (c,) in db.execute("SELECT account_code FROM journal_lines WHERE journal_id=? ORDER BY line_no", (links[0]["journal_id"],)) if chart.current(c) not in CONTROL_ACCOUNTS), "")
             status, glabel, gcents = "Classified", "excluded", 0
+            rate = xero_tax.BAS_EXCLUDED[0]
             why = "Verified personal-card supplier payment; expense/GST already recorded in journal(s) " + ", ".join(str(r["journal_id"]) for r in links) + ". No company reimbursement or additional GST."
         elif proposal:
             journal = json.loads(proposal)
             code, gst = main_account(journal), journal.get("gst") or {}
             glabel, gcents = gst.get("label"), gst.get("gst_cents")
-            status, why = "Proposed", reason
+            status, why, rate = "Proposed", reason, journal_rate(journal)
         else:
             code, status, why = "", "Not classified", ""
         purpose = purposes[tid]["purpose"] if tid in purposes else ("Business" if tid in linked or (jid and code and chart.current(code) not in chart.OWNER_ACCOUNTS) else "Personal" if jid and chart.current(code) in chart.OWNER_ACCOUNTS else "")
         category = purposes[tid]["category"] if tid in purposes and purposes[tid]["outside_bas"] else label(code)
         # Every text column can carry bank or proposal text: escape them all, not a chosen few.
         result.append([cell(v) for v in (tid, day, account, text, out / 100 or None, into / 100 or None,
-                                         status, category, glabel,
+                                         status, category, rate,
                                          gcents / 100 if isinstance(gcents, int) else None, why, purpose)])
     return result
 
@@ -366,7 +380,7 @@ def transaction_sheets(book, rows, summary_title, payee_last=False):
         sheet.append(row)
     letter = style.as_table(sheet, "Transactions", money=("Money out", "Money in", "GST $"), wrap=("Why",), widths={
         "ID": 8, "Date": 12, "Bank account": 18, "Description": 46, "Money out": 13, "Money in": 13,
-        "Status": 15, "Category": 26, "GST label": 11, "GST $": 10, "Why": 50, "Purpose": 14})
+        "Status": 15, "Category": 26, "Xero tax rate": 18, "GST $": 10, "Why": 50, "Purpose": 14})
     style.colour_status(sheet, letter["Status"], sheet.max_row)
     if payee_last:
         payee_sheet()

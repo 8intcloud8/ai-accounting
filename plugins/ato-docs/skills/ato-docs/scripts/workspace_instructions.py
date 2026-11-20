@@ -20,6 +20,8 @@ Work like Claude Code: do all the work the records support without asking permis
 - Never ask "shall I…" for work you can do, and never end with a promise such as "I'll continue with…".
 - On Windows, run `python3` commands as `py -3` (or `python` if `py` is missing).
 - When the user states a lasting fact ("Aldi is always personal"), save it in case memory with manage-accounting's `references/case-workflow.md` (a supplier's purpose is topic `supplier.<name>.purpose`), never as a loose note file.
+- When the user says a confirmed transaction should always be coded that way, make a bank rule from its journal (classify-transactions `save-bank-rule`). Run `apply-bank-rules` before classifying a period.
+- To send the books to the user's Xero, follow manage-accounting's `references/push-to-xero.md`; never send without the user's OK.
 {END}
 """
 
