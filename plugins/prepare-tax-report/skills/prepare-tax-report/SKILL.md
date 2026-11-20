@@ -23,6 +23,8 @@ On Windows, run every `python3` command in this skill as `py -3` (or `python` if
 
 Resolve entity and financial-year dates. Run `scripts/accounting_store.py tax-report --start YYYY-MM-DD --end YYYY-MM-DD` against the selected workspace. Show account balances, unresolved classifications and saved CSV/JSON.
 
+The result also has `tax_return`: each account's year total on its return label (sole trader: business schedule P8; company: item 6), from the 2026 ATO instructions in the ATO library, and `tax_return_workbook`, an Excel file with the labels to copy into the return and the accounts behind them. Show the labels and totals in the chat, then go through every `checks` item with the user (for example consultants versus accountants, entertainment add-back, tax depreciation, car method). Pass on `warning` when present. Trusts and partnerships get no labels yet; say so.
+
 This is an accounting workpaper, not a tax payable calculation or lodged return. Separately review capital assets/depreciation, non-deductible items, private use, reimbursements, losses and entity-specific tax adjustments using current ATO guidance. Keep company and individual returns distinct. Income-tax and GST timing can differ; do not relabel cash movements as accrual profit.
 
 Do not claim a complete income statement or balance sheet without opening balances and all accrual/adjustment entries. Record tax_adjustments completion only after an actual documented review, and retain outstanding unsupported calculations explicitly.

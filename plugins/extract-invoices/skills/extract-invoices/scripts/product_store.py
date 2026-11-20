@@ -1409,8 +1409,12 @@ def report(path, kind, start, end, connect):
                     (start, end),
                 )
             ]
+            import tax_labels
+
+            result["tax_return"] = tax_labels.summary(db, start, end, p["entity_type"])
             result["scope"] = (
-                "Bookkeeping trial balance and income/expense workpaper; no tax payable calculation or tax-return lodgement"
+                "Bookkeeping trial balance, income/expense workpaper and tax return labels from the books; "
+                "no tax payable calculation or tax-return lodgement"
             )
         result["ready_for_review"] = not result["blockers"]
         encoded = json.dumps(result, sort_keys=True)
@@ -1424,6 +1428,14 @@ def report(path, kind, start, end, connect):
     filename = folder / f"{kind}-{start}-{end}-{digest[:12]}.json"
     if not filename.exists():
         filename.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    if kind == "tax":
+        import tax_labels
+
+        labels = filename.with_name(f"tax-return-labels-{start}-{end}-{digest[:12]}.xlsx")
+        if not labels.exists():
+            with closing(connect(path)) as db:
+                tax_labels.workbook(db, start, end, p["entity_type"], labels)
+        result["tax_return_workbook"] = str(labels)
     csv_path = filename.with_suffix(".csv")
     if not csv_path.exists():
         with csv_path.open("x", newline="", encoding="utf-8") as handle:
