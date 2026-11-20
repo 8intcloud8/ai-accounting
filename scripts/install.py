@@ -54,13 +54,13 @@ def parse_args():
     if not (args.workspace / "db/accounting.db").exists() and not args.profile:
         parser.error("--profile required for a new workspace")
     if args.profile:
-        json.loads(args.profile.read_text())
+        json.loads(args.profile.read_text(encoding="utf-8"))
     return args
 
 
 def plugin_names(local_only):
     names = [
-        json.loads(p.read_text())["name"]
+        json.loads(p.read_text(encoding="utf-8"))["name"]
         for p in sorted((ROOT / "plugins").glob("*/.codex-plugin/plugin.json"))
     ]
     return [n for n in names if not (local_only and n in EMAIL_PLUGINS)]
@@ -68,7 +68,7 @@ def plugin_names(local_only):
 
 def planned_config(config, plugins):
     """Codex config with the marketplace and plugins added. Refuses conflicting installs."""
-    old = config.read_text() if config.exists() else ""
+    old = config.read_text(encoding="utf-8") if config.exists() else ""
     existing = tomllib.loads(old)
     updated = old
     source = existing.get("marketplaces", {}).get(MARKETPLACE, {}).get("source")
@@ -103,7 +103,7 @@ def install_dependencies(codex_home, local_only):
 
 def write_json(path, value, private=False):
     temp = path.with_suffix(".tmp")
-    temp.write_text(json.dumps(value, indent=2) + "\n")
+    temp.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
     if private:
         temp.chmod(0o600)
     temp.replace(path)
@@ -117,7 +117,7 @@ def register_workspace(codex_home, workspace):
     if (workspace / "db/accounting.db").exists():
         workspace_instructions.ensure(workspace)
     registry = codex_home / "accounting-workspaces.json"
-    known = json.loads(registry.read_text()) if registry.exists() else {"workspaces": []}
+    known = json.loads(registry.read_text(encoding="utf-8")) if registry.exists() else {"workspaces": []}
     if str(workspace) not in known["workspaces"]:
         known["workspaces"].append(str(workspace))
         write_json(registry, known)
@@ -173,7 +173,7 @@ def main():
     register_workspace(args.codex_home, args.workspace)
     if args.register_only:
         temp = config.with_suffix(".accounting.tmp")
-        temp.write_text(updated)
+        temp.write_text(updated, encoding="utf-8")
         temp.replace(config)
     else:
         install_plugins(args.codex, args.codex_home, plugins)

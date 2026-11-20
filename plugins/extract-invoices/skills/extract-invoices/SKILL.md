@@ -17,6 +17,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Extract bills and invoices
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 
 
 SQLite is internal assistant memory. Users provide documents, not database setup. This skill uses the same automatically managed `the selected workspace’s `db/accounting.db` (legacy fallback: `~/.ai-accounting/accounting.db`)` as bank imports; pass `--db` for the workspace chosen in this chat on every command.

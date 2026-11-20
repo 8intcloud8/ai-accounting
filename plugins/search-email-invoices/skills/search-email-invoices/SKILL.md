@@ -29,6 +29,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # search-email-invoices
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 Find every bill, invoice and receipt in Gmail for a period, show them in one checklist inline in the chat, and save the ones the user selects into the accounting workspace.
 
 ## Output rules

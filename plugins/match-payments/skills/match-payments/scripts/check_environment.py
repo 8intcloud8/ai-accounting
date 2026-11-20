@@ -31,10 +31,17 @@ NODE_PLACES = (
     "~/.local/bin/node",
     "~/.volta/bin/node",
     "~/n/bin/node",
+    os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "nodejs", "node.exe"),
+    os.path.join(os.environ.get("APPDATA", "~"), "nvm", "nodejs", "node.exe"),
 )
+WINDOWS = os.name == "nt"
 PYTHON_HELP = (
     "This computer's Python is too old (found {found}; 3.11 or newer is needed). "
     "Download and install Python from https://www.python.org/downloads/ , then start a new chat."
+)
+SERVERS_HELP = (
+    "On Windows the BAS view and email features need a one-off Codex setting "
+    "(no download). After it, quit and reopen Codex."
 )
 NODE_HELP = (
     "Node.js is not installed. Finding and saving invoices from email needs it; everything "
@@ -65,7 +72,10 @@ def private_folder():
 
 def activate():
     """Make privately installed packages importable. Safe to call when none exist."""
-    for path in glob.glob(os.path.join(private_folder(), "lib", "python*", "site-packages")):
+    folder = private_folder()
+    places = glob.glob(os.path.join(folder, "lib", "python*", "site-packages"))
+    places += glob.glob(os.path.join(folder, "Lib", "site-packages"))  # Windows layout
+    for path in places:
         if path not in sys.path:
             site.addsitedir(path)
 
@@ -107,13 +117,20 @@ def status():
         )
     if not node:
         messages.append(NODE_HELP)
+    servers_ok = True
+    if WINDOWS and python_ok:
+        import windows_mcp
+        servers_ok = windows_mcp.status()
+        if not servers_ok:
+            messages.append(SERVERS_HELP)
     return {
-        "ready": python_ok and not missing,
+        "ready": python_ok and not missing and servers_ok,
         "python": sys.executable,
         "python_version": "%d.%d.%d" % sys.version_info[:3],
         "python_ok": python_ok,
         "missing_packages": missing,
-        "can_install_packages": python_ok and bool(missing),
+        "can_install_packages": python_ok and (bool(missing) or not servers_ok),
+        "windows_servers_ok": servers_ok,
         "email_ready": bool(node),
         "node": node,
         "messages": messages,
@@ -125,10 +142,14 @@ def install():
     before = status()
     if not before["python_ok"]:
         raise SystemExit(before["messages"][0])
+    restart = False
+    if not before["windows_servers_ok"]:
+        import windows_mcp
+        restart = windows_mcp.apply()
     if not before["missing_packages"]:
-        return before
+        return dict(status(), restart_codex=restart)
     folder = private_folder()
-    python = os.path.join(folder, "bin", "python")
+    python = os.path.join(folder, "Scripts", "python.exe") if WINDOWS else os.path.join(folder, "bin", "python")
     try:
         if not os.path.exists(python):
             subprocess.run([sys.executable, "-m", "venv", folder], check=True)
@@ -143,7 +164,7 @@ def install():
             "try again; if it was blocked, allow this one command to use the network and "
             "write to %s." % (error, folder)
         ) from error
-    after = status()
+    after = dict(status(), restart_codex=restart)
     if after["missing_packages"]:
         raise SystemExit("Installed, but still cannot load: " + ", ".join(after["missing_packages"]))
     return after

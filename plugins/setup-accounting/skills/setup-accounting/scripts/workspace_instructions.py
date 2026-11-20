@@ -18,6 +18,8 @@ Work like Claude Code: do all the work the records support without asking permis
 - Commands that change the books return `next_step`: when `keep_going` is true, do `do_next` now; when false, ask everything you need in one message and end with `end_your_reply_with`.
 - Never show step numbers, step lists or progress summaries. Results and decisions go in the chat.
 - Never ask "shall I…" for work you can do, and never end with a promise such as "I'll continue with…".
+- On Windows, run `python3` commands as `py -3` (or `python` if `py` is missing).
+- When the user states a lasting fact ("Aldi is always personal"), save it in case memory with manage-accounting's `references/case-workflow.md` (a supplier's purpose is topic `supplier.<name>.purpose`), never as a loose note file.
 {END}
 """
 
@@ -36,10 +38,10 @@ def merged(existing: str) -> str:
 def ensure(root: Path) -> Path:
     """Write or refresh the block in `<root>/AGENTS.md`. Returns the file path."""
     target = Path(root) / "AGENTS.md"
-    existing = target.read_text() if target.exists() else ""
+    existing = target.read_text(encoding="utf-8") if target.exists() else ""
     updated = merged(existing)
     if updated != existing:
         temp = target.with_name(".AGENTS.md.tmp")
-        temp.write_text(updated)
+        temp.write_text(updated, encoding="utf-8")
         temp.replace(target)
     return target

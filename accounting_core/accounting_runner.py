@@ -5,7 +5,6 @@ problems, runs the skill for the first one a worker can fix, then reads again.
 """
 
 import argparse
-import fcntl
 import json
 import os
 import signal
@@ -16,6 +15,12 @@ import sqlite3
 from contextlib import closing
 
 import check_environment
+
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
 
 OUTCOMES = ["continue", "needs_user", "needs_approval", "environment", "error"]
 PARKED = ("needs_user", "needs_approval", "environment")
@@ -100,29 +105,48 @@ def mark(state, code):
     return [(p["text"], p["count"]) for p in state["problems"] if p["code"] == code]
 
 
+def lock_workspace(lock):
+    """Hold an exclusive lock on the open file; False when another runner has it."""
+    try:
+        if fcntl:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else:
+            msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+        return True
+    except OSError:
+        return False
+
+
+def kill_tree(process):
+    """Stop the worker and anything it started (report servers, codex children)."""
+    try:
+        if fcntl:
+            os.killpg(process.pid, signal.SIGKILL)
+        else:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                           capture_output=True, check=False)
+    except ProcessLookupError:
+        pass
+
+
 def execute(command, stream, timeout):
     process = subprocess.Popen(
         command,
         stdout=stream,
         stderr=subprocess.STDOUT,
-        start_new_session=True,
+        start_new_session=bool(fcntl),
+        creationflags=0 if fcntl else subprocess.CREATE_NEW_PROCESS_GROUP,
         env=dict(os.environ, ACCOUNTING_RUNNER_CHILD="1"),
     )
     try:
         code = process.wait(timeout=timeout)
     except BaseException:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        kill_tree(process)
         process.wait()
         raise
     # Successful turns may intentionally leave read-only report servers running.
     if code:
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        kill_tree(process)
     return code
 
 
@@ -135,17 +159,15 @@ def run(workspace, request, codex, max_turns=40, timeout=900):
     goal = request.get("goal") or "bas"
     directory = root / "output" / "runner"
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-    lock = (directory / "runner.lock").open("a")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
+    lock = (directory / "runner.lock").open("a", encoding="utf-8")
+    if not lock_workspace(lock):
         lock.close()
         raise ValueError("A runner already owns this workspace") from None
     try:
         folder = directory / (time.strftime("%Y%m%d-%H%M%S") + "-" + str(os.getpid()))
         folder.mkdir(mode=0o700)
         schema = folder / "response-schema.json"
-        schema.write_text(json.dumps(SCHEMA))
+        schema.write_text(json.dumps(SCHEMA), encoding="utf-8")
         history, parked = [], set()
         notes = {name: [] for name in PARKED}
 
@@ -158,7 +180,7 @@ def run(workspace, request, codex, max_turns=40, timeout=900):
                 "turns": history,
                 "run_folder": str(folder),
             }
-            (folder / "result.json").write_text(json.dumps(result, indent=2))
+            (folder / "result.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
             return result
 
         state = read_state(root, request)
@@ -192,7 +214,7 @@ def run(workspace, request, codex, max_turns=40, timeout=900):
             )
             print(json.dumps({"turn": turn, "action": action, "run_folder": str(folder)}), flush=True)
             try:
-                with log.open("w") as stream:
+                with log.open("w", encoding="utf-8") as stream:
                     code = execute(
                         [codex, "exec", "--ephemeral", *SANDBOX, "-C", str(root),
                          "--skip-git-repo-check", "--output-schema", str(schema),
@@ -202,7 +224,7 @@ def run(workspace, request, codex, max_turns=40, timeout=900):
                     )
                 if code:
                     return finish("error", state, f"Codex exited {code}; inspect {log}")
-                output = json.loads(response.read_text())
+                output = json.loads(response.read_text(encoding="utf-8"))
                 if (
                     output.get("outcome") not in OUTCOMES
                     or not isinstance(output.get("questions"), list)
@@ -216,7 +238,7 @@ def run(workspace, request, codex, max_turns=40, timeout=900):
             improved = cleared or mark(after, action["code"]) != mark(state, action["code"])
             history.append({"turn": turn, "action": action, "improved": improved,
                             "response": output, "log": str(log)})
-            (folder / "progress.json").write_text(json.dumps(history, indent=2))
+            (folder / "progress.json").write_text(json.dumps(history, indent=2), encoding="utf-8")
             if output["outcome"] == "error":
                 return finish("error", after, output["message"])
             if output["outcome"] in PARKED:

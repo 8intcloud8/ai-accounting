@@ -27,6 +27,7 @@ class WorkspaceInstructionsTests(unittest.TestCase):
         self.assertIn("keep_going", content)
         self.assertIn("I'll continue", content)
         self.assertIn(wi.START, content)
+        self.assertIn("supplier.<name>.purpose", content)  # lasting facts go to case memory
 
     def test_is_idempotent(self):
         wi.ensure(self.root)

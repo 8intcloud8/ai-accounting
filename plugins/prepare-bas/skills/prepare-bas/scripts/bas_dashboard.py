@@ -227,7 +227,7 @@ def refresh_live(db_path, start, end):
     folder.mkdir(parents=True, exist_ok=True)
     dashboard = folder / "Dashboard.html"
     temp = folder / ".Dashboard.html.tmp"
-    temp.write_text(render(snapshot(db_path, start, end)))
+    temp.write_text(render(snapshot(db_path, start, end)), encoding="utf-8")
     temp.replace(dashboard)
     import master_workbook
 

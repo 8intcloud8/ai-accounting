@@ -53,7 +53,7 @@ def build(root, output):
         manifest = plugin / ".codex-plugin/plugin.json"
         if not manifest.exists():
             raise ValueError(f"Missing Codex manifest: {plugin.name}")
-        metadata = json.loads(manifest.read_text())
+        metadata = json.loads(manifest.read_text(encoding="utf-8"))
         skills = list((plugin / "skills").glob("*/SKILL.md"))
         if len(skills) != 1:
             raise ValueError(f"Expected exactly one skill: {plugin.name}")
@@ -73,7 +73,7 @@ def build(root, output):
                 # ato-docs answers tax questions, so it also ships the original guides
                 # for links that open the PDF at the cited page.
                 if plugin.name == "ato-docs":
-                    for guide in json.loads(library.read_text())["guides"]:
+                    for guide in json.loads(library.read_text(encoding="utf-8"))["guides"]:
                         shutil.copy2(root / "ato-library" / guide["file"], bundled / guide["file"])
             elif bundled.exists():
                 shutil.rmtree(bundled)
@@ -90,7 +90,7 @@ def build(root, output):
                     indent=2,
                 )
                 + "\n"
-            )
+            , encoding="utf-8")
         category = metadata.get("interface", {}).get("category", "Productivity")
         # Codex's marketplace schema only recognizes ON_INSTALL/ON_USE; defer
         # auth for MCP plugins that need an external connection (e.g. Gmail).
@@ -118,7 +118,7 @@ def build(root, output):
             indent=2,
         )
         + "\n"
-    )
+    , encoding="utf-8")
     if output:
         output.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(
@@ -130,7 +130,7 @@ def build(root, output):
             f.name: hashlib.sha256(f.read_bytes()).hexdigest()
             for f in output.glob("*.zip")
         }
-        (output / "SHA256SUMS.json").write_text(json.dumps(checksums, indent=2) + "\n")
+        (output / "SHA256SUMS.json").write_text(json.dumps(checksums, indent=2) + "\n", encoding="utf-8")
     return {"plugins": len(entries), "runtime_modules": len(modules)}
 
 

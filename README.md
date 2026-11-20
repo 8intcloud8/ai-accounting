@@ -5,7 +5,9 @@ Do your bookkeeping and BAS by chatting with Codex. Give it your bank statements
 - Your files stay on your computer.
 - It never lodges anything. You or your accountant check it and lodge.
 
-**You need:** a Mac, the internet, and about 5 minutes.
+**You need:** a Mac or Windows PC, the internet, and about 5 minutes.
+
+**Windows only:** first install Python from [python.org/downloads](https://www.python.org/downloads/). In the installer, tick **Add python.exe to PATH**. A Mac needs nothing extra.
 
 ## Install
 
@@ -27,14 +29,14 @@ Download the Codex app from [openai.com/codex](https://openai.com/codex/) (or us
 
 ### 3. Start
 
-1. Quit Codex completely: press `⌘ Command` + `Q`.
+1. Quit Codex completely: on a Mac press `⌘ Command` + `Q`; on Windows close it and make sure it is gone from the system tray.
 2. Open Codex again and start a new chat.
 3. Type: **Set up my accounting**
 
-Codex asks a few questions about your business, then guides you. If it needs anything else on your Mac, it asks you first and installs it.
+Codex asks a few questions about your business, then guides you. If it needs anything else on your computer, it asks you first and installs it.
 
 <details>
-<summary>Can't find Plugins? Install with Terminal instead</summary>
+<summary>Can't find Plugins? Install with Terminal instead (Mac)</summary>
 
 1. Press `⌘ Command` + `Space`, type **Terminal**, press `Return`.
 2. Paste this line and press `Return`:
@@ -64,9 +66,10 @@ In **Plugins**, update the AI Accounting marketplace, then quit and reopen Codex
 
 ## Help
 
-- **Codex doesn't know about accounting:** quit Codex with `⌘ Command` + `Q`, open it again, start a new chat.
+- **Codex doesn't know about accounting:** quit Codex completely, open it again, start a new chat.
+- **Windows says Python was not found:** install it from [python.org/downloads](https://www.python.org/downloads/) with **Add python.exe to PATH** ticked, then restart Codex.
 - **Something else:** tell Codex in the chat, or [open an issue](https://github.com/8intcloud8/ai-accounting/issues). Never post your bank statements, invoices or tax details there.
 
-Treat the BAS as a draft for you or your accountant to check. Mac only for now.
+Treat the BAS as a draft for you or your accountant to check.
 
 Developers: see [DEVELOPERS.md](DEVELOPERS.md).

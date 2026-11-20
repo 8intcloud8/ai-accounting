@@ -127,7 +127,7 @@ def write_private_json(path: Path, value: dict) -> None:
     temp = path.with_name(f"{path.name}.{secrets.token_hex(6)}.tmp")
     descriptor = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     try:
-        with os.fdopen(descriptor, "w") as handle:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             json.dump(value, handle, indent=2)
         os.replace(temp, path)
     except BaseException:

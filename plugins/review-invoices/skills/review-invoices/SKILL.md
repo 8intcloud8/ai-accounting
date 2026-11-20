@@ -19,6 +19,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Review invoices
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 Review documents before `extract-invoices`. The goal is a useful, smaller set of
 source documents per transaction, not merely finding byte-identical files.
 This is document housekeeping;

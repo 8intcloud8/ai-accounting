@@ -363,7 +363,7 @@ def list_fixed(path: Path, business: str, output: Path | None = None) -> dict:
             "status",
             "issues",
         ]
-        with output.open("x", newline="") as handle:
+        with output.open("x", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
             writer.writeheader()
             writer.writerows({**r, "issues": "; ".join(r["issues"])} for r in results)

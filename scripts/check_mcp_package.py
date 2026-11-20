@@ -12,10 +12,10 @@ from pathlib import Path
 
 def validate(plugin: Path) -> dict:
     """Reject nonportable launch paths before a release can be produced."""
-    manifest = json.loads((plugin / '.codex-plugin/plugin.json').read_text())
+    manifest = json.loads((plugin / '.codex-plugin/plugin.json').read_text(encoding="utf-8"))
     if 'mcpServers' not in manifest:
         return {}
-    config = json.loads((plugin / manifest['mcpServers']).read_text())
+    config = json.loads((plugin / manifest['mcpServers']).read_text(encoding="utf-8"))
     servers = config['mcpServers']
     for name, server in servers.items():
         if 'command' not in server:

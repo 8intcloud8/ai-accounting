@@ -17,12 +17,14 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Set up Accounting
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 ## Check the computer first
 
 Before any question, run `python3 scripts/check_environment.py status` (paths are relative to this skill). It prints JSON; `messages` are already in plain words for the user.
 
 - `python_ok` false, or the command fails to start: give the Python message (download from python.org/downloads, then start a new chat) and stop.
-- `missing_packages` not empty: give its message and ask "OK to install?" On a yes, run `python3 scripts/check_environment.py install`. It needs the internet and writes to a private folder in the Codex home, so request approval for that one command. If it fails, pass on its message.
+- `missing_packages` not empty or `windows_servers_ok` false: give its message and ask "OK to install?" On a yes, run `python3 scripts/check_environment.py install`. It needs the internet and writes to a private folder in the Codex home, so request approval for that one command. If it fails, pass on its message. When it returns `restart_codex` true, tell the user to quit and reopen Codex, then continue.
 - `email_ready` false: give the Node message once. Email search and save stay unavailable until Node is installed; continue with everything else.
 - `ready` true: say nothing about the check and continue.
 

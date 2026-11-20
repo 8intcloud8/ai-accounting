@@ -17,6 +17,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Prepare BAS
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 
 
 If direct web-fetch fails, follow that reference's browser fallback before declaring official guidance unavailable. For an advice-only or read-only assessment, do not run reporting or save commands that write accounting records; use supplied facts as assumptions and identify any unverified client facts.

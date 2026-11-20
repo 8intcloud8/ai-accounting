@@ -17,6 +17,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Reconcile Accounts
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 
 
 Use source statements, imported transactions and posted classifications. Resolve the workspace and exact period; do not assume missing periods are complete. Inspect duplicates, omitted lines, refunds, transfers and unmatched documents.

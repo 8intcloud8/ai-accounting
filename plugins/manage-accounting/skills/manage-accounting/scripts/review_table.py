@@ -202,7 +202,7 @@ def save_request(table, request):
         "changes": changes,
         "reason": reason.strip(),
     }
-    with path.open("x") as handle:
+    with path.open("x", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2)
         handle.write("\n")
     path.chmod(0o600)

@@ -31,7 +31,7 @@ def load():
     path = library_dir() / MANIFEST
     if not path.exists():
         return []
-    return json.loads(path.read_text())["guides"]
+    return json.loads(path.read_text(encoding="utf-8"))["guides"]
 
 
 def _save(guides):
@@ -39,7 +39,7 @@ def _save(guides):
     folder.mkdir(parents=True, exist_ok=True)
     guides = sorted(guides, key=lambda g: (g["title"].lower(), g["sha256"]))
     tmp = folder / (MANIFEST + ".tmp")
-    tmp.write_text(json.dumps({"version": 1, "guides": guides}, indent=1, ensure_ascii=False) + "\n")
+    tmp.write_text(json.dumps({"version": 1, "guides": guides}, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     tmp.replace(folder / MANIFEST)
 
 

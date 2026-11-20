@@ -17,6 +17,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Match payments
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 
 
 Use shared local SQLite storage. Users do not configure a database. Retrieve records through the bundled helper at `scripts/accounting_store.py` (resolve relative to this skill directory).

@@ -82,7 +82,7 @@ def database(workspace=None):
         selector = codex_home() / "accounting-workspace.json"
         if not selector.exists():
             raise ValueError("No accounting workspace is chosen yet. Ask Codex to set up your accounting.")
-        workspace = json.loads(selector.read_text())["workspace"]
+        workspace = json.loads(selector.read_text(encoding="utf-8"))["workspace"]
     db = Path(workspace).expanduser().resolve() / "db" / "accounting.db"
     if not db.exists():
         raise ValueError(f"No accounting database in {db.parent.parent}")
@@ -173,7 +173,7 @@ def handle(message):
         elif method == "resources/read":
             if params.get("uri") != UI_URI:
                 raise KeyError("Unknown resource")
-            result = {"contents": [{"uri": UI_URI, "mimeType": UI_MIME, "text": PAGE.read_text(),
+            result = {"contents": [{"uri": UI_URI, "mimeType": UI_MIME, "text": PAGE.read_text(encoding="utf-8"),
                                     "_meta": {"ui": {"prefersBorder": True}}}]}
         elif method in ("resources/templates/list", "prompts/list"):
             result = {"resourceTemplates": []} if method.startswith("resources") else {"prompts": []}
@@ -185,6 +185,9 @@ def handle(message):
 
 
 def main():
+    # JSON-RPC is UTF-8 with bare newlines; Windows would default to cp1252 and \r\n.
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     for line in sys.stdin:
         if not line.strip():
             continue

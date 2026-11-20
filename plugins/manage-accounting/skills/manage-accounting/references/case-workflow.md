@@ -8,7 +8,7 @@ Reuse the explicitly selected workspace, business and dates. Resolve dates from 
 
 ## Learn from the user
 
-Use `scripts/memory_store.py --workspace <folder> history --entity <id> [--topic <key>]` before saving. Stable topic examples: `supplier.tpg.business_use`, `profile.gst_basis`, `preferences.review_format`. Save explicit new user facts without asking them to repeat confirmation. Store inferred/document-derived interpretations as provisional; do not label them user-confirmed.
+Use `scripts/memory_store.py --workspace <folder> history --entity <id> [--topic <key>]` before saving. Stable topic examples: `supplier.tpg.business_use`, `profile.gst_basis`, `preferences.review_format`. When the user says a supplier is always Business, Personal or Shared ("Aldi is personal"), save entity = the business_id, topic `supplier.<name>.purpose` (name in lower case, spaces as `_`, as it appears on statements), value the purpose, status `user_confirmed`. `suggest-purpose` then applies it to every matching card line from its effective date. Save explicit new user facts without asking them to repeat confirmation. Store inferred/document-derived interpretations as provisional; do not label them user-confirmed.
 
 `save --request <json>` requires entity, topic, value (JSON), status (`user_confirmed`, `provisional`, `withdrawn`), effective_from (ISO), optional effective_to (exclusive), source (user statement or evidence path), reason and expected_id (latest recorded topic ID, null for first fact). Corrections append revisions; stale expected IDs fail. Read back with `recall --entity <id> --on <date>`. Report what was remembered and where. Do not save secrets, full card numbers or TFNs.
 

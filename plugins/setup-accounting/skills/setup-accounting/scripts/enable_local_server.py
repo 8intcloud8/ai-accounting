@@ -57,18 +57,18 @@ def with_setting(text: str, on: bool) -> str:
 
 def status(home: Path) -> dict:
     config = home / "config.toml"
-    text = config.read_text() if config.exists() else ""
+    text = config.read_text(encoding="utf-8") if config.exists() else ""
     return {"on": is_on(text), "asked": (home / ASKED_FILE).exists(), "config": str(config)}
 
 
 def record_asked(home: Path) -> None:
     home.mkdir(parents=True, exist_ok=True)
-    (home / ASKED_FILE).write_text(json.dumps({"asked": True}) + "\n")
+    (home / ASKED_FILE).write_text(json.dumps({"asked": True}) + "\n", encoding="utf-8")
 
 
 def apply(home: Path, on: bool) -> dict:
     config = home / "config.toml"
-    text = config.read_text() if config.exists() else ""
+    text = config.read_text(encoding="utf-8") if config.exists() else ""
     try:
         updated = with_setting(text, on)
     except ValueError as error:
@@ -76,7 +76,7 @@ def apply(home: Path, on: bool) -> dict:
     if updated != text:
         home.mkdir(parents=True, exist_ok=True)
         temp = config.with_suffix(".local-server.tmp")
-        temp.write_text(updated)
+        temp.write_text(updated, encoding="utf-8")
         temp.replace(config)
     record_asked(home)
     return {**status(home), "changed": updated != text, "restart_codex": updated != text}

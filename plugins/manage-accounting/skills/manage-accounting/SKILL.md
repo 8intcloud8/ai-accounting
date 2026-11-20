@@ -1,6 +1,6 @@
 ---
 name: manage-accounting
-description: Walk the user through a BAS or tax period step by step - setup, bank statements, invoices, transaction review (grouped in chat and in Excel), payroll/BAS items, reconciliation and the BAS draft - showing each result and waiting for the user before moving on.
+description: Walk the user through a BAS or tax period step by step - setup, bank statements, invoices, transaction review (grouped in chat and in Excel), payroll/BAS items, reconciliation and the BAS draft - showing each result and waiting for the user before moving on. Also saves lasting facts the user asks to remember, such as a supplier always being personal.
 ---
 
 ## How to work (default)
@@ -55,6 +55,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 
 # Manage Accounting
+
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
 
 
 

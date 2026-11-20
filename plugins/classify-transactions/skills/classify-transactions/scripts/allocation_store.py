@@ -473,7 +473,7 @@ def export_allocations(path: Path, business: str, output: Path) -> dict:
         "gst_status",
         "issues",
     ]
-    with output.open("x", newline="") as handle:
+    with output.open("x", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)

@@ -47,9 +47,9 @@ def user_prompt(root, result, answers):
 
 def answer(root, result, answers, codex, folder, round_no, timeout):
     schema = folder / "user-schema.json"
-    schema.write_text(json.dumps(STOP_SCHEMA))
+    schema.write_text(json.dumps(STOP_SCHEMA), encoding="utf-8")
     response, log = folder / f"user-{round_no}.json", folder / f"user-{round_no}.log"
-    with log.open("w") as stream:
+    with log.open("w", encoding="utf-8") as stream:
         code = runner.execute(
             [codex, "exec", "--ephemeral", *runner.SANDBOX, "-C", str(root), "--skip-git-repo-check",
              "--output-schema", str(schema), "-o", str(response), user_prompt(root, result, answers)],
@@ -57,7 +57,7 @@ def answer(root, result, answers, codex, folder, round_no, timeout):
         )
     if code:
         raise RuntimeError(f"Simulated user turn exited {code}; inspect {log}")
-    return json.loads(response.read_text())
+    return json.loads(response.read_text(encoding="utf-8"))
 
 
 def simulate(workspace, request, answers, codex, rounds=8, turns=20, timeout=900):
@@ -81,7 +81,7 @@ def simulate(workspace, request, answers, codex, rounds=8, turns=20, timeout=900
             break
         last = entry["progress"]
         entry["user"] = answer(root, result, answers, codex, folder, round_no, timeout)
-    (folder / "report.json").write_text(json.dumps(report, indent=2))
+    (folder / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     return report
 
 
@@ -108,7 +108,7 @@ def main():
         parser.error("Codex is required: install Codex Desktop or the Codex CLI")
     request = {"start": args.start, "end": args.end, "goal": args.goal, "entity": None}
     try:
-        report = simulate(args.workspace, request, json.loads(answers_file(args).read_text()), codex,
+        report = simulate(args.workspace, request, json.loads(answers_file(args).read_text(encoding="utf-8")), codex,
                           args.rounds, args.turns)
     except (ValueError, RuntimeError, OSError) as exc:
         parser.exit(1, f"Simulation failed: {exc}\n")

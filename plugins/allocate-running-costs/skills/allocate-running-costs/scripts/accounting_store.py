@@ -404,7 +404,7 @@ def main() -> None:
                 if args.command == "export":
                     if args.output.resolve() == args.db.resolve():
                         raise ValueError("CSV output cannot overwrite database")
-                    with args.output.open("x", newline="") as handle:
+                    with args.output.open("x", newline="", encoding="utf-8") as handle:
                         writer = csv.writer(handle)
                         writer.writerow(
                             ["date", "description", "debit", "credit", "file"]

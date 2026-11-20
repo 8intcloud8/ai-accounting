@@ -17,6 +17,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Allocate running costs
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 
 
 Help calculate the business portion of running costs, considering both actual costs and the applicable ATO fixed-rate method. Produce a traceable calculation from bills, hours and usage evidence. Keep payment matching independent: a full bill can match a full payment even when only part relates to business. Read `references/user-workflow.md` for the user journey and expected report, `references/fixed-rate-request.md` when saving a fixed-rate calculation, and `references/ato-guidance.md` for the relevant rules and refresh linked ATO guidance for the applicable period before final tax treatment.

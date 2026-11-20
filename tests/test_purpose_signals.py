@@ -100,6 +100,25 @@ class PurposeSignalTests(unittest.TestCase):
         left = purpose_signals.suggest(self.db, "2026-07-01", "2026-09-30", connect)["lines"]
         self.assertNotIn(2, {l["transaction_id"] for l in left})
 
+    def test_a_remembered_supplier_rule_drives_the_suggestion(self):
+        import memory_store
+        workspace = self.db.parent.parent
+        rule = dict(entity="example", status="user_confirmed", effective_from="2026-07-01",
+                    source="user", reason="User: Mystery Shop and Potato Corner")
+        memory_store.save(workspace, dict(rule, topic="supplier.potato_corner.purpose", value="Business"))
+        memory_store.save(workspace, dict(rule, topic="supplier.woolworths.purpose", value={"purpose": "personal"}))
+        memory_store.save(workspace, dict(rule, topic="supplier.telstra.purpose", value="Business",
+                                          status="provisional"))  # not the user's word: ignored
+        memory_store.save(workspace, dict(rule, topic="supplier.uber.purpose", value="Business",
+                                          effective_from="2026-08-01"))  # not yet in force on 4 July
+        lines = {l["transaction_id"]: l for l in
+                 purpose_signals.suggest(self.db, "2026-07-01", "2026-09-30", connect)["lines"]}
+        self.assertEqual((lines[8]["suggested"], lines[8]["confidence"]), ("Business", "high"))
+        self.assertEqual(lines[8]["signals"][0]["signal"], "remembered rule")
+        self.assertEqual((lines[1]["suggested"], lines[1]["confidence"]), ("Personal", "high"))
+        self.assertEqual(lines[3]["suggested"], "Shared")
+        self.assertNotIn("remembered rule", {s["signal"] for s in lines[4]["signals"]})
+
     def test_no_personal_source_says_so(self):
         with connect(self.db) as c:
             c.execute("DELETE FROM payment_sources")

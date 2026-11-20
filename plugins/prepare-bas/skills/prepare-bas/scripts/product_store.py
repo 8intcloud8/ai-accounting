@@ -150,10 +150,10 @@ def known_workspaces():
     roots = []
     registry = registry_path()
     if registry.exists():
-        roots = json.loads(registry.read_text()).get("workspaces", [])
+        roots = json.loads(registry.read_text(encoding="utf-8")).get("workspaces", [])
     legacy = registry.with_name("accounting-workspace.json")
     if legacy.exists():
-        roots.append(json.loads(legacy.read_text())["workspace"])
+        roots.append(json.loads(legacy.read_text(encoding="utf-8"))["workspace"])
     result = []
     for root in dict.fromkeys(roots):
         db = Path(root) / "db" / "accounting.db"
@@ -164,13 +164,13 @@ def known_workspaces():
 
 def register_workspace(root):
     registry = registry_path()
-    data = json.loads(registry.read_text()) if registry.exists() else {"workspaces": []}
+    data = json.loads(registry.read_text(encoding="utf-8")) if registry.exists() else {"workspaces": []}
     root = str(Path(root).resolve())
     if root not in data["workspaces"]:
         data["workspaces"].append(root)
         registry.parent.mkdir(parents=True, exist_ok=True)
         temp = registry.with_suffix(".tmp")
-        temp.write_text(json.dumps(data, indent=2) + "\n")
+        temp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
         temp.replace(registry)
 
 
@@ -178,7 +178,7 @@ def read_request(path):
     """JSON from a request file, or from stdin when the path is "-" so callers
     need not write a file for every command."""
     import sys
-    return json.loads(sys.stdin.read() if str(path) == "-" else Path(path).read_text())
+    return json.loads(sys.stdin.read() if str(path) == "-" else Path(path).read_text(encoding="utf-8"))
 
 
 def default_db():
@@ -191,7 +191,7 @@ def default_db():
     )
     if config.exists():
         return (
-            Path(json.loads(config.read_text())["workspace"]) / "db" / "accounting.db"
+            Path(json.loads(config.read_text(encoding="utf-8"))["workspace"]) / "db" / "accounting.db"
         )
     return Path.home() / ".ai-accounting" / "accounting.db"
 
@@ -1418,10 +1418,10 @@ def report(path, kind, start, end, connect):
     folder.mkdir(parents=True, exist_ok=True)
     filename = folder / f"{kind}-{start}-{end}-{digest[:12]}.json"
     if not filename.exists():
-        filename.write_text(json.dumps(result, indent=2) + "\n")
+        filename.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     csv_path = filename.with_suffix(".csv")
     if not csv_path.exists():
-        with csv_path.open("x", newline="") as handle:
+        with csv_path.open("x", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
             if kind == "bas":
                 writer.writerow(
@@ -1463,14 +1463,14 @@ def report(path, kind, start, end, connect):
                     )
     exceptions = filename.with_name(filename.stem + "-exceptions.csv")
     if not exceptions.exists():
-        with exceptions.open("x", newline="") as handle:
+        with exceptions.open("x", newline="", encoding="utf-8") as handle:
             writer = csv.writer(handle)
             writer.writerow(["business_id", "period_start", "period_end", "blocker"])
             for blocker in result["blockers"]:
                 writer.writerow([p["business_id"], start, end, blocker])
     register = filename.with_name(filename.stem + "-documents.csv")
     if not register.exists():
-        with register.open("x", newline="") as handle:
+        with register.open("x", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(
                 handle,
                 fieldnames=[

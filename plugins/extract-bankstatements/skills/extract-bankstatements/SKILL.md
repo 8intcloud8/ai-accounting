@@ -17,6 +17,8 @@ If `ato-docs` is unavailable, read references/ato-first.md and follow this skill
 
 # Extract Bank Statement
 
+On Windows, run every `python3` command in this skill as `py -3` (or `python` if `py` is missing).
+
 
 
 Read `references/proactive-tax-review.md` during every transaction-use/classification review. Analyse available facts and apply verified ATO rules proactively; ask only for missing facts that change applicability, never ask the user to decide established GST/tax rules. Keep accounting category, business use, deductibility, GST treatment and missing amount evidence separate. Reuse confirmed facts and applicable prior decisions. Resolve known zero/outside-GST/no-credit treatments without leaving them pending for unrelated missing documents.
