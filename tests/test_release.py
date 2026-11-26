@@ -62,7 +62,7 @@ def build_suite(root):
     """Copy the suite (minus Node build output) into a disposable temp root."""
     suite = root / "suite"
     suite.mkdir()
-    for folder in ("scripts", "accounting_core", "app"):
+    for folder in ("scripts", "accounting_core"):
         shutil.copytree(
             ROOT / folder, suite / folder, ignore=shutil.ignore_patterns("__pycache__")
         )
