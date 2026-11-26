@@ -1,6 +1,7 @@
 """Behaviour tests use disposable workspaces, never personal accounting data."""
 
 import json
+import os
 from contextlib import closing
 import shutil
 import sqlite3
@@ -156,7 +157,13 @@ class ProductTests(unittest.TestCase):
     def test_proposal_gst_can_cite_local_ato_library(self):
         import ato_library
         import proposal_store
+        from unittest import mock
 
+        library_dir = self.root / "ato-library"
+        library_dir.mkdir()
+        patcher = mock.patch.dict(os.environ, {"AI_ACCOUNTING_LIBRARY": str(library_dir)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
         guide = self.root / "gst.md"
         guide.write_text("# Taxable sales\n\nYou must pay GST on taxable sales you make in Australia.\n")
         added = ato_library.add(guide, title="GST basics", url="https://www.ato.gov.au/gst")
